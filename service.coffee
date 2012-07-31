@@ -80,8 +80,27 @@ app.router.path "/widget", ->
                                     tml.push '  ' + uglify "templates['#{name}'] = #{template}"
                                 js.push tml.join "\n"
 
-                                # Add a callback to execute the widget.
-                                js.push "\n  /**#@+ initialize */\n  var widget = new Widget(config, templates);\n"
+                                # Do we have a custom CSS file?
+                                path = "./widgets/#{id}/style.css"
+                                try
+                                    exists = fs.lstatSync path
+                                catch e
+                                if exists
+                                    # Read the file.
+                                    css = fs.readFileSync path, "utf-8"
+                                    # Escape all single quotes.
+                                    css = css.replace /\'/g, "\\'"
+                                    # Escape newlines.
+                                    css = css.replace /(\r\n|\n|\r)/gm, "\\\n"
+                                    # Embed.
+                                    exec = """
+                                    /**#@+ css */
+                                    var style = document.createElement('style');
+                                    style.type = 'text/css';
+                                    style.innerHTML = '#{css}';
+                                    document.head.appendChild(style);
+                                    """
+                                    js.push ("  #{line}" for line in exec.split("\n")).join("\n")
 
                                 # Finally add us to the browser `cache` under the callback id.
                                 cb = """

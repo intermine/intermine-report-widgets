@@ -42,6 +42,7 @@ An example configuration for a Widget can be seen below:
 {
     "publications-displayer": {
         "title": "Publications for Gene",
+        "description": "Shows a list of publications for a specific gene",
         "version": "0.0.1",
         "dependencies": [
             {
