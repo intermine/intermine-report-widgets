@@ -6,6 +6,7 @@ connect  = require 'connect'
 urlib    = require 'url'
 fs       = require 'fs'
 eco      = require 'eco'
+cs       = require 'coffee-script'
 
 # Read the config file.
 config = JSON.parse fs.readFileSync './config.json'
@@ -16,7 +17,9 @@ if not config.service? or
 
 app = flatiron.app
 app.use flatiron.plugins.http,
-    'before': []
+    'before': [
+        connect.static './public'
+    ]
     'after':  []
 
 app.start config.service.port, (err) ->
@@ -24,20 +27,103 @@ app.start config.service.port, (err) ->
     app.log.info "Listening on port #{app.server.address().port}".green if process.env.NODE_ENV isnt 'test'
 
 # -------------------------------------------------------------------
-# Eco templating.
-app.use
-    name: "eco-templating"
-    attach: (options) ->
-        app.eco = (path, data, cb) ->
-            fs.readFile "./src/site/#{path}.eco", "utf8", (err, template) ->
-                if err then cb err, {} else cb undefined, eco.render template, data
-
-# -------------------------------------------------------------------
 # List all available widgets.
 app.router.path "/widgets", ->
     @get ->
-        app.log.info "Root"
+        app.log.info "Get a listing of available widgets"
 
         @res.writeHead 200, "content-type": "application/json"
         @res.write JSON.stringify config.widgets
         @res.end()
+
+app.router.path "/widget", ->
+    @get ->
+        id = @req.query.id
+        if id?
+            app.log.info "Get widget " + id.bold
+
+            # Do we know this one?
+            if config.widgets[id]?
+                # Load the presenter .coffee file.
+                path = "./widgets/#{id}/presenter.coffee"
+                try
+                    isFine = fs.lstatSync path
+                catch e
+                    @res.writeHead 500, "content-type": "application/json"
+                    @res.write JSON.stringify 'message': "Widget `#{id}` is misconfigured, does not have a presenter defined"
+                    @res.end()
+
+                if isFine?
+                    # Bare-ly compile the presenter.
+                    js = [ '/**#@+ the presenter */',  cs.compile fs.readFileSync(path, "utf-8"), bare: "on" ]
+
+                    # Tack on any config.
+                    cfg = JSON.stringify(config.widgets[id].config) or '{}'
+                    js.push "/**#@+ the config */\nvar config = #{cfg};\n"
+
+                    # Compile eco templates.
+                    walk "./widgets/#{id}", /\.eco$/, (err, templates) =>
+                        if err
+                            @res.writeHead 500, "content-type": "application/json"
+                            @res.write JSON.stringify 'message': "Widget `#{id}` is misconfigured, problem loading templates"
+                            @res.end()
+                        else
+                            tml = [ "/**#@+ the templates */\nvar templates = {};" ]
+                            for file in templates
+                                template = eco.precompile fs.readFileSync file, "utf-8"
+                                name = file.split('/').pop()[0...-4]
+                                tml.push uglify "templates['#{name}'] = #{template}"
+                            js.push tml.join "\n"
+
+                            # Finally add a callback to execute.
+
+                            @res.writeHead 200, "content-type": "application/javascript"
+                            @res.write js.join "\n"
+                            @res.end()
+            else
+                @res.writeHead 400, "content-type": "application/json"
+                @res.write JSON.stringify 'message': "Unknown widget `#{id}`"
+                @res.end()
+        else
+            @res.writeHead 400, "content-type": "application/json"
+            @res.write JSON.stringify 'message': 'You need to specify the widget in `id` parameter'
+            @res.end()
+
+# Traverse a directory and return a list of files (async, recursive).
+walk = (path, filter, callback) ->
+    results = []
+    # Read directory.
+    fs.readdir path, (err, list) ->
+        # Problems?
+        return callback err if err
+        
+        # Get listing length.
+        pending = list.length
+        
+        return callback null, results unless pending # Done already?
+        
+        # Traverse.
+        list.forEach (file) ->
+            # Form path
+            file = "#{path}/#{file}"
+            fs.stat file, (err, stat) ->
+                # Subdirectory.
+                if stat and stat.isDirectory()
+                    walk file, (err, res) ->
+                        # Append result from sub.
+                        results = results.concat(res)
+                        callback null, results unless --pending # Done yet?
+                # A file.
+                else
+                    if filter?
+                        if file.match filter then results.push file
+                    else
+                        results.push file
+                    callback null, results unless --pending # Done yet?
+
+# Compress using `uglify-js`.
+uglify = (input) ->
+    jsp = require("uglify-js").parser
+    pro = require("uglify-js").uglify
+
+    pro.gen_code pro.ast_squeeze pro.ast_mangle jsp.parse input

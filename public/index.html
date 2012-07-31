@@ -1,0 +1,60 @@
+<!doctype html>
+<head>
+    <meta charset="utf-8" />
+
+    <title>Report Widgets Service</title>
+
+    <link rel="stylesheet" href="css/foundation3.css">
+    <link rel="stylesheet" href="css/tricolore.css">
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="js/rainbow.js"></script>
+    <script src="js/lang/coffeescript.js"></script>
+    <script src="js/lang/css.js"></script>
+    <script src="js/lang/generic.js"></script>
+    <script src="js/lang/html.js"></script>
+    <script src="js/lang/javascript.js"></script>
+
+    <script src="js/jquery-1.7.2.js"></script>
+</head>
+<body>
+    <div class="row">
+        <h2>Report Widgets Service</h2>
+    </div>
+
+    <div class="row">
+        <h4>Widgets listing</h4>
+        <p>Fetches the widgets and their config that this service can provide.</p>
+        <script>
+            $.get('/widgets', function(data) {
+                $('#widgets').html(JSON.stringify(data, undefined, 2));
+                Rainbow.color(function() {
+                    console.log('the new blocks are now highlighted!');
+                });
+            });
+        </script>
+        <pre><code data-language="generic" id="widgets"></code></pre>
+    </div>
+
+    <div class="row">
+        <h4>Publications widget</h4>
+        <pre><code data-language="javascript">
+// give us report widgets from a specific service in a callback `widgets`
+intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
+    // now load a specific widget and place it in a div.
+    widgets.load('publications-displayer', '#publications');
+});
+        </code></pre>
+        <script>
+            $.ajax({
+                'url': '/widget?id=publications-displayer',
+                'dataType': "script",
+                success: function() {
+                    console.log('displayer loaded!');
+                }
+            });
+        </script>
+        <div id="publications"></div>
+    </div>
+</body>
+</html>
