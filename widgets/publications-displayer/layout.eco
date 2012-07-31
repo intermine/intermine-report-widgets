@@ -1,2 +1,18 @@
-<h3>Publications Displayer</h3>
-<p>Some description goes here</p>
+<h4>I show you publications now</h4>
+
+<table>
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Author</th>
+        </tr>
+    </thead>
+    <tbody>
+        <% for row in @rows: %>
+            <tr>
+                <td><%= row.title %></td>
+                <td><%= row.author %></td>
+            </tr>
+        <% end %>
+    </tbody>
+</table>

@@ -42,47 +42,73 @@ app.router.path "/widget", ->
         if id?
             app.log.info "Get widget " + id.bold
 
-            # Do we know this one?
-            if config.widgets[id]?
-                # Load the presenter .coffee file.
-                path = "./widgets/#{id}/presenter.coffee"
-                try
-                    isFine = fs.lstatSync path
-                catch e
-                    @res.writeHead 500, "content-type": "application/json"
-                    @res.write JSON.stringify 'message': "Widget `#{id}` is misconfigured, does not have a presenter defined"
+            # Is the callback provided?
+            if @req.query.callback?
+                # Do we know this one?
+                if config.widgets[id]?
+                    # Load the presenter .coffee file.
+                    path = "./widgets/#{id}/presenter.coffee"
+                    try
+                        isFine = fs.lstatSync path
+                    catch e
+                        @res.writeHead 500, "content-type": "application/json"
+                        @res.write JSON.stringify 'message': "Widget `#{id}` is misconfigured, does not have a presenter defined"
+                        @res.end()
+
+                    if isFine?
+                        # Bare-ly compile the presenter.
+                        js = [
+                            "(function() {\nvar root = this;\n\n  /**#@+ the presenter */"
+                            ("  #{line}" for line in cs.compile(fs.readFileSync(path, "utf-8"), bare: "on").split("\n")).join("\n")
+                        ]
+
+                        # Tack on any config.
+                        cfg = JSON.stringify(config.widgets[id].config) or '{}'
+                        js.push "  /**#@+ the config */\n  var config = #{cfg};\n"
+
+                        # Compile eco templates.
+                        walk "./widgets/#{id}", /\.eco$/, (err, templates) =>
+                            if err
+                                @res.writeHead 500, "content-type": "application/json"
+                                @res.write JSON.stringify 'message': "Widget `#{id}` is misconfigured, problem loading templates"
+                                @res.end()
+                            else
+                                tml = [ "  /**#@+ the templates */\n  var templates = {};" ]
+                                for file in templates
+                                    template = eco.precompile fs.readFileSync file, "utf-8"
+                                    name = file.split('/').pop()[0...-4]
+                                    tml.push '  ' + uglify "templates['#{name}'] = #{template}"
+                                js.push tml.join "\n"
+
+                                # Add a callback to execute the widget.
+                                js.push "\n  /**#@+ initialize */\n  var widget = new Widget(config, templates);\n"
+
+                                # Finally add us to the browser `cache` under the callback id.
+                                cb = """
+                                /**#@+ callback from a cache */
+                                (function() {
+                                  var parent, part, _i, _len, _ref;
+                                  parent = this;
+                                  _ref = 'intermine.cache.widgets'.split('.');
+                                  for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                                    part = _ref[_i];
+                                    parent = parent[part] = parent[part] || {};
+                                  }
+                                }).call(root);
+                                """
+                                js.push ("  #{line}" for line in cb.split("\n")).join("\n")
+                                js.push "  root.intermine.cache.widgets['#{@req.query.callback}'] = new Widget(config, templates);\n\n}).call(this);"
+
+                                @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
+                                @res.write js.join "\n"
+                                @res.end()
+                else
+                    @res.writeHead 400, "content-type": "application/json"
+                    @res.write JSON.stringify 'message': "Unknown widget `#{id}`"
                     @res.end()
-
-                if isFine?
-                    # Bare-ly compile the presenter.
-                    js = [ '/**#@+ the presenter */',  cs.compile fs.readFileSync(path, "utf-8"), bare: "on" ]
-
-                    # Tack on any config.
-                    cfg = JSON.stringify(config.widgets[id].config) or '{}'
-                    js.push "/**#@+ the config */\nvar config = #{cfg};\n"
-
-                    # Compile eco templates.
-                    walk "./widgets/#{id}", /\.eco$/, (err, templates) =>
-                        if err
-                            @res.writeHead 500, "content-type": "application/json"
-                            @res.write JSON.stringify 'message': "Widget `#{id}` is misconfigured, problem loading templates"
-                            @res.end()
-                        else
-                            tml = [ "/**#@+ the templates */\nvar templates = {};" ]
-                            for file in templates
-                                template = eco.precompile fs.readFileSync file, "utf-8"
-                                name = file.split('/').pop()[0...-4]
-                                tml.push uglify "templates['#{name}'] = #{template}"
-                            js.push tml.join "\n"
-
-                            # Finally add a callback to execute.
-
-                            @res.writeHead 200, "content-type": "application/javascript"
-                            @res.write js.join "\n"
-                            @res.end()
             else
                 @res.writeHead 400, "content-type": "application/json"
-                @res.write JSON.stringify 'message': "Unknown widget `#{id}`"
+                @res.write JSON.stringify 'message': 'You need to specify a `callback` parameter'
                 @res.end()
         else
             @res.writeHead 400, "content-type": "application/json"

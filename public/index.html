@@ -23,21 +23,19 @@
     </div>
 
     <div class="row">
-        <h4>Widgets listing</h4>
+        <h3>Widgets listing</h3>
         <p>Fetches the widgets and their config that this service can provide.</p>
         <script>
             $.get('/widgets', function(data) {
                 $('#widgets').html(JSON.stringify(data, undefined, 2));
-                Rainbow.color(function() {
-                    console.log('the new blocks are now highlighted!');
-                });
+                Rainbow.color();
             });
         </script>
         <pre><code data-language="generic" id="widgets"></code></pre>
     </div>
 
     <div class="row">
-        <h4>Publications widget</h4>
+        <h3>Publications widget</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
 intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
@@ -46,13 +44,22 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
 });
         </code></pre>
         <script>
-            $.ajax({
-                'url': '/widget?id=publications-displayer',
-                'dataType': "script",
-                success: function() {
-                    console.log('displayer loaded!');
-                }
-            });
+            (function(widgetId, target) {
+                // Callback id, random...
+                var callback = 24517;
+                // TODO: Make sure we have deps, so fetch (or use cached) widgets listing.
+                // Get the compiled script.
+                $.ajax({
+                    'url': '/widget?id=' + widgetId + '&callback=' + callback,
+                    'dataType': "script",
+                    success: function() {
+                        // Get the widget from the `cache`.
+                        var widget = window.intermine.cache.widgets[callback];
+                        // Render.
+                        widget.render(target);
+                    }
+                });
+            })('publications-displayer', '#publications');
         </script>
         <div id="publications"></div>
     </div>

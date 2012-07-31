@@ -25,12 +25,14 @@ $ ./service.sh
   5. Optional number of requirements (CSS, JS), loaded from the [CDN](https://github.com/intermine/CDN).
 6. All of the previous are configured by the user.
 7. *Data* requests are done from within the widget to speed up their initial loading.
-8. No globals pollution.
+8. Files are served as UTF-8.
 
 ### Optional
 
 * Cache resources by, for example, not packaging resources on the fly but doing so on service startup.
 * Allow the use of [LESS](http://lesscss.org/) instead of CSS.
+* Check for the presence of `Displayer.prototype.render` and `Displayer.prototype.initialize` in the compiled *presenter*.
+* Validate that callbacks are valid JavaScript identifiers. Should not be needed as we will use API loader and generate these automagically.
 
 ## Example
 
