@@ -1,0 +1,23 @@
+
+{
+    "name": "report-widgets-service",
+    "author": "Radek <rs676@cam.ac.uk>",
+    "version": "0.0.1",
+    "engines": {
+        "node": "0.6.x"
+    },
+    "dependencies": {
+        "coffee-script": "1.3.3",
+        "flatiron": "git://github.com/flatiron/flatiron.git#master",
+        "union": "git://github.com/flatiron/union.git#master",
+        "connect": "1.9.2",
+        "eco": "1.1.0-rc-3",
+        "uglify-js": "1.3.2",
+        "colors": "0.6.0-1"
+    },
+    "private": true,
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/radekstepan/report-widgets-service.git"
+    }
+}

@@ -2,6 +2,15 @@
 
 A node.js reference implementation of a service for loading and rendering Report Widgets (Displayers).
 
+## Run
+
+Make sure [node.js](https://github.com/joyent/node/wiki/Installation) is installed.
+
+```bash
+$ npm install -d
+$ ./service.sh
+```
+
 ## Requirements
 
 1. Compile *templates* into their JS form and make them accessible within the context of the widget only.

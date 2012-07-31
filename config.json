@@ -1,0 +1,28 @@
+{
+    "service": {
+        "port": 1119
+    },
+    "widgets": {
+        "publications-displayer": {
+            "title": "Publications for Gene",
+            "description": "Shows a list of publications for a specific gene",
+            "version": "0.0.1",
+            "dependencies": [
+                {
+                    "name": "jQuery",
+                    "path": "http://cdn.intermine.org/js/json3/3.2.2/json3.min.js",
+                    "type": "js"
+                },
+                {
+                    "name": "Backbone",
+                    "path": "http://cdn.intermine.org/js/backbone.js/0.9.2/backbone-min.js",
+                    "type": "js",
+                    "wait": true
+                }
+            ],
+            "config": {
+                "mine": "http://beta.flymine.org/beta"
+            }
+        }
+    }
+}
