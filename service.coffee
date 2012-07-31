@@ -7,6 +7,8 @@ urlib    = require 'url'
 fs       = require 'fs'
 eco      = require 'eco'
 cs       = require 'coffee-script'
+uglifyJs = require 'uglify-js'
+cleancss = require 'clean-css'
 
 # Read the config file.
 config = JSON.parse fs.readFileSync './config.json'
@@ -77,7 +79,7 @@ app.router.path "/widget", ->
                                 for file in templates
                                     template = eco.precompile fs.readFileSync file, "utf-8"
                                     name = file.split('/').pop()[0...-4]
-                                    tml.push '  ' + uglify "templates['#{name}'] = #{template}"
+                                    tml.push '  ' + minify "templates['#{name}'] = #{template}"
                                 js.push tml.join "\n"
 
                                 # Do we have a custom CSS file?
@@ -90,15 +92,15 @@ app.router.path "/widget", ->
                                     css = fs.readFileSync path, "utf-8"
                                     # Escape all single quotes.
                                     css = css.replace /\'/g, "\\'"
-                                    # Escape newlines.
-                                    css = css.replace /(\r\n|\n|\r)/gm, "\\\n"
+                                    # Minify
+                                    css = minify css, 'css'
                                     # Embed.
                                     exec = """
-                                    /**#@+ css */
+                                    \n/**#@+ css */
                                     var style = document.createElement('style');
                                     style.type = 'text/css';
                                     style.innerHTML = '#{css}';
-                                    document.head.appendChild(style);
+                                    document.head.appendChild(style);\n
                                     """
                                     js.push ("  #{line}" for line in exec.split("\n")).join("\n")
 
@@ -166,9 +168,11 @@ walk = (path, filter, callback) ->
                         results.push file
                     callback null, results unless --pending # Done yet?
 
-# Compress using `uglify-js`.
-uglify = (input) ->
-    jsp = require("uglify-js").parser
-    pro = require("uglify-js").uglify
-
-    pro.gen_code pro.ast_squeeze pro.ast_mangle jsp.parse input
+# Compress using `uglify-js` or `clean-css`.
+minify = (input, type="js") ->
+    switch type
+        when 'js'
+            jsp = uglifyJs.parser ; pro = uglifyJs.uglify
+            pro.gen_code pro.ast_squeeze pro.ast_mangle jsp.parse input
+        when 'css'
+            cleancss.process input
