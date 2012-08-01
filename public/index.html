@@ -39,28 +39,37 @@
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
 intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
-    // now load a specific widget and place it in a div.
-    widgets.load('publications-displayer', '#publications');
+    // now load a specific widget and place it in a target element.
+    widgets.load('publications-displayer', '#publications', function() {
+        // optionally have a callback executed when widget dependencies and widget itself has loaded.
+        console.log('the widget has loaded');
+    });
 });
         </code></pre>
         <script>
             (function(widgetId, target) {
-                // Callback id, random...
-                var callback = 24517;
-                // TODO: Make sure we have deps, so fetch (or use cached) widgets listing.
-                // Get the compiled script.
-                $.ajax({
-                    'url': [ '/widget', callback, widgetId ].join('/'),
-                    'dataType': "script",
-                    success: function() {
-                        // Create a wrapper for the target.
-                        $(target).html($('<div/>', { 'id': 'w' + callback }));
-                        // Get the widget from the `cache`.
-                        var widget = window.intermine.temp.widgets[callback];
-                        // Render.
-                        widget.render('#w' + callback);
-                    }
-                });
+                var widgets = {};
+                widgets.load = function(widgetId, target) {
+                    // The server we fetch the widgets from.
+                    var server = 'http://127.0.0.1:1119';
+                    // Callback id, random...
+                    var callback = 24517;
+                    // TODO: Make sure we have deps, so fetch (or use cached) widgets listing.
+                    // Get the compiled script.
+                    $.ajax({
+                        'url': [ server, 'widget', callback, widgetId ].join('/'),
+                        'dataType': "script",
+                        success: function() {
+                            // Create a wrapper for the target.
+                            $(target).html($('<div/>', { 'id': 'w' + callback }));
+                            // Get the widget from the `cache`.
+                            var widget = window.intermine.temp.widgets[callback];
+                            // Render.
+                            widget.render('#w' + callback);
+                        }
+                    });
+                }
+                widgets.load(widgetId, target);
             })('publications-displayer', '#publications');
         </script>
         <div id="publications"></div>
