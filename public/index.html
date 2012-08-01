@@ -53,10 +53,12 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
                     'url': '/widget?id=' + widgetId + '&callback=' + callback,
                     'dataType': "script",
                     success: function() {
+                        // Create a wrapper for the target.
+                        $(target).html($('<div/>', { 'id': 'w' + callback }));
                         // Get the widget from the `cache`.
                         var widget = window.intermine.cache.widgets[callback];
                         // Render.
-                        widget.render(target);
+                        widget.render('#w' + callback);
                     }
                 });
             })('publications-displayer', '#publications');
