@@ -43,8 +43,8 @@
                     ],
                     "from": "Gene",
                     "where": {
-                        "ncbiGeneNumber": {
-                            "=": 34430
+                        "symbol": {
+                            "=": "zen"
                         }
                     },
                     "joins": [

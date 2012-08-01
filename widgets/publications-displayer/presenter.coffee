@@ -9,14 +9,12 @@ class Widget
 
     # Have access to config and templates compiled in.
     constructor: (@config, @templates) ->
+        # Point to the mine's service.
+        @service = new intermine.Service 'root': @config.mine
 
     # Render simply returns a string to be returned to the target.
     render: (target) ->
-        $(target).html @templates.layout
-            'rows': [
-                    'title':  'ßibli'
-                    'author': 'Jeebus'
-                ,
-                    'title':  'Book of Spaghetti'
-                    'author': 'His holiness Ramen'
-            ]
+        @service.query @config.pathQuery, (q) =>
+            q.records (records) =>
+                $(target).html @templates.layout
+                    'rows': records.pop().publications

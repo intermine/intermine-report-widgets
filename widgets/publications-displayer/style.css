@@ -1,2 +1,1 @@
-h4 { color:red; background:yellow }
-.some :after { content:'fdofd'; }
+span.author:not(:last-child):after { content:","; display:inline-block; }
