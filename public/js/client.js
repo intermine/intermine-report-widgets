@@ -35,16 +35,17 @@
         run = function() {
           var callback;
           callback = 24517;
+          console.log("Getting widget " + widgetId);
           return $.ajax({
             'url': "" + _this.server + "/widget/" + callback + "/" + widgetId,
             'dataType': 'script',
             success: function() {
               var widget;
               $(target).html($("<div/>", {
-                'id': "" + this.selectorPrefix + callback
+                'id': "" + _this.selectorPrefix + callback
               }));
               widget = root.intermine.temp.widgets[callback];
-              return widget.render("#" + this.selectorPrefix + callback);
+              return widget.render("#" + _this.selectorPrefix + callback);
             }
           });
         };

@@ -33,12 +33,14 @@ class ReportWidgets
                 # TODO: Callback id, random...
                 callback = 24517
 
+                console.log "Getting widget #{widgetId}"
+
                 # Get the compiled script.
                 $.ajax
                     'url':      "#{@server}/widget/#{callback}/#{widgetId}"
                     'dataType': 'script'
                     
-                    success: ->        
+                    success: =>        
                         # Create a wrapper for the target.
                         $(target).html $("<div/>",
                             'id': "#{@selectorPrefix}#{callback}"
