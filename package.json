@@ -1,6 +1,6 @@
 
 {
-    "name": "report-widgets-service",
+    "name": "intermine-report-widgets-service",
     "author": "Radek <rs676@cam.ac.uk>",
     "version": "0.0.1",
     "engines": {

@@ -1,4 +1,4 @@
-# Report Widgets Service Reference
+# InterMine Report Widgets Service Reference Implementation
 
 A node.js reference implementation of a service for loading and rendering Report Widgets (Displayers).
 
