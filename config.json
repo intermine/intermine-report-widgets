@@ -4,6 +4,7 @@
     },
     "widgets": {
         "publications-displayer": {
+            "author": "Radek",
             "title": "Publications for Gene",
             "description": "Shows a list of publications for a specific gene",
             "version": "0.0.1",

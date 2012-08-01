@@ -49,7 +49,8 @@ app.router.path "/widget", ->
             callback = @req.query.callback
             if callback?
                 # Do we know this one?
-                if config.widgets[id]?
+                widget = config.widgets[id]
+                if widget?
                     # Load the presenter .coffee file.
                     path = "./widgets/#{id}/presenter.coffee"
                     try
@@ -60,14 +61,32 @@ app.router.path "/widget", ->
                         @res.end()
 
                     if isFine?
+                        # Create a signature.
+                        sig = """
+                        /**
+                         *      _/_/_/  _/      _/   
+                         *       _/    _/_/  _/_/     InterMine Report Widget
+                         *      _/    _/  _/  _/      (C) 2012 InterMine, University of Cambridge.
+                         *     _/    _/      _/       http://intermine.org
+                         *  _/_/_/  _/      _/
+                         *
+                         *  Name: #{widget.title}
+                         *  Author: #{widget.author}
+                         *  Description: #{widget.description}
+                         *  Version: #{widget.version}
+                         *  Generated: #{(new Date()).toUTCString()}
+                         */\n
+                        """
+
                         # Bare-ly compile the presenter.
                         js = [
+                            sig
                             "(function() {\nvar root = this;\n\n  /**#@+ the presenter */"
                             ("  #{line}" for line in cs.compile(fs.readFileSync(path, "utf-8"), bare: "on").split("\n")).join("\n")
                         ]
 
                         # Tack on any config.
-                        cfg = JSON.stringify(config.widgets[id].config) or '{}'
+                        cfg = JSON.stringify(widget.config) or '{}'
                         js.push "  /**#@+ the config */\n  var config = #{cfg};\n"
 
                         # Compile eco templates.
