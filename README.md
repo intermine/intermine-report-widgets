@@ -33,6 +33,7 @@ $ ./service.sh
 
 * Cache resources by, for example, not packaging resources on the fly but doing so on service startup. Then, say the latest modification date.
 * Allow the use of [LESS](http://lesscss.org/) instead of CSS.
+* Allow the use of other templating languages.
 * Check for the presence of `Displayer.prototype.render` and `Displayer.prototype.initialize` in the compiled *presenter*.
 * Validate that callbacks are valid JavaScript identifiers. Should not be needed as we will use API loader and generate these automagically.
 * Provide a signature in the generated output describing the title, author etc for the widget in question.
@@ -51,12 +52,13 @@ An example configuration for a Widget can be seen below:
 ```json
 {
     "publications-displayer": {
+        "author": "Radek",
         "title": "Publications for Gene",
         "description": "Shows a list of publications for a specific gene",
         "version": "0.0.1",
         "dependencies": [
             {
-                "name": "jQuery",
+                "name": "JSON",
                 "path": "http://cdn.intermine.org/js/json3/3.2.2/json3.min.js",
                 "type": "js"
             },

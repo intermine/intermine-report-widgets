@@ -10,7 +10,7 @@
             "version": "0.0.1",
             "dependencies": [
                 {
-                    "name": "jQuery",
+                    "name": "JSON",
                     "path": "http://cdn.intermine.org/js/json3/3.2.2/json3.min.js",
                     "type": "js"
                 },
