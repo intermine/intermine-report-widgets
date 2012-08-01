@@ -26,6 +26,7 @@ $ ./service.sh
 6. All of the previous are configured by the user.
 7. *Data* requests are done from within the widget to speed up their initial loading.
 8. Files are served as UTF-8.
+9. Provide nice URL for fetching the widgets so it is easier to debug them in Network view, `/widget/24517/publications-displayer`.
 
 ### Optional
 
@@ -33,6 +34,7 @@ $ ./service.sh
 * Allow the use of [LESS](http://lesscss.org/) instead of CSS.
 * Check for the presence of `Displayer.prototype.render` and `Displayer.prototype.initialize` in the compiled *presenter*.
 * Validate that callbacks are valid JavaScript identifiers. Should not be needed as we will use API loader and generate these automagically.
+* Provide a signature in the generated output describing the title, author etc for the widget in question.
 
 ## Example
 

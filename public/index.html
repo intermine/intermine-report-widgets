@@ -50,13 +50,13 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
                 // TODO: Make sure we have deps, so fetch (or use cached) widgets listing.
                 // Get the compiled script.
                 $.ajax({
-                    'url': '/widget?id=' + widgetId + '&callback=' + callback,
+                    'url': [ '/widget', callback, widgetId ].join('/'),
                     'dataType': "script",
                     success: function() {
                         // Create a wrapper for the target.
                         $(target).html($('<div/>', { 'id': 'w' + callback }));
                         // Get the widget from the `cache`.
-                        var widget = window.intermine.cache.widgets[callback];
+                        var widget = window.intermine.temp.widgets[callback];
                         // Render.
                         widget.render('#w' + callback);
                     }

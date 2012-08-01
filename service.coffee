@@ -39,124 +39,111 @@ app.router.path "/widgets", ->
         @res.write JSON.stringify config.widgets
         @res.end()
 
-app.router.path "/widget", ->
-    @get ->
-        id = @req.query.id
-        if id?
-            app.log.info "Get widget " + id.bold
+app.router.path "/widget/:callback/:widgetId", ->
+    @get (callback, widgetId) ->
+        app.log.info "Get widget " + widgetId.bold
 
-            # Is the callback provided?
-            callback = @req.query.callback
-            if callback?
-                # Do we know this one?
-                widget = config.widgets[id]
-                if widget?
-                    # Load the presenter .coffee file.
-                    path = "./widgets/#{id}/presenter.coffee"
-                    try
-                        isFine = fs.lstatSync path
-                    catch e
-                        @res.writeHead 500, "content-type": "application/json"
-                        @res.write JSON.stringify 'message': "Widget `#{id}` is misconfigured, does not have a presenter defined"
-                        @res.end()
-
-                    if isFine?
-                        # Create a signature.
-                        sig = """
-                        /**
-                         *      _/_/_/  _/      _/   
-                         *       _/    _/_/  _/_/     InterMine Report Widget
-                         *      _/    _/  _/  _/      (C) 2012 InterMine, University of Cambridge.
-                         *     _/    _/      _/       http://intermine.org
-                         *  _/_/_/  _/      _/
-                         *
-                         *  Name: #{widget.title}
-                         *  Author: #{widget.author}
-                         *  Description: #{widget.description}
-                         *  Version: #{widget.version}
-                         *  Generated: #{(new Date()).toUTCString()}
-                         */\n
-                        """
-
-                        # Bare-ly compile the presenter.
-                        js = [
-                            sig
-                            "(function() {\nvar root = this;\n\n  /**#@+ the presenter */"
-                            ("  #{line}" for line in cs.compile(fs.readFileSync(path, "utf-8"), bare: "on").split("\n")).join("\n")
-                        ]
-
-                        # Tack on any config.
-                        cfg = JSON.stringify(widget.config) or '{}'
-                        js.push "  /**#@+ the config */\n  var config = #{cfg};\n"
-
-                        # Compile eco templates.
-                        walk "./widgets/#{id}", /\.eco$/, (err, templates) =>
-                            if err
-                                @res.writeHead 500, "content-type": "application/json"
-                                @res.write JSON.stringify 'message': "Widget `#{id}` is misconfigured, problem loading templates"
-                                @res.end()
-                            else
-                                tml = [ "  /**#@+ the templates */\n  var templates = {};" ]
-                                for file in templates
-                                    template = eco.precompile fs.readFileSync file, "utf-8"
-                                    name = file.split('/').pop()[0...-4]
-                                    tml.push '  ' + minify "templates['#{name}'] = #{template}"
-                                js.push tml.join "\n"
-
-                                # Do we have a custom CSS file?
-                                path = "./widgets/#{id}/style.css"
-                                try
-                                    exists = fs.lstatSync path
-                                catch e
-                                if exists
-                                    # Read the file.
-                                    css = fs.readFileSync path, "utf-8"
-                                    # Prefix CSS selectors with a callback id.
-                                    css = prefix css, "div#w#{callback}"
-                                    # Escape all single quotes.
-                                    css = css.replace /\'/g, "\\'"
-                                    # Minify
-                                    css = minify css, 'css'
-                                    # Embed.
-                                    exec = """
-                                    \n/**#@+ css */
-                                    var style = document.createElement('style');
-                                    style.type = 'text/css';
-                                    style.innerHTML = '#{css}';
-                                    document.head.appendChild(style);\n
-                                    """
-                                    js.push ("  #{line}" for line in exec.split("\n")).join("\n")
-
-                                # Finally add us to the browser `cache` under the callback id.
-                                cb = """
-                                /**#@+ callback from a cache */
-                                (function() {
-                                  var parent, part, _i, _len, _ref;
-                                  parent = this;
-                                  _ref = 'intermine.cache.widgets'.split('.');
-                                  for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                                    part = _ref[_i];
-                                    parent = parent[part] = parent[part] || {};
-                                  }
-                                }).call(root);
-                                """
-                                js.push ("  #{line}" for line in cb.split("\n")).join("\n")
-                                js.push "  root.intermine.cache.widgets['#{callback}'] = new Widget(config, templates);\n\n}).call(this);"
-
-                                @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
-                                @res.write js.join "\n"
-                                @res.end()
-                else
-                    @res.writeHead 400, "content-type": "application/json"
-                    @res.write JSON.stringify 'message': "Unknown widget `#{id}`"
-                    @res.end()
-            else
-                @res.writeHead 400, "content-type": "application/json"
-                @res.write JSON.stringify 'message': 'You need to specify a `callback` parameter'
+        # Do we know this one?
+        widget = config.widgets[widgetId]
+        if widget?
+            # Load the presenter .coffee file.
+            path = "./widgets/#{widgetId}/presenter.coffee"
+            try
+                isFine = fs.lstatSync path
+            catch e
+                @res.writeHead 500, "content-type": "application/json"
+                @res.write JSON.stringify 'message': "Widget `#{widgetId}` is misconfigured, does not have a presenter defined"
                 @res.end()
+
+            if isFine?
+                # Create a signature.
+                sig = """
+                /**
+                 *      _/_/_/  _/      _/   
+                 *       _/    _/_/  _/_/     InterMine Report Widget
+                 *      _/    _/  _/  _/      (C) 2012 InterMine, University of Cambridge.
+                 *     _/    _/      _/       http://intermine.org
+                 *  _/_/_/  _/      _/
+                 *
+                 *  Name: #{widget.title}
+                 *  Author: #{widget.author}
+                 *  Description: #{widget.description}
+                 *  Version: #{widget.version}
+                 *  Generated: #{(new Date()).toUTCString()}
+                 */\n
+                """
+
+                # Bare-ly compile the presenter.
+                js = [
+                    sig
+                    "(function() {\nvar root = this;\n\n  /**#@+ the presenter */"
+                    ("  #{line}" for line in cs.compile(fs.readFileSync(path, "utf-8"), bare: "on").split("\n")).join("\n")
+                ]
+
+                # Tack on any config.
+                cfg = JSON.stringify(widget.config) or '{}'
+                js.push "  /**#@+ the config */\n  var config = #{cfg};\n"
+
+                # Compile eco templates.
+                walk "./widgets/#{widgetId}", /\.eco$/, (err, templates) =>
+                    if err
+                        @res.writeHead 500, "content-type": "application/json"
+                        @res.write JSON.stringify 'message': "Widget `#{widgetId}` is misconfigured, problem loading templates"
+                        @res.end()
+                    else
+                        tml = [ "  /**#@+ the templates */\n  var templates = {};" ]
+                        for file in templates
+                            template = eco.precompile fs.readFileSync file, "utf-8"
+                            name = file.split('/').pop()[0...-4]
+                            tml.push '  ' + minify("templates['#{name}'] = #{template}") + ';'
+                        js.push tml.join "\n"
+
+                        # Do we have a custom CSS file?
+                        path = "./widgets/#{widgetId}/style.css"
+                        try
+                            exists = fs.lstatSync path
+                        catch e
+                        if exists
+                            # Read the file.
+                            css = fs.readFileSync path, "utf-8"
+                            # Prefix CSS selectors with a callback id.
+                            css = prefix css, "div#w#{callback}"
+                            # Escape all single quotes.
+                            css = css.replace /\'/g, "\\'"
+                            # Minify
+                            css = minify css, 'css'
+                            # Embed.
+                            exec = """
+                            \n/**#@+ css */
+                            var style = document.createElement('style');
+                            style.type = 'text/css';
+                            style.innerHTML = '#{css}';
+                            document.head.appendChild(style);\n
+                            """
+                            js.push ("  #{line}" for line in exec.split("\n")).join("\n")
+
+                        # Finally add us to the browser `cache` under the callback id.
+                        cb = """
+                        /**#@+ callback */
+                        (function() {
+                          var parent, part, _i, _len, _ref;
+                          parent = this;
+                          _ref = 'intermine.temp.widgets'.split('.');
+                          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                            part = _ref[_i];
+                            parent = parent[part] = parent[part] || {};
+                          }
+                        }).call(root);
+                        """
+                        js.push ("  #{line}" for line in cb.split("\n")).join("\n")
+                        js.push "  root.intermine.temp.widgets['#{callback}'] = new Widget(config, templates);\n\n}).call(this);"
+
+                        @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
+                        @res.write js.join "\n"
+                        @res.end()
         else
             @res.writeHead 400, "content-type": "application/json"
-            @res.write JSON.stringify 'message': 'You need to specify the widget in `id` parameter'
+            @res.write JSON.stringify 'message': "Unknown widget `#{widgetId}`"
             @res.end()
 
 # Traverse a directory and return a list of files (async, recursive).
