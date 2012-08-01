@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/tricolore.css">
     <link rel="stylesheet" href="css/style.css">
 
+    <!-- syntax highlighting -->
     <script src="js/rainbow.js"></script>
     <script src="js/lang/coffeescript.js"></script>
     <script src="js/lang/css.js"></script>
@@ -15,7 +16,14 @@
     <script src="js/lang/html.js"></script>
     <script src="js/lang/javascript.js"></script>
 
+    <!-- jQuery for local manipulation -->
     <script src="js/jquery-1.7.2.js"></script>
+
+    <!-- API loader for dependency resolution -->
+    <script src="http://cdn.intermine.org/api"></script>
+
+    <!-- report widgets client -->
+    <script src="js/client.js"></script>
 </head>
 <body>
     <div class="row">
@@ -47,30 +55,10 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
 });
         </code></pre>
         <script>
-            (function(widgetId, target) {
-                var widgets = {};
-                widgets.load = function(widgetId, target) {
-                    // The server we fetch the widgets from.
-                    var server = 'http://127.0.0.1:1119';
-                    // Callback id, random...
-                    var callback = 24517;
-                    // TODO: Make sure we have deps, so fetch (or use cached) widgets listing.
-                    // Get the compiled script.
-                    $.ajax({
-                        'url': [ server, 'widget', callback, widgetId ].join('/'),
-                        'dataType': "script",
-                        success: function() {
-                            // Create a wrapper for the target.
-                            $(target).html($('<div/>', { 'id': 'w' + callback }));
-                            // Get the widget from the `cache`.
-                            var widget = window.intermine.temp.widgets[callback];
-                            // Render.
-                            widget.render('#w' + callback);
-                        }
-                    });
-                }
-                widgets.load(widgetId, target);
-            })('publications-displayer', '#publications');
+            (function() {
+                var widgets = new window.ReportWidgets('http://127.0.0.1:1119');
+                widgets.load('publications-displayer', '#publications');
+            })();
         </script>
         <div id="publications"></div>
     </div>

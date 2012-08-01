@@ -1,4 +1,10 @@
-# This is my widget definition
+class Publication extends Backbone.Model
+
+class Publications extends Backbone.Collection
+    
+    model: Publication
+
+# This is my widget definition.
 class Widget
 
     # Have access to config and templates compiled in.

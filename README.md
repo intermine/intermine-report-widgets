@@ -8,7 +8,7 @@ Make sure [node.js](https://github.com/joyent/node/wiki/Installation) is install
 
 ```bash
 $ npm install -d
-$ ./service.sh
+$ ./compile.sh
 ```
 
 ## Requirements
@@ -37,6 +37,8 @@ $ ./service.sh
 * Check for the presence of `Displayer.prototype.render` and `Displayer.prototype.initialize` in the compiled *presenter*.
 * Validate that callbacks are valid JavaScript identifiers. Should not be needed as we will use API loader and generate these automagically.
 * Provide a signature in the generated output describing the title, author etc for the widget in question.
+* Each block in the compiled result have a comment header so it is easier to find where things lie when debugging.
+* Provide connection to [imjs](https://github.com/alexkalderimis/imjs) by default.
 
 ### Client
 
