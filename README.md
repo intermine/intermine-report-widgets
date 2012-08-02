@@ -40,12 +40,17 @@ $ ./compile.sh
 * Each block in the compiled result have a comment header so it is easier to find where things lie when debugging.
 * Provide connection to [imjs](https://github.com/alexkalderimis/imjs) by default.
 
+#### Issues
+
+* If we want to split presenter across multiple CoffeScript files, how to maintain their order in the resulting JS version? Go alphabetically?
+
 ### Client
 
 1. Make use of [intermine-api-loader](https://github.com/radekstepan/intermine-api-loader) to efficiently load resources and libs only when needed.
 2. Generate *callbacks* that are unique for the page taking into account other clients that could exist on the page. As the service URL is unique per client, make use of that.
 3. Dump error messages from the server into the target element where widget was supposed to have been.
 4. Cache all of the widgets listing as we need to be resolving widget dependencies first.
+5. Inject the name of the widget as a comment into HTML; opening and closing.
 
 ## Example
 

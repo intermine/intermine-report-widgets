@@ -1,4 +1,14 @@
-<h4><%= @title %></h4>
+<header>
+    <!-- pagination -->
+    <ul class="pages">
+        <li>Page:</li>
+    <% for i in [0...@pages]: %>
+        <li><a <% if @current is i: %>class="current"<% end %>><%= i+1 %></a></li>
+    <% end %>
+    </ul>
+
+    <h4>Publications for '<%= @symbol %>'</h4>
+</header>
 
 <table>
     <thead>

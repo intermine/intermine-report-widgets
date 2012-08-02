@@ -4,3 +4,4 @@ body { background:#FFF url('../img/pattern.png'); border-top:5px solid #8E0022; 
 h1,h2,h3 { font-weight:normal; }
 code { background:inherit; font-weight:normal; font-size:12px; }
 .row { background:url('../img/divider.png') repeat-x bottom left; padding-bottom:20px; }
+a, a:hover { color:#8E0022; cursor:pointer; }
