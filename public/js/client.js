@@ -45,7 +45,10 @@
             success: function() {
               var merge, widget;
               $(target).html($("<div/>", {
-                'id': "" + _this.selectorPrefix + callback
+                'id': "" + _this.selectorPrefix + callback,
+                'html': $('<article/>', {
+                  'class': "im-report-widget " + widgetId
+                })
               }));
               widget = root.intermine.temp.widgets[callback];
               merge = function(child, parent) {
@@ -60,7 +63,7 @@
                 return child;
               };
               widget.config = merge(widget.config, options);
-              return widget.render("#" + _this.selectorPrefix + callback);
+              return widget.render("#" + _this.selectorPrefix + callback + " article.im-report-widget");
             }
           });
         };

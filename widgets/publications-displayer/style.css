@@ -1,5 +1,5 @@
 h4 { float:left; }
-ul.pages { display:inline; list-style-type:none; float:right; margin:15px 0; }
+ul.pages { display:inline; list-style-type:none; float:right; margin:15px 0; max-width; }
 ul.pages li { display:inline-block; }
 ul.pages a.current { font-weight:bold; }
 header:after { content:" "; display:block; clear:both; }

@@ -44,7 +44,8 @@ class ReportWidgets
                     success: =>        
                         # Create a wrapper for the target.
                         $(target).html $("<div/>",
-                            'id': "#{@selectorPrefix}#{callback}"
+                            'id':   "#{@selectorPrefix}#{callback}"
+                            'html': $('<article/>', 'class': "im-report-widget #{widgetId}")
                         )
                         
                         # Get the widget from the `cache`.
@@ -59,7 +60,7 @@ class ReportWidgets
                         widget.config = merge widget.config, options
                         
                         # Render.
-                        widget.render "##{@selectorPrefix}#{callback}"
+                        widget.render "##{@selectorPrefix}#{callback} article.im-report-widget"
 
             # Load the dependencies.
             deps = @config[widgetId].dependencies

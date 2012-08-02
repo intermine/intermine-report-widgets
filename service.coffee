@@ -47,6 +47,7 @@ app.router.path "/widget/:callback/:widgetId", ->
         widget = config.widgets[widgetId]
         if widget?
             # Load the presenter .coffee file.
+            app.log.info "Loading presenter .coffee file".grey
             path = "./widgets/#{widgetId}/presenter.coffee"
             try
                 isFine = fs.lstatSync path
@@ -57,6 +58,7 @@ app.router.path "/widget/:callback/:widgetId", ->
 
             if isFine?
                 # Create a signature.
+                app.log.info "Creating signature".grey
                 sig = """
                 /**
                  *      _/_/_/  _/      _/   
@@ -73,6 +75,7 @@ app.router.path "/widget/:callback/:widgetId", ->
                  */\n
                 """
 
+                app.log.info "Compiling presenter .coffee file".grey
                 # Bare-ly compile the presenter.
                 js = [
                     sig
@@ -81,10 +84,12 @@ app.router.path "/widget/:callback/:widgetId", ->
                 ]
 
                 # Tack on any config.
+                app.log.info "Appending config".grey
                 cfg = JSON.stringify(widget.config) or '{}'
                 js.push "  /**#@+ the config */\n  var config = #{cfg};\n"
 
                 # Compile eco templates.
+                app.log.info "Walking the templates".grey
                 walk "./widgets/#{widgetId}", /\.eco$/, (err, templates) =>
                     if err
                         @res.writeHead 500, "content-type": "application/json"
@@ -93,8 +98,11 @@ app.router.path "/widget/:callback/:widgetId", ->
                     else
                         tml = [ "  /**#@+ the templates */\n  var templates = {};" ]
                         for file in templates
+                            name = file.split('/').pop()[0...-4]
+                            app.log.info "Compiling .eco template `#{name}`".grey
                             template = eco.precompile fs.readFileSync file, "utf-8"
                             name = file.split('/').pop()[0...-4]
+                            app.log.info "Minifying .js template `#{name}`".grey
                             tml.push '  ' + minify("templates['#{name}'] = #{template}") + ';'
                         js.push tml.join "\n"
 
@@ -104,6 +112,7 @@ app.router.path "/widget/:callback/:widgetId", ->
                             exists = fs.lstatSync path
                         catch e
                         if exists
+                            app.log.info "Adding custom .css file".grey
                             # Read the file.
                             css = fs.readFileSync path, "utf-8"
                             # Prefix CSS selectors with a callback id.
@@ -138,6 +147,7 @@ app.router.path "/widget/:callback/:widgetId", ->
                         js.push ("  #{line}" for line in cb.split("\n")).join("\n")
                         js.push "  root.intermine.temp.widgets['#{callback}'] = new Widget(config, templates);\n\n}).call(this);"
 
+                        app.log.info "Returning .js package".grey
                         @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
                         @res.write js.join "\n"
                         @res.end()

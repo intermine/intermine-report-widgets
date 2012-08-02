@@ -28,6 +28,7 @@ $ ./compile.sh
 6. *Data* requests are done from within the widget to speed up their initial loading.
 7. Files are served as UTF-8.
 8. Provide nice URL for fetching the widgets so it is easier to debug them in Network view, `/widget/24517/publications-displayer`.
+9. Provide info messages on each step of the compilation process so we can determine where problems lie.
 
 #### Optional
 
@@ -50,7 +51,11 @@ $ ./compile.sh
 2. Generate *callbacks* that are unique for the page taking into account other clients that could exist on the page. As the service URL is unique per client, make use of that.
 3. Dump error messages from the server into the target element where widget was supposed to have been.
 4. Cache all of the widgets listing as we need to be resolving widget dependencies first.
-5. Inject the name of the widget as a comment into HTML; opening and closing.
+5. Provide a wrapping `article` element with a predictable `im-report-widget` class so we can use it in our CSS.
+
+#### Optional
+
+* Provide a callback where all widgets can dump error messages.
 
 ## Example
 

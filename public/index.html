@@ -48,10 +48,7 @@
 // give us report widgets from a specific service in a callback `widgets`
 intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
     // now load a specific widget and place it in a target element.
-    widgets.load('publications-displayer', '#publications', function() {
-        // optionally have a callback executed when widget dependencies and widget itself has loaded.
-        console.log('the widget has loaded');
-    });
+    widgets.load('publications-displayer', '#publications');
 });
         </code></pre>
         <script>

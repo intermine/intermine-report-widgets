@@ -26,7 +26,7 @@ class Table extends Backbone.View
         # Populate the template
         $(@el).html @template
             # Give us a specific page.
-            'rows':    @collection.toJSON().splice @size * @page, @size
+            'rows':    if @collection.length isnt 0 then @collection.toJSON().splice(@size * @page, @size) else []
             'symbol':  @symbol
             'pages':   Math.ceil @collection.length / @size
             'current': @page
@@ -43,14 +43,11 @@ class Table extends Backbone.View
             symbol = $(e.target).val()
             if symbol isnt '' and symbol isnt @symbol
                 # Borrow the data loader from Widget.
-                @data symbol, (err, records) =>
-                    if not err?
-                        # Long live the new King.
-                        @symbol = symbol
-                        @collection = new Publications records
-                        @render()
-                    else
-                        console.log err
+                @data symbol, (records) =>
+                    # Long live the new King.
+                    @symbol = symbol
+                    @collection = new Publications records
+                    @render()
 
         # Reset previous timeouts.
         if @timeout? then clearTimeout @timeout
@@ -65,8 +62,16 @@ class Widget
         # Point to the mine's service.
         @service = new intermine.Service 'root': @config.mine
 
+    # Display a widget-wide error message.
+    _error: (message) ->
+        @templates.error
+            'message': message
+
     # Fetch us the data.
-    data: (symbol, callback) =>
+    data: (symbol, done) =>
+        # Show loading message.
+        $(@target).prepend loading = $ '<div class="alert-box">Loading &hellip;</div>'
+
         # Add the symbol we want to constrain on to the pathQuery.
         pq = @config.pathQuery
         pq.where =
@@ -75,31 +80,29 @@ class Widget
 
         # Run the PathQuery and pop the publications if present.
         @service.query pq, (q) =>
-            q.records (records) ->
-                if records.length isnt 1
-                    callback 'Gene symbol not recognized', {}
+            q.records (records) =>
+                # Remove loading messages.
+                loading.remove()
+
+                # Callback with the results.
+                if records.length is 1 and records[0].publications?
+                    done records.pop().publications
                 else
-                    if records[0].publications?
-                        callback null, records.pop().publications
-                    else
-                        callback 'No publications to show', {}
+                    done []
 
     # Render simply returns a string to be returned to the target.
-    render: (target) ->
+    render: (@target) ->
         # Get the data.
-        @data @config.symbol, (err, records) =>
-            if not err?
-                # new View.
-                view = new Table
-                    # Pop the publications for this gene.
-                    'collection': new Publications records
-                    # 'table.eco' template.
-                    'template':   @templates.table
-                    # Initial symbol coming from client side config.
-                    'symbol':     @config.symbol
-                    # Link back to the data loader.
-                    'data':       @data
-                # Render into the target el.
-                $(target).html view.render().el
-            else
-                console.log err
+        @data @config.symbol, (records) =>
+            # new View.
+            view = new Table
+                # Pop the publications for this gene.
+                'collection': new Publications records
+                # 'table.eco' template.
+                'template':   @templates.table
+                # Initial symbol coming from client side config.
+                'symbol':     @config.symbol
+                # Link back to the data loader.
+                'data':       @data
+            # Render into the target el.
+            $(@target).html view.render().el
