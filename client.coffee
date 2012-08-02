@@ -31,25 +31,27 @@ class ReportWidgets
         else
             # Post dependencies loaded.
             run = =>
-                # TODO: Callback id, random...
-                callback = 24517
+                # Callback id.
+                uid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace /[xy]/g, (c) ->
+                    r = Math.random() * 16 | 0
+                    (if c is "x" then r else r & 0x3 | 0x8).toString 16
 
                 console.log "Getting widget #{widgetId}"
 
                 # Get the compiled script.
                 $.ajax
-                    'url':      "#{@server}/widget/#{callback}/#{widgetId}"
+                    'url':      "#{@server}/widget/#{uid}/#{widgetId}"
                     'dataType': 'script'
                     
                     success: =>        
                         # Create a wrapper for the target.
                         $(target).html $("<div/>",
-                            'id':   "#{@selectorPrefix}#{callback}"
+                            'id':   "w#{uid}"
                             'html': $('<article/>', 'class': "im-report-widget #{widgetId}")
                         )
                         
                         # Get the widget from the `cache`.
-                        widget = root.intermine.temp.widgets[callback]
+                        widget = root.intermine.temp.widgets[uid]
 
                         # Inject the extra options to it.
                         merge = (child, parent) ->
@@ -60,7 +62,7 @@ class ReportWidgets
                         widget.config = merge widget.config, options
                         
                         # Render.
-                        widget.render "##{@selectorPrefix}#{callback} article.im-report-widget"
+                        widget.render "#w#{uid} article.im-report-widget"
 
             # Load the dependencies.
             deps = @config[widgetId].dependencies

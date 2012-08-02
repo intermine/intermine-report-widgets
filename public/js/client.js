@@ -36,21 +36,25 @@
         }), 0);
       } else {
         run = function() {
-          var callback;
-          callback = 24517;
+          var uid;
+          uid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+            var r;
+            r = Math.random() * 16 | 0;
+            return (c === "x" ? r : r & 0x3 | 0x8).toString(16);
+          });
           console.log("Getting widget " + widgetId);
           return $.ajax({
-            'url': "" + _this.server + "/widget/" + callback + "/" + widgetId,
+            'url': "" + _this.server + "/widget/" + uid + "/" + widgetId,
             'dataType': 'script',
             success: function() {
               var merge, widget;
               $(target).html($("<div/>", {
-                'id': "" + _this.selectorPrefix + callback,
+                'id': "w" + uid,
                 'html': $('<article/>', {
                   'class': "im-report-widget " + widgetId
                 })
               }));
-              widget = root.intermine.temp.widgets[callback];
+              widget = root.intermine.temp.widgets[uid];
               merge = function(child, parent) {
                 var key;
                 for (key in parent) {
@@ -63,7 +67,7 @@
                 return child;
               };
               widget.config = merge(widget.config, options);
-              return widget.render("#" + _this.selectorPrefix + callback + " article.im-report-widget");
+              return widget.render("#w" + uid + " article.im-report-widget");
             }
           });
         };
