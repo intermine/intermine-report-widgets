@@ -62,14 +62,10 @@ class Widget
         # Point to the mine's service.
         @service = new intermine.Service 'root': @config.mine
 
-    # Display a widget-wide error message.
-    _error: (message) ->
-        @templates.error
-            'message': message
-
     # Fetch us the data.
     data: (symbol, done) =>
         # Show loading message.
+        $(@view?.el).hide()
         $(@target).prepend loading = $ '<div class="alert-box">Loading &hellip;</div>'
 
         # Add the symbol we want to constrain on to the pathQuery.
@@ -81,7 +77,7 @@ class Widget
         # Run the PathQuery and pop the publications if present.
         @service.query pq, (q) =>
             q.records (records) =>
-                # Remove loading messages.
+                $(@view?.el).show()
                 loading.remove()
 
                 # Callback with the results.
@@ -95,7 +91,7 @@ class Widget
         # Get the data.
         @data @config.symbol, (records) =>
             # new View.
-            view = new Table
+            @view = new Table
                 # Pop the publications for this gene.
                 'collection': new Publications records
                 # 'table.eco' template.
@@ -105,4 +101,4 @@ class Widget
                 # Link back to the data loader.
                 'data':       @data
             # Render into the target el.
-            $(@target).html view.render().el
+            $(@target).html @view.render().el
