@@ -158,3 +158,12 @@ Widget = (function() {
 Other files are optional. For example, one can have as many templates as they want, all saved with `.eco` suffix and these will be available as functions in the above mentioned `templates` object passed to the constructor of the widget.
 
 Also, a CSS file called `style.css` can be present in which case each selector will be prefixed with a unique id of the widget so the style is only applied to the widget itself and not other elements on the page.
+
+## Java Systems
+
+On Java systems the following packages can be used as a replacement for their node.js counterparts.
+
+1. [JCoffeeScript](https://github.com/yeungda/jcoffeescript) compiles CoffeeScript 1.1
+2. [Mustache.java](https://github.com/spullara/mustache.java/) does [mustache](http://mustache.github.com/mustache.5.html) templating as an alternative to eco templates.
+3. [YUI Compressor](http://developer.yahoo.com/yui/compressor/) that compresses CSS and JavaScript both.
+4. A tool for prefixing CSS selectors would need to be written based on say [CSS Parser](http://cssparser.sourceforge.net/).
