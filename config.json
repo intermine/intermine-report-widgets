@@ -11,7 +11,7 @@
             "dependencies": [
                 {
                     "name": "jQuery",
-                    "path": "http://127.0.0.1:1119/js/jquery.min.js",
+                    "path": "http://127.0.0.1:1119/js/jquery-min.js",
                     "type": "js",
                     "wait": true
                 },

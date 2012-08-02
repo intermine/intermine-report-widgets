@@ -86,7 +86,7 @@ class Widget
                 else
                     done []
 
-    # Render simply returns a string to be returned to the target.
+    # Render accepts a target to draw results into.
     render: (@target) ->
         # Get the data.
         @data @config.symbol, (records) =>

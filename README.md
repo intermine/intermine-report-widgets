@@ -2,6 +2,16 @@
 
 A node.js reference implementation of a service for loading and rendering Report Widgets (Displayers).
 
+## Example
+
+```javascript
+// give us report widgets from a specific service in a callback `widgets`
+intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
+    // now load a specific widget and place it in a target element passing it extra config.
+    widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
+});
+```
+
 ## Run
 
 Make sure [node.js](https://github.com/joyent/node/wiki/Installation) is installed.
@@ -57,9 +67,12 @@ $ ./compile.sh
 
 * Provide a callback where all widgets can dump error messages.
 
-## Example
+## Creating a new Report Widget
 
-An example configuration for a Widget can be seen below:
+First config needs to be provided.
+
+* Entries in the `dependencies` list are resolved before the widget package itself is fetched.
+* Any properties in the `config` object are passed into the widget.
 
 ```json
 {
@@ -67,23 +80,80 @@ An example configuration for a Widget can be seen below:
         "author": "Radek",
         "title": "Publications for Gene",
         "description": "Shows a list of publications for a specific gene",
-        "version": "0.0.1",
+        "version": "0.1.1",
         "dependencies": [
             {
-                "name": "JSON",
-                "path": "http://cdn.intermine.org/js/json3/3.2.2/json3.min.js",
-                "type": "js"
+                "name": "jQuery",
+                "path": "http://127.0.0.1:1119/js/jquery-min.js",
+                "type": "js",
+                "wait": true
+            },
+            {
+                "name": "_",
+                "path": "http://127.0.0.1:1119/js/underscore-min.js",
+                "type": "js",
+                "wait": true
             },
             {
                 "name": "Backbone",
-                "path": "http://cdn.intermine.org/js/backbone.js/0.9.2/backbone-min.js",
-                "type": "js",
-                "wait": true
+                "path": "http://127.0.0.1:1119/js/backbone-min.js",
+                "type": "js"
+            },
+            {
+                "path": "http://127.0.0.1:1119/js/imjs.js",
+                "type": "js"
             }
         ],
         "config": {
-            "mine": "http://beta.flymine.org/beta"
+            "mine": "http://beta.flymine.org/beta",
+            "pathQuery": {
+                "select": [
+                    "publications.title",
+                    "publications.year",
+                    "publications.journal",
+                    "publications.pubMedId",
+                    "publications.authors.name"
+                ],
+                "from": "Gene",
+                "joins": [
+                    "publications.authors"
+                ]
+            }
         }
     }
 }
 ```
+
+The next step is writing a *presenter* which is a component that knows how to get data for itself and then render them in a particular way, thus it encapsulates the behavior of the widget.
+
+The file needs to be called `presenter.coffee` and be placed in a directory with the name of the widget, in our case `/widgets/publications-displayer/`. The file needs to contain a class `Widget` with the following signature:
+
+```coffee-script
+class Widget
+
+    # Have access to config and templates compiled in.
+    constructor: (config, templates) ->
+
+    # Render accepts a target to draw results into.
+    render: (target) ->
+```
+
+In JavaScript terms this corresponds to:
+
+```javascript
+var Widget;
+
+Widget = (function() {
+
+    function Widget(config, templates) {}
+
+    Widget.prototype.render = function(target) {};
+
+    return Widget;
+
+})();
+```
+
+Other files are optional. For example, one can have as many templates as they want, all saved with `.eco` suffix and these will be available as functions in the above mentioned `templates` object passed to the constructor of the widget.
+
+Also, a CSS file called `style.css` can be present in which case each selector will be prefixed with a unique id of the widget so the style is only applied to the widget itself and not other elements on the page.
