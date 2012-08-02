@@ -1,13 +1,15 @@
 <header>
     <!-- pagination -->
-    <ul class="pages">
-        <li>Page:</li>
-    <% for i in [0...@pages]: %>
-        <li><a <% if @current is i: %>class="current"<% end %>><%= i+1 %></a></li>
+    <% if @pages > 1: %>
+        <ul class="pages">
+            <li>Page:</li>
+        <% for i in [0...@pages]: %>
+            <li><a <% if @current is i: %>class="current"<% end %>><%= i+1 %></a></li>
+        <% end %>
+        </ul>
     <% end %>
-    </ul>
 
-    <h4>Publications for '<%= @symbol %>'</h4>
+    <h4><%= @count %> Publications for</h4> <input type="text" placeholder="zen" class="symbol three columns" value="<%= @symbol %>" />
 </header>
 
 <table>

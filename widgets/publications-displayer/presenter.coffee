@@ -15,14 +15,12 @@ class Table extends Backbone.View
 
     # The behaviors.
     events:
-        'click ul.pages a': 'changePage'
+        'click ul.pages a':   'changePage'
+        'keyup input.symbol': 'changeSymbol'
 
     initialize: (opts) ->
         # Expand opts on us.
         @[k] = v for k, v of opts
-
-        # How many pages do we have?
-        @pages = @collection.length
 
     render: ->
         # Populate the template
@@ -30,14 +28,34 @@ class Table extends Backbone.View
             # Give us a specific page.
             'rows':    @collection.toJSON().splice @size * @page, @size
             'symbol':  @symbol
-            'pages':   Math.floor @collection.length / @size
+            'pages':   Math.ceil @collection.length / @size
             'current': @page
+            'count':   @collection.length
         @
 
     # Change the current page and re-render.
-    changePage: (e) =>
+    changePage: (e) ->
         @page = parseInt($(e.target).text()) - 1
         @render()
+
+    changeSymbol: (e) ->
+        done = =>
+            symbol = $(e.target).val()
+            if symbol isnt '' and symbol isnt @symbol
+                # Borrow the data loader from Widget.
+                @data symbol, (err, records) =>
+                    if not err?
+                        # Long live the new King.
+                        @symbol = symbol
+                        @collection = new Publications records
+                        @render()
+                    else
+                        console.log err
+
+        # Reset previous timeouts.
+        if @timeout? then clearTimeout @timeout
+        # Start a timeout so we do not fetch immediately.
+        @timeout = root.setTimeout(done, 500)
 
 # This is my widget definition, needs to have a set signature.
 class Widget
@@ -47,20 +65,41 @@ class Widget
         # Point to the mine's service.
         @service = new intermine.Service 'root': @config.mine
 
-    # Render simply returns a string to be returned to the target.
-    render: (target) ->
+    # Fetch us the data.
+    data: (symbol, callback) =>
         # Add the symbol we want to constrain on to the pathQuery.
         pq = @config.pathQuery
         pq.where =
             'symbol':
-                '=': @config.symbol
-        
-        # Run the PathQuery.
+                '=': symbol
+
+        # Run the PathQuery and pop the publications if present.
         @service.query pq, (q) =>
-            q.records (records) =>
-                # Create the table view.
+            q.records (records) ->
+                if records.length isnt 1
+                    callback 'Gene symbol not recognized', {}
+                else
+                    if records[0].publications?
+                        callback null, records.pop().publications
+                    else
+                        callback 'No publications to show', {}
+
+    # Render simply returns a string to be returned to the target.
+    render: (target) ->
+        # Get the data.
+        @data @config.symbol, (err, records) =>
+            if not err?
+                # new View.
                 view = new Table
-                    'collection': new Publications records.pop().publications
+                    # Pop the publications for this gene.
+                    'collection': new Publications records
+                    # 'table.eco' template.
                     'template':   @templates.table
+                    # Initial symbol coming from client side config.
                     'symbol':     @config.symbol
+                    # Link back to the data loader.
+                    'data':       @data
+                # Render into the target el.
                 $(target).html view.render().el
+            else
+                console.log err
