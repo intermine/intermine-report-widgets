@@ -11,6 +11,7 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
     widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
 });
 ```
+![image](https://github.com/radekstepan/intermine-report-widgets/raw/master/example.png)
 
 ## Run
 
