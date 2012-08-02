@@ -24,9 +24,10 @@ class ReportWidgets
     #
     # 1. `widgetId`: id of a widget as specified in its config
     # 2. `target`:   element the widget will render into
-    load: (widgetId, target) ->
+    # 3. `options`:  local options to pass to us, will get merged with @config
+    load: (widgetId, target, options = {}) ->
         # Keep checking if we have the config loaded.
-        if not @config? then window.setTimeout((=> @load(widgetId, target)), 0)
+        if not @config? then window.setTimeout((=> @load(widgetId, target, options)), 0)
         else
             # Post dependencies loaded.
             run = =>
@@ -48,6 +49,14 @@ class ReportWidgets
                         
                         # Get the widget from the `cache`.
                         widget = root.intermine.temp.widgets[callback]
+
+                        # Inject the extra options to it.
+                        merge = (child, parent) ->
+                            for key of parent
+                                if not child[key]?
+                                    child[key] = parent[key] if Object::hasOwnProperty.call parent, key
+                            child
+                        widget.config = merge widget.config, options
                         
                         # Render.
                         widget.render "##{@selectorPrefix}#{callback}"

@@ -24,12 +24,15 @@
       });
     }
 
-    ReportWidgets.prototype.load = function(widgetId, target) {
+    ReportWidgets.prototype.load = function(widgetId, target, options) {
       var deps, run,
         _this = this;
+      if (options == null) {
+        options = {};
+      }
       if (!(this.config != null)) {
         return window.setTimeout((function() {
-          return _this.load(widgetId, target);
+          return _this.load(widgetId, target, options);
         }), 0);
       } else {
         run = function() {
@@ -40,11 +43,23 @@
             'url': "" + _this.server + "/widget/" + callback + "/" + widgetId,
             'dataType': 'script',
             success: function() {
-              var widget;
+              var merge, widget;
               $(target).html($("<div/>", {
                 'id': "" + _this.selectorPrefix + callback
               }));
               widget = root.intermine.temp.widgets[callback];
+              merge = function(child, parent) {
+                var key;
+                for (key in parent) {
+                  if (!(child[key] != null)) {
+                    if (Object.prototype.hasOwnProperty.call(parent, key)) {
+                      child[key] = parent[key];
+                    }
+                  }
+                }
+                return child;
+              };
+              widget.config = merge(widget.config, options);
               return widget.render("#" + _this.selectorPrefix + callback);
             }
           });

@@ -14,7 +14,15 @@ class Widget
 
     # Render simply returns a string to be returned to the target.
     render: (target) ->
-        @service.query @config.pathQuery, (q) =>
+        # Add the symbol we want to constrain on to the pathQuery.
+        pq = @config.pathQuery
+        pq.where =
+            'symbol':
+                '=': @config.symbol
+        
+        # Run the PathQuery.
+        @service.query pq, (q) =>
             q.records (records) =>
-                $(target).html @templates.layout
-                    'rows': records.pop().publications
+                $(target).html @templates.template
+                    'rows':  records.pop().publications
+                    'title': "Publications for '#{@config.symbol}'"

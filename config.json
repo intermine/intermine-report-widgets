@@ -42,11 +42,6 @@
                         "publications.authors.name"
                     ],
                     "from": "Gene",
-                    "where": {
-                        "symbol": {
-                            "=": "zen"
-                        }
-                    },
                     "joins": [
                         "publications.authors"
                     ]

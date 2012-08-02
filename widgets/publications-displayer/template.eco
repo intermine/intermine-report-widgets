@@ -1,4 +1,4 @@
-<h4>I show you publications now</h4>
+<h4><%= @title %></h4>
 
 <table>
     <thead>

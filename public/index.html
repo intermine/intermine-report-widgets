@@ -57,7 +57,7 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
         <script>
             (function() {
                 var widgets = new window.ReportWidgets('http://127.0.0.1:1119');
-                widgets.load('publications-displayer', '#publications');
+                widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
             })();
         </script>
         <div id="publications"></div>
