@@ -39,7 +39,7 @@ $ ./compile.sh
 6. *Data* requests are done from within the widget to speed up their initial loading.
 7. Files are served as UTF-8.
 8. Provide nice URL for fetching the widgets so it is easier to debug them in Network view, `/widget/24517/publications-displayer`.
-9. Provide info messages on each step of the compilation process so we can determine where problems lie.
+9. Provide info messages on each step of the compilation process so we can determine where problems lie. These then be returned as `message` to the user when requesting widgets as HTTP 500 JSON errors.
 
 #### Optional
 
