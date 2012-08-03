@@ -10,6 +10,7 @@ cs        = require 'coffee-script'
 uglifyJs  = require 'uglify-js'
 cleancss  = require 'clean-css'
 parserlib = require 'parserlib'
+prefix    = require 'prefix-css-node'
 
 # Read the config file.
 config = JSON.parse fs.readFileSync './config.json'
@@ -116,7 +117,7 @@ app.router.path "/widget/:callback/:widgetId", ->
                             # Read the file.
                             css = fs.readFileSync path, "utf-8"
                             # Prefix CSS selectors with a callback id.
-                            css = prefix css, "div#w#{callback}"
+                            css = prefix.css css, "div#w#{callback}"
                             # Escape all single quotes.
                             css = css.replace /\'/g, "\\'"
                             # Minify
@@ -196,72 +197,3 @@ minify = (input, type="js") ->
             pro.gen_code pro.ast_squeeze pro.ast_mangle jsp.parse input
         when 'css'
             cleancss.process input
-
-# Prefix CSS selectors [prefix-css-node].
-prefix = (input, text, blacklist=['html', 'body']) ->
-    # Split on new lines.
-    lines = input.split "\n"
-
-    options =
-        starHack: true
-        ieFilters: true
-        underscoreHack: true
-        strict: false
-
-    # Init parser.
-    parser = new parserlib.css.Parser options
-
-    index = 0
-    shift = 0
-
-    # Rule event.
-    parser.addListener "startrule", (event) ->
-        # Traverse all selectors.
-        for selector in event.selectors
-            # Where are we? Be 0 indexed.
-            position = selector.col - 1
-
-            # Make a char[] line.
-            line = lines[selector.line - 1].split('')
-
-            # Reset line shift if this is a new line.
-            if selector.line isnt index then shift = 0
-
-            # Find blacklisted selectors.
-            blacklisted = false
-            for part in selector.parts
-                if part.elementName?.text in blacklist
-                    blacklisted = true
-                    el = part.elementName.text
-                    p = part.col - 1 + shift
-
-                    # Replace the selector with our own.
-                    if p
-                        # In the middle of the line?
-                        line = line[0..p - 1].concat line[p..].join('').replace(new RegExp(el), text).split('')
-                    else
-                        line = line.join('').replace(new RegExp(el), text).split('')
-
-            # Prefix with custom text.
-            if not blacklisted
-                line.splice(position + shift, 0, text + ' ')
-                # Move the line shift.
-                shift += text.length + 1
-            
-            # Join up.
-            line = line.join('')
-
-            # Check for `prefix` > `prefix` rules having replace 2 blacklisted rules.
-            line = line.replace(new RegExp(text + " *\> *" + text), text)
-
-            # Save the line back.
-            lines[selector.line - 1] = line
-
-            # Update the line.
-            index = selector.line
-
-    # Parse.
-    parser.parse input
-
-    # Return on joined lines.
-    lines.join "\n"

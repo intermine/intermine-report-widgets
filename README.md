@@ -27,7 +27,7 @@ $ ./compile.sh
 ### Service
 
 1. Compile *templates* into their JS form and make them accessible within the context of the widget only.
-2. Make *CSS* available only in the context of the widget, perhaps by prefixing each declaration with a dynamic *widget id* using [prefix-css-node](https://github.com/radekstepan/prefix-css-node).
+2. Make *CSS* available only in the context of the widget, perhaps by prefixing each declaration with a dynamic *widget id* using [prefix-css-node](https://github.com/radekstepan/prefix-css-node) or [css-prefix](https://github.com/substack/css-prefix).
 3. Respond to the client with a list of *resources* that need to be loaded beforing rendering the widget.
 4. Each widget consists of:
   1. One [CoffeeScript](http://coffeescript.org/) *presenter* containing the logic getting data from the *model* using [imjs](https://github.com/alexkalderimis/imjs).
