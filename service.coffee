@@ -78,11 +78,17 @@ app.router.path "/widget/:callback/:widgetId", ->
 
                 app.log.info "Compiling presenter .coffee file".grey
                 # Bare-ly compile the presenter.
-                js = [
-                    sig
-                    "(function() {\nvar root = this;\n\n  /**#@+ the presenter */"
-                    ("  #{line}" for line in cs.compile(fs.readFileSync(path, "utf-8"), bare: "on").split("\n")).join("\n")
-                ]
+                try
+                    js = [
+                        sig
+                        "(function() {\nvar root = this;\n\n  /**#@+ the presenter */"
+                        ("  #{line}" for line in cs.compile(fs.readFileSync(path, "utf-8"), bare: "on").split("\n")).join("\n")
+                    ]
+                catch e
+                    @res.writeHead 500, "content-type": "application/json"
+                    @res.write JSON.stringify 'message': "Widget `#{widgetId}` is misconfigured in presenter.coffee"
+                    @res.end()
+                    return
 
                 # Tack on any config.
                 app.log.info "Appending config".grey
@@ -101,10 +107,19 @@ app.router.path "/widget/:callback/:widgetId", ->
                         for file in templates
                             name = file.split('/').pop()[0...-4]
                             app.log.info "Compiling .eco template `#{name}`".grey
-                            template = eco.precompile fs.readFileSync file, "utf-8"
+                            
+                            try
+                                template = eco.precompile fs.readFileSync file, "utf-8"
+                            catch e
+                                @res.writeHead 500, "content-type": "application/json"
+                                @res.write JSON.stringify 'message': "Widget `#{widgetId}` is misconfigured, problem loading templates"
+                                @res.end()
+                                return
+                            
                             name = file.split('/').pop()[0...-4]
                             app.log.info "Minifying .js template `#{name}`".grey
                             tml.push '  ' + minify("templates['#{name}'] = #{template}") + ';'
+
                         js.push tml.join "\n"
 
                         # Do we have a custom CSS file?
