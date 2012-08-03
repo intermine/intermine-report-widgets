@@ -19,6 +19,11 @@ if not config.service? or
         typeof config.service.port isnt 'number'
             throw 'You need to specify the `port` to use by the server in the `service` portion of the config file'
 
+# Validate that the config has widgets that are accessible by us.
+for id, _ of config.widgets
+    if encodeURIComponent(id) isnt id
+        throw "Widget id `{id}` is not a valid name and cannot be used, use encodeURIComponent() to check"
+
 app = flatiron.app
 app.use flatiron.plugins.http,
     'before': [

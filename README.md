@@ -41,7 +41,7 @@ $ ./compile.sh
   3. One *CSS* file specifically for the widget.
   4. Any extra *config* dynamically populated for the widget to consume. This could be the mine the Widget is to take data from or extra flags that specialize an otherwise generic Widget.
   5. Optional number of requirements (CSS, JS), loaded from the [CDN](https://github.com/intermine/CDN).
-5. All of the previous are configured by the user.
+5. All of the previous are configured by the user and the service validates that all widgets are executable.
 6. *Data* requests are done from within the widget to speed up their initial loading.
 7. Files are served as UTF-8.
 8. Provide nice URL for fetching the widgets so it is easier to debug them in Network view, `/widget/24517/publications-displayer`.
@@ -49,7 +49,7 @@ $ ./compile.sh
 
 #### Optional
 
-* Cache resources by, for example, not packaging resources on the fly but doing so on service startup. Then, say the latest modification date.
+* Cache resources by, for example, not packaging resources on the fly but doing so on service startup. Then, say the latest modification date. Add `ETag` and return 304 not modified then.
 * Allow the use of [LESS](http://lesscss.org/) instead of CSS.
 * Allow the use of other templating languages.
 * Check for the presence of `Displayer.prototype.render` and `Displayer.prototype.initialize` in the compiled *presenter*.
