@@ -1,6 +1,12 @@
 # InterMine Report Widgets Service Reference Implementation
 
-A node.js reference implementation of a service for loading and rendering Report Widgets (Displayers).
+A [node.js](http://nodejs.org/) reference implementation of a **service** and a **client** for loading and rendering Report Widgets (previously called Displayers).
+
+The service does not cache the packaged widgets so that changes can be propagated in real time. There are two URLs that the router responds to:
+
+* [/widgets](/widgets) returns a JSON representation of all widgets configured in `config.json`
+* [/widget/[CALLBACK_ID]/[WIDGET_ID]](/widget/[CALLBACK_ID]/[WIDGET_ID) returns a packaged representation of the widget
+* `client.coffee` contains the client part
 
 ## Example
 
