@@ -177,7 +177,6 @@ app.router.path "/widget/:callback/:widgetId", ->
             @res.write JSON.stringify 'message': "Unknown widget `#{widgetId}`"
             @res.end()
 
-# Traverse a directory and return a list of files (async, recursive).
 walk = (path, filter, callback) ->
     results = []
     # Read directory.
@@ -187,7 +186,7 @@ walk = (path, filter, callback) ->
         
         # Get listing length.
         pending = list.length
-        
+
         return callback null, results unless pending # Done already?
         
         # Traverse.
@@ -197,7 +196,7 @@ walk = (path, filter, callback) ->
             fs.stat file, (err, stat) ->
                 # Subdirectory.
                 if stat and stat.isDirectory()
-                    walk file, (err, res) ->
+                    walk file, filter, (err, res) ->
                         # Append result from sub.
                         results = results.concat(res)
                         callback null, results unless --pending # Done yet?
