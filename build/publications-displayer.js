@@ -1,3 +1,5 @@
+new Error('This widget cannot be called directly');
+
 /**
  *      _/_/_/  _/      _/   
  *       _/    _/_/  _/_/     InterMine Report Widget
@@ -9,7 +11,7 @@
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Tue, 04 Sep 2012 15:41:26 GMT
+ *  Generated: Tue, 04 Sep 2012 16:18:06 GMT
  */
 
 (function() {

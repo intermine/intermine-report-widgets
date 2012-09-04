@@ -8,7 +8,7 @@ eco       = require 'eco'
 cs        = require 'coffee-script'
 
 uglifyJs  = require 'uglify-js'
-cleancss  = require 'clean-css'
+cleanCss  = require 'clean-css'
 parserlib = require 'parserlib'
 prefix    = require 'prefix-css-node'
 
@@ -174,14 +174,18 @@ exports.all = ->
                                 # Catch all errors into messages.
                                 if err
                                     winston.info err.red
-                                else                        
+                                else
+                                    # Since we are writing the result into a file, make sure that the file begins with an exception if read directly.
+                                    (js = js.split("\n")).splice 0, 0, 'new Error(\'This widget cannot be called directly\');\n'
+
                                     # Write the result.
-                                    write "./build/#{widgetId}.js", js
+                                    write "./build/#{widgetId}.js", js.join "\n"
                                     winston.info "Writing .js package".green
 
                                     # Run again.
                                     done()
 
+# Async walk a directory recursively to return a list of files in a callback matching a particular file filter.
 walk = (path, filter, callback) ->
     results = []
     # Read directory.
@@ -220,7 +224,7 @@ minify = (input, type="js") ->
             jsp = uglifyJs.parser ; pro = uglifyJs.uglify
             pro.gen_code pro.ast_squeeze pro.ast_mangle jsp.parse input
         when 'css'
-            cleancss.process input
+            cleanCss.process input
 
 # Append to existing file.
 write = (path, text, mode = "w") ->
