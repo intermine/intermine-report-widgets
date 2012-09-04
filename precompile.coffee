@@ -12,10 +12,13 @@ cleancss  = require 'clean-css'
 parserlib = require 'parserlib'
 prefix    = require 'prefix-css-node'
 
-"""
+###
 Precompile a single widget.
-@var 
-"""
+@param {string} widgetId A URL-valid widgetId.
+@param {string} callback A string used to tell client that THIS widget has arrived.
+@param {dict} config Configuration to be injected into the widget.
+@param {fn} output Expects one parameter, the JS string with the precompiled widget.
+###
 exports.single = (widgetId, callback, config, output) ->
     winston.info "Working on `#{widgetId}`".blue
 
@@ -130,8 +133,8 @@ exports.single = (widgetId, callback, config, output) ->
 
 # Precompile all widgets in a directory for InterMine use.
 exports.all = ->
-    # TODO: Go through the source directory.
-    return fs.readdir './widgets', (err, files) ->
+    # Go through the source directory.
+    fs.readdir './widgets', (err, files) ->
         throw err if err
 
         # Sync loop (so that messages from different widgets do not appear out of sync).
@@ -146,6 +149,10 @@ exports.all = ->
                     if stat and stat.isDirectory()
                         # The id of the widget.
                         widgetId = file
+
+                        # Valid name?
+                        if encodeURIComponent(widgetId) isnt widgetId
+                            return winston.info "Widget id `#{widgetId}` is not a valid name and cannot be used, use encodeURIComponent() to check".red
 
                         # Create the placeholders.
                         config =
