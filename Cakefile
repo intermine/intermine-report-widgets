@@ -17,7 +17,8 @@ task 'client', 'compile client', (options) ->
     write './public/js/client.js', cs.compile fs.readFileSync 'client.coffee', 'utf-8'
 
 task 'precompile', 'precompile widgets', (options) ->
-    console.log 'precompile'
+    pre = require './precompile.coffee'
+    pre.all()
 
 # Append to existing file.
 write = (path, text, mode = "w") ->
