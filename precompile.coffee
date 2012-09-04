@@ -133,31 +133,40 @@ exports.all = ->
     # TODO: Go through the source directory.
     return fs.readdir './widgets', (err, files) ->
         throw err if err
-        for file in files
-            fs.stat "./widgets/#{file}", (err, stat) ->
-                throw err if err
-                # If it is a directory...
-                if stat and stat.isDirectory()
-                    # The id of the widget.
-                    widgetId = file
 
-                    # Create the placeholders.
-                    config =
-                        'title':       '#@+TITLE'
-                        'author':      '#@+AUTHOR'
-                        'description': '#@+DESCRIPTION'
-                        'version':     '#@+VERSION'
-                    callback         = '#@+CALLBACK'
+        # Sync loop (so that messages from different widgets do not appear out of sync).
+        do done = ->
+            # Exit condition.
+            if files.length isnt 0
+                file = files.pop()
 
-                    try
-                        # Run the precompile.
-                        exports.single widgetId, callback, config, (js) ->
-                            # Write the result.
-                            write "./build/#{widgetId}.js", js
-                            winston.info "Writing .js package".green
-                    catch e
-                        # Catch all errors into messages.
-                        winston.info e.message.red
+                fs.stat "./widgets/#{file}", (err, stat) ->
+                    throw err if err
+                    # If it is a directory...
+                    if stat and stat.isDirectory()
+                        # The id of the widget.
+                        widgetId = file
+
+                        # Create the placeholders.
+                        config =
+                            'title':       '#@+TITLE'
+                            'author':      '#@+AUTHOR'
+                            'description': '#@+DESCRIPTION'
+                            'version':     '#@+VERSION'
+                        callback         = '#@+CALLBACK'
+
+                        try
+                            # Run the precompile.
+                            exports.single widgetId, callback, config, (js) ->
+                                # Write the result.
+                                write "./build/#{widgetId}.js", js
+                                winston.info "Writing .js package".green
+
+                                # Run again.
+                                done()
+                        catch e
+                            # Catch all errors into messages.
+                            winston.info e.message.red
 
 walk = (path, filter, callback) ->
     results = []
