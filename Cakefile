@@ -3,11 +3,15 @@
 fs = require 'fs'
 cs = require 'coffee-script'
 
+"""
+@sh ./node_modules/.bin/coffee -o public/js -c client.coffee ; ./node_modules/.bin/coffee -c service.coffee
+"""
 task 'start', 'compile client and start the service', (options) ->
-    './node_modules/.bin/coffee -c service.coffee'
+    write './public/js/client.js', cs.compile fs.readFileSync 'client.coffee', 'utf-8'
+    require './service.coffee'
 
 """
-'./node_modules/.bin/coffee -o public/js -c client.coffee'
+@sh ./node_modules/.bin/coffee -o public/js -c client.coffee
 """
 task 'client', 'compile client', (options) ->
     write './public/js/client.js', cs.compile fs.readFileSync 'client.coffee', 'utf-8'

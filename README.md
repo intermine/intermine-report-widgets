@@ -30,9 +30,9 @@ $ ./node_modules/.bin/cake [task]
 
 Where `[task]` is one of:
 
-1. `start`: compile client code and start service service widgets (demo mode)
-1. `client`: compile client code
-1. `precompile`: precompile widgets so that they can be served by InterMine
+1. `start`: compile client code and start service service widgets (demo mode); you can decide which port to start on by modifying the `./config.json` file
+1. `client`: compile client code to `./public/js/client.js`
+1. `precompile`: precompile widgets so that they can be served by InterMine into `./build` directory
 
 ## Requirements
 

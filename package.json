@@ -22,5 +22,8 @@
     "repository": {
         "type": "git",
         "url": "https://github.com/radekstepan/report-widgets-service.git"
+    },
+    "scripts": {
+        "start": "./node_modules/.bin/cake start"
     }
 }
