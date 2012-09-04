@@ -25,8 +25,14 @@ Make sure [node.js](https://github.com/joyent/node/wiki/Installation) is install
 
 ```bash
 $ npm install -d
-$ ./compile.sh
+$ ./node_modules/.bin/cake [task]
 ```
+
+Where `[task]` is one of:
+
+1. `start`: compile client code and start service service widgets (demo mode)
+1. `client`: compile client code
+1. `precompile`: precompile widgets so that they can be served by InterMine
 
 ## Requirements
 
