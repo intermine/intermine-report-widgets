@@ -5,11 +5,11 @@
  *     _/    _/      _/       http://intermine.org
  *  _/_/_/  _/      _/
  *
- *  Name: #@+NAME
+ *  Name: #@+TITLE
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Tue, 04 Sep 2012 13:41:35 GMT
+ *  Generated: Tue, 04 Sep 2012 14:59:55 GMT
  */
 
 (function() {
@@ -170,7 +170,7 @@ var root = this;
   })();
   
   /**#@+ the config */
-  var config = #@+CONFIG;
+  var config = {};
 
   /**#@+ the templates */
   var templates = {};

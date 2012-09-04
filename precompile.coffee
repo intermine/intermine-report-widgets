@@ -12,6 +12,122 @@ cleancss  = require 'clean-css'
 parserlib = require 'parserlib'
 prefix    = require 'prefix-css-node'
 
+"""
+Precompile a single widget.
+@var 
+"""
+exports.single = (widgetId, callback, config, output) ->
+    winston.info "Working on `#{widgetId}`".blue
+
+    # Load the presenter .coffee file.
+    winston.info "Loading presenter .coffee file".grey
+    path = "./widgets/#{widgetId}/presenter.coffee"
+    try
+        isFine = fs.lstatSync path
+    catch e
+        return winston.info "Widget `#{widgetId}` is misconfigured, does not have a presenter defined".red
+
+    if isFine?
+        # Create a signature.
+        winston.info "Creating signature".grey
+        sig = """
+        /**
+         *      _/_/_/  _/      _/   
+         *       _/    _/_/  _/_/     InterMine Report Widget
+         *      _/    _/  _/  _/      (C) 2012 InterMine, University of Cambridge.
+         *     _/    _/      _/       http://intermine.org
+         *  _/_/_/  _/      _/
+         *
+         *  Name: #{config.title}
+         *  Author: #{config.author}
+         *  Description: #{config.description}
+         *  Version: #{config.version}
+         *  Generated: #{(new Date()).toUTCString()}
+         */\n
+        """
+
+        winston.info "Compiling presenter .coffee file".grey
+        # Bare-ly compile the presenter.
+        try
+            js = [
+                sig
+                "(function() {\nvar root = this;\n\n  /**#@+ the presenter */"
+                ("  #{line}" for line in cs.compile(fs.readFileSync(path, "utf-8"), bare: "on").split("\n")).join("\n")
+            ]
+        catch e
+            new Error "Widget `#{widgetId}` is misconfigured in presenter.coffee"
+
+        # Tack on any config.
+        winston.info "Appending config".grey
+        cfg = JSON.stringify(config.config) or '{}'
+        js.push "  /**#@+ the config */\n  var config = #{cfg};\n"
+
+        # Compile eco templates.
+        winston.info "Walking the templates".grey
+        walk "./widgets/#{widgetId}", /\.eco$/, (err, templates) =>
+            if err
+                new Error "Widget `#{widgetId}` is misconfigured, problem loading templates"
+            else
+                tml = [ "  /**#@+ the templates */\n  var templates = {};" ]
+                for file in templates
+                    name = file.split('/').pop()[0...-4]
+                    winston.info "Compiling .eco template `#{name}`".grey
+                    
+                    try
+                        template = eco.precompile fs.readFileSync file, "utf-8"
+                    catch e
+                        new Error "Widget `#{widgetId}` is misconfigured, problem loading templates"
+                    
+                    name = file.split('/').pop()[0...-4]
+                    winston.info "Minifying .js template `#{name}`".grey
+                    tml.push '  ' + minify("templates['#{name}'] = #{template}") + ';'
+
+                js.push tml.join "\n"
+
+                # Do we have a custom CSS file?
+                path = "./widgets/#{widgetId}/style.css"
+                try
+                    exists = fs.lstatSync path
+                catch e
+                if exists
+                    winston.info "Adding custom .css file".grey
+                    # Read the file.
+                    css = fs.readFileSync path, "utf-8"
+                    # Prefix CSS selectors with a callback id.
+                    css = prefix.css css, "div#w#{callback}"
+                    # Escape all single quotes.
+                    css = css.replace /\'/g, "\\'"
+                    # Minify
+                    css = minify css, 'css'
+                    # Embed.
+                    exec = """
+                    \n/**#@+ css */
+                    var style = document.createElement('style');
+                    style.type = 'text/css';
+                    style.innerHTML = '#{css}';
+                    document.head.appendChild(style);\n
+                    """
+                    js.push ("  #{line}" for line in exec.split("\n")).join("\n")
+
+                # Finally add us to the browser `cache` under the callback id.
+                cb = """
+                /**#@+ callback */
+                (function() {
+                  var parent, part, _i, _len, _ref;
+                  parent = this;
+                  _ref = 'intermine.temp.widgets'.split('.');
+                  for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                    part = _ref[_i];
+                    parent = parent[part] = parent[part] || {};
+                  }
+                }).call(root);
+                """
+                js.push ("  #{line}" for line in cb.split("\n")).join("\n")
+                js.push "  root.intermine.temp.widgets['#{callback}'] = new Widget(config, templates);\n\n}).call(this);"
+
+                # Return the result.
+                output js.join "\n"
+
 # Precompile all widgets in a directory for InterMine use.
 exports.all = ->
     # TODO: Go through the source directory.
@@ -24,116 +140,24 @@ exports.all = ->
                 if stat and stat.isDirectory()
                     # The id of the widget.
                     widgetId = file
-                    winston.info "Working on `#{widgetId}`".blue
 
-                    # Load the presenter .coffee file.
-                    winston.info "Loading presenter .coffee file".grey
-                    path = "./widgets/#{widgetId}/presenter.coffee"
+                    # Create the placeholders.
+                    config =
+                        'title':       '#@+TITLE'
+                        'author':      '#@+AUTHOR'
+                        'description': '#@+DESCRIPTION'
+                        'version':     '#@+VERSION'
+                    callback         = '#@+CALLBACK'
+
                     try
-                        isFine = fs.lstatSync path
+                        # Run the precompile.
+                        exports.single widgetId, callback, config, (js) ->
+                            # Write the result.
+                            write "./build/#{widgetId}.js", js
+                            winston.info "Writing .js package".green
                     catch e
-                        return winston.info "Widget `#{widgetId}` is misconfigured, does not have a presenter defined".red
-
-                    if isFine?
-                        # Create a signature.
-                        winston.info "Creating signature".grey
-                        sig = """
-                        /**
-                         *      _/_/_/  _/      _/   
-                         *       _/    _/_/  _/_/     InterMine Report Widget
-                         *      _/    _/  _/  _/      (C) 2012 InterMine, University of Cambridge.
-                         *     _/    _/      _/       http://intermine.org
-                         *  _/_/_/  _/      _/
-                         *
-                         *  Name: #@+NAME
-                         *  Author: #@+AUTHOR
-                         *  Description: #@+DESCRIPTION
-                         *  Version: #@+VERSION
-                         *  Generated: #{(new Date()).toUTCString()}
-                         */\n
-                        """
-
-                        winston.info "Compiling presenter .coffee file".grey
-                        # Bare-ly compile the presenter.
-                        try
-                            js = [
-                                sig
-                                "(function() {\nvar root = this;\n\n  /**#@+ the presenter */"
-                                ("  #{line}" for line in cs.compile(fs.readFileSync(path, "utf-8"), bare: "on").split("\n")).join("\n")
-                            ]
-                        catch e
-                            return winston.info "Widget `#{widgetId}` is misconfigured in presenter.coffee".red
-
-                        # Config placeholder.
-                        js.push "  /**#@+ the config */\n  var config = #@+CONFIG;\n"
-
-                        # Compile eco templates.
-                        winston.info "Walking the templates".grey
-                        walk "./widgets/#{widgetId}", /\.eco$/, (err, templates) =>
-                            if err
-                                return winston.info "Widget `#{widgetId}` is misconfigured, problem loading templates".red
-                            else
-                                tml = [ "  /**#@+ the templates */\n  var templates = {};" ]
-                                for file in templates
-                                    name = file.split('/').pop()[0...-4]
-                                    winston.info "Compiling .eco template `#{name}`".grey
-                                    
-                                    try
-                                        template = eco.precompile fs.readFileSync file, "utf-8"
-                                    catch e
-                                        return winston.info "Widget `#{widgetId}` is misconfigured, problem loading templates".red
-                                    
-                                    name = file.split('/').pop()[0...-4]
-                                    winston.info "Minifying .js template `#{name}`".grey
-                                    tml.push '  ' + minify("templates['#{name}'] = #{template}") + ';'
-
-                                js.push tml.join "\n"
-
-                                # Do we have a custom CSS file?
-                                path = "./widgets/#{widgetId}/style.css"
-                                try
-                                    exists = fs.lstatSync path
-                                catch e
-                                if exists
-                                    winston.info "Adding custom .css file".grey
-                                    # Read the file.
-                                    css = fs.readFileSync path, "utf-8"
-                                    # Prefix CSS selectors with a callback id.
-                                    css = prefix.css css, 'div#w#@+CALLBACK'
-                                    # Escape all single quotes.
-                                    css = css.replace /\'/g, "\\'"
-                                    # Minify
-                                    css = minify css, 'css'
-                                    # Embed.
-                                    exec = """
-                                    \n/**#@+ css */
-                                    var style = document.createElement('style');
-                                    style.type = 'text/css';
-                                    style.innerHTML = '#{css}';
-                                    document.head.appendChild(style);\n
-                                    """
-                                    js.push ("  #{line}" for line in exec.split("\n")).join("\n")
-
-                                # Finally add us to the browser `cache` under the callback id.
-                                cb = """
-                                /**#@+ callback */
-                                (function() {
-                                  var parent, part, _i, _len, _ref;
-                                  parent = this;
-                                  _ref = 'intermine.temp.widgets'.split('.');
-                                  for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                                    part = _ref[_i];
-                                    parent = parent[part] = parent[part] || {};
-                                  }
-                                }).call(root);
-                                """
-                                js.push ("  #{line}" for line in cb.split("\n")).join("\n")
-                                js.push "  root.intermine.temp.widgets['#@+CALLBACK'] = new Widget(config, templates);\n\n}).call(this);"
-
-                                # Write the result.
-                                write "./build/#{widgetId}.js", js.join "\n"
-
-                                winston.info "Writing .js package".green
+                        # Catch all errors into messages.
+                        winston.info e.message.red
 
 walk = (path, filter, callback) ->
     results = []
