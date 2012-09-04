@@ -17,18 +17,25 @@ Precompile a single widget.
 @param {string} widgetId A URL-valid widgetId.
 @param {string} callback A string used to tell client that THIS widget has arrived.
 @param {dict} config Configuration to be injected into the widget.
-@param {fn} output Expects one parameter, the JS string with the precompiled widget.
+@param {fn} output Expects two parameters, 1. error string 2. JS string with the precompiled widget.
 ###
 exports.single = (widgetId, callback, config, output) ->
     winston.info "Working on `#{widgetId}`".blue
 
+    # Does the dir actually exist?
+    path = "./widgets/#{widgetId}/"
+    try
+        fs.lstatSync path
+    catch e
+        return output "Widget path `#{widgetId}` does not exist"
+
     # Load the presenter .coffee file.
-    winston.info "Loading presenter .coffee file".grey
-    path = "./widgets/#{widgetId}/presenter.coffee"
+    winston.info 'Loading presenter .coffee file'.grey
+    path += 'presenter.coffee'
     try
         isFine = fs.lstatSync path
     catch e
-        return winston.info "Widget `#{widgetId}` is misconfigured, does not have a presenter defined".red
+        return output "Widget `#{widgetId}` is misconfigured, does not have a presenter defined"
 
     if isFine?
         # Create a signature.
@@ -58,7 +65,7 @@ exports.single = (widgetId, callback, config, output) ->
                 ("  #{line}" for line in cs.compile(fs.readFileSync(path, "utf-8"), bare: "on").split("\n")).join("\n")
             ]
         catch e
-            new Error "Widget `#{widgetId}` is misconfigured in presenter.coffee"
+            return output "Widget `#{widgetId}` is misconfigured in presenter.coffee"
 
         # Tack on any config.
         winston.info "Appending config".grey
@@ -69,7 +76,7 @@ exports.single = (widgetId, callback, config, output) ->
         winston.info "Walking the templates".grey
         walk "./widgets/#{widgetId}", /\.eco$/, (err, templates) =>
             if err
-                new Error "Widget `#{widgetId}` is misconfigured, problem loading templates"
+                return output "Widget `#{widgetId}` is misconfigured, problem loading templates"
             else
                 tml = [ "  /**#@+ the templates */\n  var templates = {};" ]
                 for file in templates
@@ -79,7 +86,7 @@ exports.single = (widgetId, callback, config, output) ->
                     try
                         template = eco.precompile fs.readFileSync file, "utf-8"
                     catch e
-                        new Error "Widget `#{widgetId}` is misconfigured, problem loading templates"
+                        return output "Widget `#{widgetId}` is misconfigured, problem loading templates"
                     
                     name = file.split('/').pop()[0...-4]
                     winston.info "Minifying .js template `#{name}`".grey
@@ -129,7 +136,7 @@ exports.single = (widgetId, callback, config, output) ->
                 js.push "  root.intermine.temp.widgets['#{callback}'] = new Widget(config, templates);\n\n}).call(this);"
 
                 # Return the result.
-                output js.join "\n"
+                output null, js.join "\n"
 
 # Precompile all widgets in a directory for InterMine use.
 exports.all = ->
@@ -152,28 +159,28 @@ exports.all = ->
 
                         # Valid name?
                         if encodeURIComponent(widgetId) isnt widgetId
-                            return winston.info "Widget id `#{widgetId}` is not a valid name and cannot be used, use encodeURIComponent() to check".red
+                            winston.info "Widget id `#{widgetId}` is not a valid name and cannot be used, use encodeURIComponent() to check".red
+                        else
+                            # Create the placeholders.
+                            config =
+                                'title':       '#@+TITLE'
+                                'author':      '#@+AUTHOR'
+                                'description': '#@+DESCRIPTION'
+                                'version':     '#@+VERSION'
+                            callback         = '#@+CALLBACK'
 
-                        # Create the placeholders.
-                        config =
-                            'title':       '#@+TITLE'
-                            'author':      '#@+AUTHOR'
-                            'description': '#@+DESCRIPTION'
-                            'version':     '#@+VERSION'
-                        callback         = '#@+CALLBACK'
-
-                        try
                             # Run the precompile.
-                            exports.single widgetId, callback, config, (js) ->
-                                # Write the result.
-                                write "./build/#{widgetId}.js", js
-                                winston.info "Writing .js package".green
+                            exports.single widgetId, callback, config, (err, js) ->
+                                # Catch all errors into messages.
+                                if err
+                                    winston.info err.red
+                                else                        
+                                    # Write the result.
+                                    write "./build/#{widgetId}.js", js
+                                    winston.info "Writing .js package".green
 
-                                # Run again.
-                                done()
-                        catch e
-                            # Catch all errors into messages.
-                            winston.info e.message.red
+                                    # Run again.
+                                    done()
 
 walk = (path, filter, callback) ->
     results = []

@@ -50,19 +50,21 @@ app.router.path "/widget/:callback/:widgetId", ->
         # Do we know this one?
         widget = config.widgets[widgetId]
         if widget?
-            try
-                # Run the precompile.
-                precompile.single widgetId, callback, widget, (js) =>
+            # Run the precompile.
+            precompile.single widgetId, callback, widget, (err, js) =>
+                if err
+                    # Catch all errors into logs and JSON messages.
+                    winston.info err.red
+
+                    @res.writeHead 500, 'content-type': 'application/json'
+                    @res.write JSON.stringify 'message': err
+                    @res.end()
+                else
                     # Write the output.
                     winston.info "Returning .js package".green
                     @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
                     @res.write js
                     @res.end()
-            catch e
-                # Catch all errors into JSON messages.
-                @res.writeHead 500, 'content-type': 'application/json'
-                @res.write JSON.stringify 'message': e.message
-                return @res.end()
         else
             @res.writeHead 400, "content-type": "application/json"
             @res.write JSON.stringify 'message': "Unknown widget `#{widgetId}`"
