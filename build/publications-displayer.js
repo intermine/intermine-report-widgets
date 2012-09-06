@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Thu, 06 Sep 2012 13:31:51 GMT
+ *  Generated: Thu, 06 Sep 2012 15:54:15 GMT
  */
 
 (function() {
@@ -172,7 +172,7 @@ var root = this;
   })();
   
   /**#@+ the config */
-  var config = "#@+CONFIG";
+  var config = #@+CONFIG;
 
   /**#@+ the templates */
   var templates = {};

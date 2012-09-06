@@ -70,6 +70,8 @@ exports.single = (widgetId, callback, config, output) ->
         # Tack on any config.
         winston.info "Appending config".grey
         cfg = JSON.stringify(config.config) or '{}'
+        # Leave out the quotes around the config (from stringify...).
+        if cfg[0] is '"' and cfg[cfg.length - 1] is '"' then cfg = cfg[1...-1]
         js.push "  /**#@+ the config */\n  var config = #{cfg};\n"
 
         # Compile eco templates.
