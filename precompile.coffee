@@ -167,6 +167,7 @@ exports.all = ->
                                 'author':      '#@+AUTHOR'
                                 'description': '#@+DESCRIPTION'
                                 'version':     '#@+VERSION'
+                                'config':      '#@+CONFIG'
                             callback         = '#@+CALLBACK'
 
                             # Run the precompile.
