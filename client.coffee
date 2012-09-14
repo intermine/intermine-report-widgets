@@ -13,7 +13,7 @@ class ReportWidgets
         
         # Fetch the config for this server.
         $.ajax
-            'url':      "#{@server}/widgets"
+            'url':      "#{@server}/widget/report"
             'dataType': 'json'
 
             success: (data) =>
@@ -40,7 +40,7 @@ class ReportWidgets
 
                 # Get the compiled script.
                 $.ajax
-                    'url':      "#{@server}/widget/#{uid}/#{widgetId}"
+                    'url':      "#{@server}/widget/report/#{widgetId}?callback=#{uid}"
                     'dataType': 'script'
                     
                     success: =>        
@@ -65,7 +65,7 @@ class ReportWidgets
                         widget.render "#w#{uid} article.im-report-widget"
 
             # Load the dependencies.
-            deps = @config[widgetId].dependencies
+            deps = @config[widgetId]
             if deps? then root.intermine.load deps, run
             else run
 

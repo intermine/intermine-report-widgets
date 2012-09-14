@@ -14,7 +14,7 @@
       this.server = server;
       console.log("Initialize ReportWidgets for " + this.server);
       $.ajax({
-        'url': "" + this.server + "/widgets",
+        'url': "" + this.server + "/widget/report",
         'dataType': 'json',
         success: function(data) {
           console.log("Got config for " + server);
@@ -43,7 +43,7 @@
           });
           console.log("Getting widget " + widgetId);
           return $.ajax({
-            'url': "" + _this.server + "/widget/" + uid + "/" + widgetId,
+            'url': "" + _this.server + "/widget/report/" + widgetId + "?callback=" + uid,
             'dataType': 'script',
             success: function() {
               var merge, widget;
@@ -70,7 +70,7 @@
             }
           });
         };
-        deps = this.config[widgetId].dependencies;
+        deps = this.config[widgetId];
         if (deps != null) {
           return root.intermine.load(deps, run);
         } else {

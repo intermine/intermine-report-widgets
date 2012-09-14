@@ -35,37 +35,49 @@ app.start config.service.port, (err) ->
 
 # -------------------------------------------------------------------
 # List all available widgets.
-app.router.path "/widgets", ->
+app.router.path "/widget/report", ->
     @get ->
         winston.info "Get a listing of available widgets"
 
+        # Only provide deps for each widget much like InterMine.
+        out = {}
+        for widget, stuff of config.widgets
+            out[widget] = stuff.dependencies
+
         @res.writeHead 200, "content-type": "application/json"
-        @res.write JSON.stringify config.widgets
+        @res.write JSON.stringify out
         @res.end()
 
-app.router.path "/widget/:callback/:widgetId", ->
-    @get (callback, widgetId) ->
+app.router.path "/widget/report/:widgetId", ->
+    @get (widgetId) ->
         winston.info "Get widget " + widgetId.bold
 
-        # Do we know this one?
-        widget = config.widgets[widgetId]
-        if widget?
-            # Run the precompile.
-            precompile.single widgetId, callback, widget, (err, js) =>
-                if err
-                    # Catch all errors into logs and JSON messages.
-                    winston.info err.red
+        # Do we have a callback?
+        callback = @req.query?.callback
+        if callback?
+            # Do we know this one?
+            widget = config.widgets[widgetId]
+            if widget?
+                # Run the precompile.
+                precompile.single widgetId, callback, widget, (err, js) =>
+                    if err
+                        # Catch all errors into logs and JSON messages.
+                        winston.info err.red
 
-                    @res.writeHead 500, 'content-type': 'application/json'
-                    @res.write JSON.stringify 'message': err
-                    @res.end()
-                else
-                    # Write the output.
-                    winston.info "Returning .js package".green
-                    @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
-                    @res.write js
-                    @res.end()
+                        @res.writeHead 500, 'content-type': 'application/json'
+                        @res.write JSON.stringify 'message': err
+                        @res.end()
+                    else
+                        # Write the output.
+                        winston.info "Returning .js package".green
+                        @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
+                        @res.write js
+                        @res.end()
+            else
+                @res.writeHead 400, "content-type": "application/json"
+                @res.write JSON.stringify 'message': "Unknown widget `#{widgetId}`"
+                @res.end()
         else
             @res.writeHead 400, "content-type": "application/json"
-            @res.write JSON.stringify 'message': "Unknown widget `#{widgetId}`"
+            @res.write JSON.stringify 'message': 'Callback not provided'
             @res.end()

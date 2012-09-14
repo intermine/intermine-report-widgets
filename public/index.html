@@ -32,9 +32,9 @@
 
     <div class="row">
         <h3>Widgets listing</h3>
-        <p>Fetches the widgets and their config that this service can provide.</p>
+        <p>Fetches the widgets and their dependencies that this service can provide.</p>
         <script>
-            $.get('/widgets', function(data) {
+            $.get('/widget/report', function(data) {
                 $('#widgets').html(JSON.stringify(data, undefined, 2));
                 Rainbow.color();
             });
