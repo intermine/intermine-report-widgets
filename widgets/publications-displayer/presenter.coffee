@@ -69,7 +69,7 @@ class Widget
         $(@target).prepend loading = $ '<div class="alert-box">Loading &hellip;</div>'
 
         # Add the symbol we want to constrain on to the pathQuery.
-        pq = @config.pathQuery
+        pq = @config.pathQueries.pubsForGene
         pq.where =
             'symbol':
                 '=': symbol

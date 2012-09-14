@@ -7,7 +7,7 @@
             "author": "Radek",
             "title": "Publications for Gene",
             "description": "Shows a list of publications for a specific gene",
-            "version": "0.1.1",
+            "version": "0.2.0",
             "dependencies": [
                 {
                     "name": "jQuery",
@@ -33,18 +33,20 @@
             ],
             "config": {
                 "mine": "http://beta.flymine.org/beta",
-                "pathQuery": {
-                    "select": [
-                        "publications.title",
-                        "publications.year",
-                        "publications.journal",
-                        "publications.pubMedId",
-                        "publications.authors.name"
-                    ],
-                    "from": "Gene",
-                    "joins": [
-                        "publications.authors"
-                    ]
+                "pathQueries": {
+                    "pubsForGene": {
+                        "select": [
+                            "publications.title",
+                            "publications.year",
+                            "publications.journal",
+                            "publications.pubMedId",
+                            "publications.authors.name"
+                        ],
+                        "from": "Gene",
+                        "joins": [
+                            "publications.authors"
+                        ]
+                    }
                 }
             }
         }
