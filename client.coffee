@@ -14,7 +14,7 @@ class ReportWidgets
         # Fetch the config for this server.
         $.ajax
             'url':      "#{@server}/widget/report"
-            'dataType': 'json'
+            'dataType': 'jsonp'
 
             success: (data) =>
                 console.log "Got config for #{server}"

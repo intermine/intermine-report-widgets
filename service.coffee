@@ -39,14 +39,21 @@ app.router.path "/widget/report", ->
     @get ->
         winston.info "Get a listing of available widgets"
 
-        # Only provide deps for each widget much like InterMine.
-        out = {}
-        for widget, stuff of config.widgets
-            out[widget] = stuff.dependencies
+        # Do we have a callback?
+        callback = @req.query?.callback
+        if callback?
+            # Only provide deps for each widget much like InterMine.
+            out = {}
+            for widget, stuff of config.widgets
+                out[widget] = stuff.dependencies
 
-        @res.writeHead 200, "content-type": "application/json"
-        @res.write JSON.stringify out
-        @res.end()
+            @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
+            @res.write "#{callback}(#{JSON.stringify(out)});"
+            @res.end()
+        else
+            @res.writeHead 500, "content-type": "application/json"
+            @res.write JSON.stringify 'message': 'Provide a `callback` parameter so we can respond with JSONP'
+            @res.end()
 
 app.router.path "/widget/report/:widgetId", ->
     @get (widgetId) ->

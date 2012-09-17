@@ -15,7 +15,7 @@
       console.log("Initialize ReportWidgets for " + this.server);
       $.ajax({
         'url': "" + this.server + "/widget/report",
-        'dataType': 'json',
+        'dataType': 'jsonp',
         success: function(data) {
           console.log("Got config for " + server);
           return _this.config = data;

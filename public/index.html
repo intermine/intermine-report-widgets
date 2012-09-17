@@ -34,9 +34,13 @@
         <h3>Widgets listing</h3>
         <p>Fetches the widgets and their dependencies that this service can provide.</p>
         <script>
-            $.get('/widget/report', function(data) {
-                $('#widgets').html(JSON.stringify(data, undefined, 2));
-                Rainbow.color();
+            $.ajax({
+                'url': '/widget/report',
+                'dataType': 'jsonp',
+                success: function(data) {
+                    $('#widgets').html(JSON.stringify(data, undefined, 2));
+                    Rainbow.color();
+                }
             });
         </script>
         <pre><code data-language="generic" id="widgets"></code></pre>
