@@ -49,6 +49,36 @@
                     }
                 }
             }
+        },
+        "spell-histogram": {
+            "author": "Radek",
+            "title": "SPELL YeastMine Histogram",
+            "description": "Shows a SPELL Expression Summary for YeastMine gene experiments data",
+            "version": "0.0.1",
+            "dependencies": [
+                {
+                    "name": "jQuery",
+                    "path": "http://127.0.0.1:1119/js/jquery-min.js",
+                    "type": "js",
+                    "wait": true
+                },
+                {
+                    "name": "_",
+                    "path": "http://127.0.0.1:1119/js/underscore-min.js",
+                    "type": "js",
+                    "wait": true
+                },
+                {
+                    "name": "Backbone",
+                    "path": "http://127.0.0.1:1119/js/backbone-min.js",
+                    "type": "js"
+                },
+                {
+                    "name": "google",
+                    "path": "https://www.google.com/jsapi",
+                    "type": "js"
+                }
+            ]
         }
     }
 }

@@ -24,6 +24,10 @@
 
     <!-- report widgets client -->
     <script src="js/client.js"></script>
+
+    <script>
+        var widgets = new window.ReportWidgets('http://127.0.0.1:1119');
+    </script>
 </head>
 <body>
     <div class="row">
@@ -47,8 +51,7 @@
     </div>
 
     <div class="row">
-        <h3>Publications widget</h3>
-        <p>An example widget loaded as follows:</p>
+        <h3>Publications Displayer</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
 intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
@@ -58,11 +61,27 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
         </code></pre>
         <script>
             (function() {
-                var widgets = new window.ReportWidgets('http://127.0.0.1:1119');
-                widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
+                this.widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
             })();
         </script>
         <div id="publications"></div>
+    </div>
+
+    <div class="row">
+        <h3>SPELL YeastMine Histogram</h3>
+        <pre><code data-language="javascript">
+// give us report widgets from a specific service in a callback `widgets`
+intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
+    // now load a specific widget and place it in a target element passing it extra config.
+    widgets.load('spell-histogram', '#spell');
+});
+        </code></pre>
+        <script>
+            (function() {
+                this.widgets.load('spell-histogram', '#spell');
+            })();
+        </script>
+        <div id="spell"></div>
     </div>
 </body>
 </html>

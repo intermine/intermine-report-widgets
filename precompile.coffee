@@ -102,24 +102,28 @@ exports.single = (widgetId, callback, config, output) ->
                     exists = fs.lstatSync path
                 catch e
                 if exists
-                    winston.info "Adding custom .css file".grey
                     # Read the file.
                     css = fs.readFileSync path, "utf-8"
-                    # Prefix CSS selectors with a callback id.
-                    css = prefix.css css, "div#w#{callback}"
-                    # Escape all single quotes.
-                    css = css.replace /\'/g, "\\'"
-                    # Minify
-                    css = minify css, 'css'
-                    # Embed.
-                    exec = """
-                    \n/**#@+ css */
-                    var style = document.createElement('style');
-                    style.type = 'text/css';
-                    style.innerHTML = '#{css}';
-                    document.head.appendChild(style);\n
-                    """
-                    js.push ("  #{line}" for line in exec.split("\n")).join("\n")
+
+                    # Is it not empty?
+                    if css.length isnt 0
+                        winston.info "Adding custom .css file".grey
+
+                        # Prefix CSS selectors with a callback id.
+                        css = prefix.css css, "div#w#{callback}"
+                        # Escape all single quotes.
+                        css = css.replace /\'/g, "\\'"
+                        # Minify
+                        css = minify css, 'css'
+                        # Embed.
+                        exec = """
+                        \n/**#@+ css */
+                        var style = document.createElement('style');
+                        style.type = 'text/css';
+                        style.innerHTML = '#{css}';
+                        document.head.appendChild(style);\n
+                        """
+                        js.push ("  #{line}" for line in exec.split("\n")).join("\n")
 
                 # Finally add us to the browser `cache` under the callback id.
                 cb = """
