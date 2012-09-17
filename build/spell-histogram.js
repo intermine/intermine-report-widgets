@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 17 Sep 2012 13:50:46 GMT
+ *  Generated: Mon, 17 Sep 2012 13:54:48 GMT
  */
 
 (function() {
@@ -66,12 +66,13 @@ var root = this;
       var twoDArray,
         _this = this;
       this.target = target;
+      $(this.target).html(this.templates.chart());
       twoDArray = this.data();
       return google.load('visualization', '1.0', {
         'packages': ['corechart'],
         callback: function() {
           var chart;
-          chart = new google.visualization.ColumnChart($(_this.target)[0]);
+          chart = new google.visualization.ColumnChart($(_this.target).find('.chart')[0]);
           return chart.draw(google.visualization.arrayToDataTable(twoDArray, false), _this.chartOptions);
         }
       });
@@ -86,7 +87,7 @@ var root = this;
 
   /**#@+ the templates */
   var templates = {};
-  templates.table=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){var e,n,i,s,o,u,a,f,l,c;t.push("<header>    \n    <h4>SPELL Expression Summary</h4>\n</header>\n\n");if(this.rows.length!==0){t.push("\n    <table>\n        <thead>\n            <tr>\n                <th>Title</th>\n                <th>Author</th>\n            </tr>\n        </thead>\n        <tbody>\n            "),l=this.rows;for(s=0,a=l.length;s<a;s++){i=l[s],t.push("\n                <tr>\n                    <td>"),t.push(r(i.title)),t.push("</td>\n                    <td>\n                        ");if(i.authors.length>5){t.push("\n                            ");for(n=o=0;o<5;n=++o)t.push('\n                                <span class="author">'),t.push(r(i.authors[n].name)),t.push("</span>\n                            ");t.push("\n                            &hellip;\n                        ")}else{t.push("\n                            "),c=i.authors;for(u=0,f=c.length;u<f;u++)e=c[u],t.push('\n                                <span class="author">'),t.push(r(e.name)),t.push("</span>\n                            ");t.push("\n                        ")}t.push("\n                    </td>\n                </tr>\n            ")}t.push("\n        </tbody>\n    </table>\n")}else t.push('\n    <div class="alert-box alert">No results</div>\n')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.chart=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<header>    \n    <h4>SPELL Expression Summary</h4>\n</header>\n\n<div class="chart"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   /**#@+ callback */
   (function() {
     var parent, part, _i, _len, _ref;

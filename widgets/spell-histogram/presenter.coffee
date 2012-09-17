@@ -36,10 +36,15 @@ class Widget
 
     # Render accepts a target to draw results into.
     render: (@target) ->
+        # Render template.
+        $(@target).html @templates.chart()
+
+        # Get data.
         twoDArray = @data()
 
+        # Google Viz.
         google.load 'visualization', '1.0',
             'packages': [ 'corechart' ]
             callback: =>
-                chart = new google.visualization.ColumnChart($(@target)[0])
+                chart = new google.visualization.ColumnChart($(@target).find('.chart')[0])
                 chart.draw(google.visualization.arrayToDataTable(twoDArray, false), @chartOptions)
