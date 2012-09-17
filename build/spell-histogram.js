@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 17 Sep 2012 13:54:48 GMT
+ *  Generated: Mon, 17 Sep 2012 15:00:33 GMT
  */
 
 (function() {
@@ -48,26 +48,19 @@ var root = this;
       this.templates = templates;
     }
   
-    Widget.prototype.data = function() {
-      var columns, data, i;
-      data = [0, 0, 0, 0, 0, 1, 5, 17, 115, 2028, 3347, 176, 50, 368, 692, 64, 155, 29, 9, 0];
-      columns = [];
-      i = -18;
-      while (i !== 22) {
-        columns.push("" + (i - 2) + " to " + i);
-        i += 2;
-      }
-      return _(columns).map(function(label, i) {
-        return [label, data[i]];
-      });
-    };
-  
     Widget.prototype.render = function(target) {
-      var twoDArray,
+      var data, twoDArray, values, x,
         _this = this;
       this.target = target;
+      values = d3.range(1000).map(d3.random.irwinHall(10));
+      x = d3.scale.linear().domain([0, 1]).range([-20, 20]);
+      data = d3.layout.histogram().bins(x.ticks(20))(values);
+      twoDArray = _(data).map(function(bin, i) {
+        var from;
+        from = x(bin.x);
+        return ["" + from + " to " + (from + 2), bin.y];
+      });
       $(this.target).html(this.templates.chart());
-      twoDArray = this.data();
       return google.load('visualization', '1.0', {
         'packages': ['corechart'],
         callback: function() {

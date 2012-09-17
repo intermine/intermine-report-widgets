@@ -20,27 +20,22 @@ class Widget
     # Have access to config and templates compiled in.
     constructor: (@config, @templates) ->
 
-    # Fake data...
-    data: ->
-        # The values.
-        data = [ 0, 0, 0, 0, 0, 1, 5, 17, 115, 2028, 3347, 176, 50, 368, 692, 64, 155, 29, 9, 0 ]
-        
-        # The labels.
-        columns = [] ; i = -18
-        while i isnt 22
-            columns.push "#{i - 2} to #{i}"
-            i += 2
-        
-        # Map them together.
-        _(columns).map (label, i) -> [ label, data[i] ]
-
     # Render accepts a target to draw results into.
     render: (@target) ->
+        # Generate an Irwin–Hall distribution of 10 random variables.
+        values = d3.range(1000).map(d3.random.irwinHall(10))
+
+        # Map to a -20, 20 range.
+        x = d3.scale.linear().domain([0, 1]).range([-20, 20])
+
+        # Generate a histogram using twenty uniformly-spaced bins.
+        data = d3.layout.histogram().bins(x.ticks(20))(values)
+
+        # Map the labels to data.
+        twoDArray = _(data).map (bin, i) -> from = x(bin.x) ; [ "#{from} to #{from + 2}", bin.y ]
+
         # Render template.
         $(@target).html @templates.chart()
-
-        # Get data.
-        twoDArray = @data()
 
         # Google Viz.
         google.load 'visualization', '1.0',
