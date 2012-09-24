@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 17 Sep 2012 15:00:33 GMT
+ *  Generated: Mon, 24 Sep 2012 11:48:20 GMT
  */
 
 (function() {
@@ -43,10 +43,26 @@ var root = this;
       }
     };
   
+    /*
+        Have access to config and templates compiled in.
+        This function needs to always be present and will always accept the following two Objects.
+        By using the at sign I am saving the two parameters on `this` object.
+        @param {Object} config A key value dictionary of config coming from the server.
+        @param {Object} templates A key value dictionary of template functions.
+    */
+  
+  
     function Widget(config, templates) {
       this.config = config;
       this.templates = templates;
     }
+  
+    /*
+        Render accepts a target to draw results into.
+        This function needs to always be present and will always accept the target string.
+        @param {jQuery selector} target Either a string or a jQuery selected object where to draw the output to.
+    */
+  
   
     Widget.prototype.render = function(target) {
       var data, twoDArray, values, x,
@@ -55,7 +71,7 @@ var root = this;
       values = d3.range(1000).map(d3.random.irwinHall(10));
       x = d3.scale.linear().domain([0, 1]).range([-20, 20]);
       data = d3.layout.histogram().bins(x.ticks(20))(values);
-      twoDArray = _(data).map(function(bin, i) {
+      twoDArray = _(data).map(function(bin) {
         var from;
         from = x(bin.x);
         return ["" + from + " to " + (from + 2), bin.y];
