@@ -82,8 +82,19 @@ class Widget
         rx = width / 2
         ry = height / 2
         
+        # Sorting function for sibling nodes.
+        sort = (a, b) ->
+            switch a.depth - b.depth
+                # Based on depth.
+                when -1 then return -1
+                when 1 then return 1
+                else
+                    # Based on count.
+                    return a.count - b.count if a.count? and b.count?
+            0
+
         # Create a dendrogram layout going all the way round with the width of ry - 50.
-        cluster = d3.layout.cluster().size([360, ry - 50]).sort(null)
+        cluster = d3.layout.cluster().size([360, ry - 50]).sort(sort)
         
         # Diagonal generator producing smooth fan.
         diagonal = d3.svg.diagonal.radial().projection (d) -> [d.y, d.x / 180 * Math.PI]
@@ -101,9 +112,10 @@ class Widget
             .attr("class", "arc")
                 .attr("d", d3.svg.arc().innerRadius(ry - 120).outerRadius(ry).startAngle(0).endAngle(2 * Math.PI))
         
-        # Get the data and create links for them.
+        # Create cluster nodes from data.
         nodes = cluster.nodes(data)
 
+        # Create links between the nodes.
         for link in cluster.links(nodes)
             vis.append("svg:path")
                 .attr("class", "link")
