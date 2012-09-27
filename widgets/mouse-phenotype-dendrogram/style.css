@@ -5,6 +5,7 @@ path.arc { fill:#FFF; }
 .node.depth-2 { font-size:10px; }
 
 .node circle { fill:#FFF; stroke:#CCC; stroke-width:1.5px; }
+/* ColorBrewer colors */
 .node.depth-2 circle { stroke:#FEE5D9; fill:#FEE5D9; }
 .node circle.band-1 { stroke:#FCAE91; fill:#FCAE91; }
 .node circle.band-2 { stroke:#FB6A4A; fill:#FB6A4A;}
@@ -14,5 +15,14 @@ path.arc { fill:#FFF; }
 .link { fill:none; stroke:#CCC; stroke-width:1.5px; }
 
 .config { background:#FFF; padding:20px; box-shadow:0 0 10px #CCC; }
-.config p { margin:0; }
-.config p:not(:first-child) { margin-bottom:10px; }
+.config>div { margin:0; }
+.config>div:not(:last-child) { margin-bottom:10px; }
+
+.config ul { display:inline; margin:0; list-style-type:none; }
+.config ul li { display:inline-block; white-space:nowrap; }
+.config ul li:not(:last-child) { margin-right:5px; }
+.config ul li:not(:last-child):after { content:','; }
+/* to match the style of Tangle */
+.config .option { color:#46f; border-bottom:1px dashed #46f; cursor:pointer; position:relative; }
+.config .option.selected { color:#00c; }
+.config .option:not(.selected):hover:before { content:'select'; color:#00f; position:absolute; top:-10px; left:0; font:9px "Helvetica-Neue","Arial",sans-serif; }

@@ -84,6 +84,10 @@ class Widget
 
                 # A map from high level terms to child terms (and eventually their counts).
                 for [ parent, child ] in rows
+                    # First populate a list of hlts.
+                    unless @hlts? then @hlts = []
+                    if parent not in @hlts then @hlts.push parent
+
                     if terms[parent]?
                         # add child terms and its count
                         terms[parent].children.push
@@ -124,9 +128,15 @@ class Widget
         assert Tangle?, 'Tangle lib does not seem to be loaded'
         assert @band?, '`band` of allele counts not provided'
         assert @max?, '`max` top allele count not provided'
+        assert @hlts? and @hlts instanceof Array, '`hlts` needs to be populated by an Array of High Level Terms'
         
         # Show the config for the graph.
         $(@target).find('.config').html @templates.config()
+        
+        # Populate the list of HLTs in the config.
+        l = $(@target).find('.config div.terms ul')
+        ( l.append $('<li/>', 'class': 'option', 'text': term ) for term in @hlts )
+
         # Reactivize document.
         widget = @
         tangle = new Tangle $(@target).find('.config')[0],
