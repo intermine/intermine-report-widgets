@@ -1,1 +1,2 @@
-<p><strong>Show term text</strong> when band is <span data-var="band" class="TKAdjustableNumber" data-min="0" data-max="4"></span> or higher corresponding to allele count of <span data-var="count"></span> or higher.</p>
+<p><strong>Show term text</strong> when band is <span data-var="termTextBand" class="TKAdjustableNumber" data-min="1" data-max="5"></span> or higher corresponding to allele count of <span data-var="termTextCount"></span> or higher.</p>
+<p><strong>Hide terms</strong> when band is <span data-var="hideTermsBand" class="TKAdjustableNumber" data-min="1" data-max="5"></span> or higher corresponding to allele count of <span data-var="hideTermsCount"></span> or higher.</p>

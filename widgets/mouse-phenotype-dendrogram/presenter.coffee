@@ -90,15 +90,14 @@ class Widget
                             'name': child
                             'count': children[child].count
                             'band': Math.floor(children[child].count / @band)
+                            'depth': 2 # leaf node (branch node more like)
                     else
                         terms[parent] =
                             'name': parent
                             'children': [] # new term
+                            'depth': 1 # high level term depth
 
-                # Turn to Array and filter HLTs that do not have children (WTF?).
-                terms = ( t for t in _(terms).toArray() when t.children.length isnt 0 )
-
-                cb 'name': @config.symbol, 'children': terms
+                cb 'name': @config.symbol, 'children': _(terms).toArray(), 'depth': 0
 
     # Create a new service connection.
     constructor: (@config, @templates) ->
@@ -125,9 +124,6 @@ class Widget
         assert Tangle?, 'Tangle lib does not seem to be loaded'
         assert @band?, '`band` of allele counts not provided'
         assert @max?, '`max` top allele count not provided'
-
-        # Render the dendrogram node graph.
-        @dendrogram(data)
         
         # Show the config for the graph.
         $(@target).find('.config').html @templates.config()
@@ -135,21 +131,55 @@ class Widget
         widget = @
         tangle = new Tangle $(@target).find('.config')[0],
             initialize: ->
-                # Initialize band to '2'.
-                @band = 2
+                # Show term text when...
+                @termTextBand = 3
+                # Hide terms when...
+                @hideTermsBand = 2
 
             update: ->
-                # Update count of alleles based on the `@band` we have.
-                @count = @band * widget.band
+                # Show term text when...
+                @termTextCount = (@termTextBand - 1) * widget.band
+                # Hide terms when...
+                @hideTermsCount = (@hideTermsBand - 1) * widget.band
+                
                 # Re-render the graph.
-                widget.dendrogram data,
-                    'termText': @band
+                widget.dendrogram data, @
 
     # Render the dendrogram node graph.
-    dendrogram: (data, opts={'termText': 2}) =>
+    dendrogram: (data, opts) =>
         assert @target?, 'need to have a target for rendering defined'
         assert @config.width?, 'need to provide a `width` for the chart'
         assert @config.height?, 'need to provide a `height` for the chart'
+        assert typeof opts is 'object', '`opts` of the graph are not provided by Tangle, go untangle'
+
+        # Filter nodes with a low band.
+        # ...also make a deep copy of `data`.
+        # ...also prune level 1 nodes that are empty.
+        data = (filterChildren = (node, cutoff) ->
+            # Early baths.
+            return if node.depth is 1 and (!node.children? or node.children.length is 0)
+            return node unless node.children? and node.children.length > 0
+
+            # Prep for deep copy.
+            children = []
+            
+            # Traverse the original.
+            for ch in node.children
+                # Do we have chomping to do?
+                unless ch.band? and ch.band < (cutoff - 1)
+                    # Children of our own?
+                    ch = filterChildren ch, cutoff
+                    # Push to new arr?
+                    children.push ch if ch?
+
+            # Replace orig.
+            unless children.length is 0
+                'name':     node.name  # string
+                'count':    node.count # number
+                'band':     node.band  # number
+                'children': children   # deep copy array
+        
+        ) data, opts.hideTermsBand
 
         # Clear any previous content.
         $(@target).find('.graph').empty()
@@ -223,8 +253,8 @@ class Widget
             node.append("svg:title")
                 .text(d.name)
 
-            # Show text only for the top terms.
-            if !d.band? or d.band > opts.termText - 1
+            # Show text only for the top 'band' terms.
+            if !d.band? or d.band > (opts.termTextBand - 2)
                 node.append("svg:text")
                     .attr("dx", if d.x < 180 then 8 else -8)
                     .attr("dy", ".31em")
