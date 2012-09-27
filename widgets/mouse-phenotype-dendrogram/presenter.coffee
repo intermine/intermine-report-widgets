@@ -74,7 +74,10 @@ class Widget
                             'name': parent
                             'children': [] # new term
 
-                cb 'name': 'MGI:97747', 'children': _(terms).toArray()
+                # Turn to Array and filter HLTs that do not have children (WTF?).
+                terms = ( t for t in _(terms).toArray() when t.children.length isnt 0 )
+
+                cb 'name': 'MGI:97747', 'children': terms
 
     dendrogram: (data) =>
         width = 1000
