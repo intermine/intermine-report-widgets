@@ -35,22 +35,6 @@
     </div>
 
     <div class="row">
-        <h3>Widgets listing</h3>
-        <p>Fetches the widgets and their dependencies that this service can provide.</p>
-        <script>
-            $.ajax({
-                'url': '/widget/report',
-                'dataType': 'jsonp',
-                success: function(data) {
-                    $('#widgets').html(JSON.stringify(data, undefined, 2));
-                    Rainbow.color();
-                }
-            });
-        </script>
-        <pre><code data-language="generic" id="widgets"></code></pre>
-    </div>
-
-    <div class="row">
         <h3>Publications Displayer</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
@@ -68,7 +52,7 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
     </div>
 
     <div class="row">
-        <h3>SPELL YeastMine Histogram</h3>
+        <h3>Histogram</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
 intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
@@ -82,6 +66,23 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
             })();
         </script>
         <div id="spell"></div>
+    </div>
+
+    <div class="row">
+        <h3>Dendrogram Clustering</h3>
+        <pre><code data-language="javascript">
+// give us report widgets from a specific service in a callback `widgets`
+intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
+    // now load a specific widget and place it in a target element passing it extra config.
+    widgets.load('mouse-phenotype-dendrogram', '#dendrogram');
+});
+        </code></pre>
+        <script>
+            (function() {
+                this.widgets.load('mouse-phenotype-dendrogram', '#dendrogram');
+            })();
+        </script>
+        <div id="dendrogram"></div>
     </div>
 </body>
 </html>
