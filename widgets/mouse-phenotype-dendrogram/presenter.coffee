@@ -13,7 +13,11 @@ Set the assertion on the window object.
 @.assert = (exp, message) -> throw new AssertException(message) unless exp
 
 
+# This class encapsulates the Widget behavior.
 class Widget
+
+    # Which symbol to fetch the data for (mousey PPARG).
+    symbol: 'MGI:97747'
 
     # PathQueries to fetch the allele terms for a symbol and high level terms for these terms.
     pq:
@@ -25,14 +29,8 @@ class Widget
                 "Gene.alleles.genotypes.phenotypeTerms.id"
                 "Gene.alleles.genotypes.phenotypeTerms.name"
             ],
-            "constraints": [
-                {
-                    "path": "Gene",
-                    "op": "LOOKUP",
-                    "value": "MGI:97747",
-                    "extraValue": ""
-                }
-            ]
+            "constraints": []
+        
         highLevelTerms:
             "select": [
                 "Allele.highLevelPhenotypeTerms.name",
@@ -42,9 +40,18 @@ class Widget
 
     # Fetch phenotypic terms for PPARG mouse.
     alleleTerms: (cb) ->
-        @service.query @pq.alleleTerms, (q) ->
-            q.records (records) ->
-                max = 1 # top term count
+        assert @symbol?, '`symbol` of the gene in question not provided'
+
+        # Constrain on the symbol.
+        pq = @pq.alleleTerms
+        pq.constraints.push
+            "path": "Gene"
+            "op": "LOOKUP"
+            "value": @symbol
+
+        @service.query pq, (q) =>
+            q.records (records) =>
+                @max = 1 # top term count
                 terms = {}
                 # Terms to their counts.
                 for allele in records[0]['alleles']
@@ -52,14 +59,21 @@ class Widget
                         for term in genotype.phenotypeTerms
                             if terms[term.name]?
                                 terms[term.name].count += 1 # increase count
-                                if terms[term.name].count > max then max = terms[term.name].count
+                                if terms[term.name].count > @max then @max = terms[term.name].count
                             else
                                 terms[term.name] = 'count': 1 # new term
                 
-                cb max, terms
+                # This will be one band.
+                @band = @max / 4
+
+                cb terms
 
     # Fetch high level terms for child terms.
-    highLevelTerms: (max, children, cb) ->
+    highLevelTerms: (children, cb) ->
+        assert cb?, 'callback `cb` needs to be provided, we use async data loading'
+        assert @symbol?, '`symbol` of the gene in question not provided'
+        assert @band?, '`band` of allele counts not provided'
+
         # Constrain on these terms.
         pq = @pq.highLevelTerms
         pq.constraints.push
@@ -67,9 +81,10 @@ class Widget
             "op": "ONE OF",
             "values": ( k for k, v of children )
 
-        @service.query pq, (q) ->
-            q.rows (rows) ->
+        @service.query pq, (q) =>
+            q.rows (rows) =>
                 terms = {}
+
                 # A map from high level terms to child terms (and eventually their counts).
                 for [ parent, child ] in rows
                     if terms[parent]?
@@ -77,7 +92,7 @@ class Widget
                         terms[parent].children.push
                             'name': child
                             'count': children[child].count
-                            'band': Math.floor(children[child].count / (max / 4))
+                            'band': Math.floor(children[child].count / @band)
                     else
                         terms[parent] =
                             'name': parent
@@ -86,7 +101,7 @@ class Widget
                 # Turn to Array and filter HLTs that do not have children (WTF?).
                 terms = ( t for t in _(terms).toArray() when t.children.length isnt 0 )
 
-                cb 'name': 'MGI:97747', 'children': terms
+                cb 'name': @symbol, 'children': terms
 
     # Create a new service connection.
     constructor: (@config, @templates) ->
@@ -95,9 +110,9 @@ class Widget
     # Render the graph.
     render: (@target) ->
         # Fetch phenotypic terms for PPARG mouse.
-        @alleleTerms (top, children) =>
+        @alleleTerms (children) =>
             # Fetch high level terms for child terms.
-            @highLevelTerms top, children, @renderGraph
+            @highLevelTerms children, @renderGraph
 
     ###
     Once data are loaded or updated, render the dendrogram and init config for it.
@@ -107,6 +122,8 @@ class Widget
         assert typeof data is 'object', '`data` needs to be an object'
         assert @target?, 'need to have a target for rendering defined'
         assert Tangle?, 'Tangle lib does not seem to be loaded'
+        assert @band?, '`band` of allele counts not provided'
+        assert @max?, '`max` top allele count not provided'
 
         # Render the dendrogram node graph.
         @dendrogram(data)
