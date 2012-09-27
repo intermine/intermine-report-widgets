@@ -11,4 +11,6 @@ path.arc { fill:#FFF; }
 .node circle.band-3 { stroke:#DE2D26; fill:#DE2D26; }
 .node circle.band-4 { stroke:#A50F15; fill:#A50F15; }
 
+.node.depth-2 text { display:none; }
+
 .link { fill:none; stroke:#CCC; stroke-width:1.5px; }

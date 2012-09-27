@@ -110,20 +110,30 @@ class Widget
         # Draw the white arc where the end nodes lie.
         vis.append("svg:path")
             .attr("class", "arc")
-                .attr("d", d3.svg.arc().innerRadius(ry - 120).outerRadius(ry).startAngle(0).endAngle(2 * Math.PI))
+                .attr("d", d3.svg.arc().innerRadius(ry - 50).outerRadius(ry - 20).startAngle(0).endAngle(2 * Math.PI))
         
         # Create cluster nodes from data.
         nodes = cluster.nodes(data)
 
         # Create links between the nodes.
+        links = vis.append("svg:g")
+            .attr("class", "links")
         for link in cluster.links(nodes)
-            vis.append("svg:path")
+            links.append("svg:path")
                 .attr("class", "link")
                 .attr("d", diagonal(link))
         
-        # Create the actual node.
+        # Create three depths to draw from the back forward.
+        n = vis.append("svg:g").attr("class", "nodes")
+        depths = [
+            n.append("svg:g").attr("class", "depth-2")
+            n.append("svg:g").attr("class", "depth-1")
+            n.append("svg:g").attr("class", "depth-0")
+        ]
+
+        # Create the actual nodes.
         for d in nodes
-            node = vis.append("svg:g")
+            node = depths[Math.abs(d.depth - 2)].append("svg:g")
                 .attr("class", if d.count? then "node depth-#{d.depth} count-#{d.count}" else "node depth-#{d.depth}")
                 .attr("transform", "rotate(" + (d.x - 90) + ")translate(" + d.y + ")" )
 
