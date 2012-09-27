@@ -11,6 +11,8 @@ path.arc { fill:#FFF; }
 .node circle.band-3 { stroke:#DE2D26; fill:#DE2D26; }
 .node circle.band-4 { stroke:#A50F15; fill:#A50F15; }
 
-.node.depth-2 text { display:none; }
-
 .link { fill:none; stroke:#CCC; stroke-width:1.5px; }
+
+.config { background:#FFF; padding:20px; box-shadow:0 0 10px #CCC; }
+.config p { margin:0; }
+.config p:not(:first-child) { margin-bottom:10px; }

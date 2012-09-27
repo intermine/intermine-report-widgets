@@ -1,5 +1,21 @@
+# Simple assertion class.
+class AssertException
+
+    constructor: (@message) ->
+
+    toString: -> "AssertException: #{@message}"
+
+###
+Set the assertion on the window object.
+@param {boolean} exp Expression to be truthy
+@param {string} message Exception text to show if `exp` is not truthy fruthy
+###
+@.assert = (exp, message) -> throw new AssertException(message) unless exp
+
+
 class Widget
 
+    # PathQueries to fetch the allele terms for a symbol and high level terms for these terms.
     pq:
         alleleTerms:
             "select": [
@@ -23,13 +39,6 @@ class Widget
                 "Allele.highLevelPhenotypeTerms.relations.childTerm.name"
             ],
             "constraints": []
-
-    constructor: (@config, @templates) ->
-        @service = new intermine.Service 'root': 'http://metabolicmine.org/beta/service/'
-
-    render: (@target) ->
-        @alleleTerms (top, children) =>
-            @highLevelTerms top, children, @dendrogram
 
     # Fetch phenotypic terms for PPARG mouse.
     alleleTerms: (cb) ->
@@ -79,6 +88,39 @@ class Widget
 
                 cb 'name': 'MGI:97747', 'children': terms
 
+    # Create a new service connection.
+    constructor: (@config, @templates) ->
+        @service = new intermine.Service 'root': 'http://metabolicmine.org/beta/service/'
+
+    # Render the graph.
+    render: (@target) ->
+        # Fetch phenotypic terms for PPARG mouse.
+        @alleleTerms (top, children) =>
+            # Fetch high level terms for child terms.
+            @highLevelTerms top, children, @renderGraph
+
+    ###
+    Once data are loaded or updated, render the dendrogram and init config for it.
+    @param {object} data A root to children object to render.
+    ###
+    renderGraph: (data) =>
+        assert typeof data is 'object', '`data` needs to be an object'
+        assert @target?, 'need to have a target for rendering defined'
+        assert Tangle?, 'Tangle lib does not seem to be loaded'
+
+        # Render the dendrogram node graph.
+        @dendrogram(data)
+        # Show the config for the graph.
+        $(@target).prepend $('<div/>', { 'class': 'config', 'html': @templates.config() })
+        # Reactivize document.
+        tangle = new Tangle $(@target).find('.config')[0],
+            initialize: ->
+                @band = 2
+
+            update: ->
+                @count = @band * 2.5
+
+    # Render the dendrogram node graph.
     dendrogram: (data) =>
         width = 1000
         height = 800
@@ -148,9 +190,12 @@ class Widget
             # Append a rotated text to the node.
             node.append("svg:title")
                 .text(d.name)
-            node.append("svg:text")
-                .attr("dx", if d.x < 180 then 8 else -8)
-                .attr("dy", ".31em")
-                .attr("text-anchor", if d.x < 180 then "start" else "end")
-                .attr("transform", if d.x < 180 then null else "rotate(180)")
-                .text(if d.name.length > 50 then d.name[0...50] + '...' else d.name)
+
+            # Show text only for the top terms.
+            if !d.band? or d.band > 1
+                node.append("svg:text")
+                    .attr("dx", if d.x < 180 then 8 else -8)
+                    .attr("dy", ".31em")
+                    .attr("text-anchor", if d.x < 180 then "start" else "end")
+                    .attr("transform", if d.x < 180 then null else "rotate(180)")
+                    .text(if d.name.length > 50 then d.name[0...50] + '...' else d.name)
