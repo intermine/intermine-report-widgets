@@ -16,9 +16,6 @@ Set the assertion on the window object.
 # This class encapsulates the Widget behavior.
 class Widget
 
-    # Which symbol to fetch the data for (mousey PPARG).
-    symbol: 'MGI:97747'
-
     # PathQueries to fetch the allele terms for a symbol and high level terms for these terms.
     pq:
         alleleTerms:
@@ -40,14 +37,14 @@ class Widget
 
     # Fetch phenotypic terms for PPARG mouse.
     alleleTerms: (cb) ->
-        assert @symbol?, '`symbol` of the gene in question not provided'
+        assert @config.symbol?, '`symbol` of the gene in question not provided'
 
         # Constrain on the symbol.
         pq = @pq.alleleTerms
         pq.constraints.push
             "path": "Gene"
             "op": "LOOKUP"
-            "value": @symbol
+            "value": @config.symbol
 
         @service.query pq, (q) =>
             q.records (records) =>
@@ -71,7 +68,7 @@ class Widget
     # Fetch high level terms for child terms.
     highLevelTerms: (children, cb) ->
         assert cb?, 'callback `cb` needs to be provided, we use async data loading'
-        assert @symbol?, '`symbol` of the gene in question not provided'
+        assert @config.symbol?, '`symbol` of the gene in question not provided'
         assert @band?, '`band` of allele counts not provided'
 
         # Constrain on these terms.
@@ -101,7 +98,7 @@ class Widget
                 # Turn to Array and filter HLTs that do not have children (WTF?).
                 terms = ( t for t in _(terms).toArray() when t.children.length isnt 0 )
 
-                cb 'name': @symbol, 'children': terms
+                cb 'name': @config.symbol, 'children': terms
 
     # Create a new service connection.
     constructor: (@config, @templates) ->
@@ -109,6 +106,10 @@ class Widget
 
     # Render the graph.
     render: (@target) ->
+        # Render the widget wrapper.
+        $(@target).html @templates.widget
+            'title': "Alleles phenotype terms for #{@config.symbol}"
+
         # Fetch phenotypic terms for PPARG mouse.
         @alleleTerms (children) =>
             # Fetch high level terms for child terms.
@@ -119,7 +120,7 @@ class Widget
     @param {object} data A root to children object to render.
     ###
     renderGraph: (data) =>
-        assert typeof data is 'object', '`data` needs to be an object'
+        assert typeof data is 'object' and data.children?, '`data` needs to be an Object with `children`'
         assert @target?, 'need to have a target for rendering defined'
         assert Tangle?, 'Tangle lib does not seem to be loaded'
         assert @band?, '`band` of allele counts not provided'
@@ -127,20 +128,34 @@ class Widget
 
         # Render the dendrogram node graph.
         @dendrogram(data)
+        
         # Show the config for the graph.
-        $(@target).prepend $('<div/>', { 'class': 'config', 'html': @templates.config() })
+        $(@target).find('.config').html @templates.config()
         # Reactivize document.
+        widget = @
         tangle = new Tangle $(@target).find('.config')[0],
             initialize: ->
+                # Initialize band to '2'.
                 @band = 2
 
             update: ->
-                @count = @band * 2.5
+                # Update count of alleles based on the `@band` we have.
+                @count = @band * widget.band
+                # Re-render the graph.
+                widget.dendrogram data,
+                    'termText': @band
 
     # Render the dendrogram node graph.
-    dendrogram: (data) =>
-        width = 1000
-        height = 800
+    dendrogram: (data, opts={'termText': 2}) =>
+        assert @target?, 'need to have a target for rendering defined'
+        assert @config.width?, 'need to provide a `width` for the chart'
+        assert @config.height?, 'need to provide a `height` for the chart'
+
+        # Clear any previous content.
+        $(@target).find('.graph').empty()
+
+        width = @config.width
+        height = @config.height
         rx = width / 2
         ry = height / 2
         
@@ -162,12 +177,12 @@ class Widget
         diagonal = d3.svg.diagonal.radial().projection (d) -> [d.y, d.x / 180 * Math.PI]
         
         # Wrapper SVG.
-        vis = d3.select($(@target)[0]).append("svg:svg")
+        vis = d3.select($(@target).find('.graph')[0]).append("svg:svg")
             .attr("width", width)
             .attr("height", height)
             # Center the graph.
             .append("svg:g")
-                .attr("transform", "translate(" + rx + "," + ry + ")")
+                .attr("transform", "translate(#{rx},#{ry})")
         
         # Draw the white arc where the end nodes lie.
         vis.append("svg:path")
@@ -197,7 +212,7 @@ class Widget
         for d in nodes
             node = depths[Math.abs(d.depth - 2)].append("svg:g")
                 .attr("class", if d.count? then "node depth-#{d.depth} count-#{d.count}" else "node depth-#{d.depth}")
-                .attr("transform", "rotate(" + (d.x - 90) + ")translate(" + d.y + ")" )
+                .attr("transform", "rotate(#{d.x - 90})translate(#{d.y})" )
 
             # Draw a node circle.
             node.append("svg:circle")
@@ -209,7 +224,7 @@ class Widget
                 .text(d.name)
 
             # Show text only for the top terms.
-            if !d.band? or d.band > 1
+            if !d.band? or d.band > opts.termText - 1
                 node.append("svg:text")
                     .attr("dx", if d.x < 180 then 8 else -8)
                     .attr("dy", ".31em")

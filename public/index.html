@@ -56,7 +56,7 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
 intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
-    // now load a specific widget and place it in a target element passing it extra config.
+    // now load a specific widget and place it in a target element.
     widgets.load('spell-histogram', '#spell');
 });
         </code></pre>
@@ -74,12 +74,12 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
 // give us report widgets from a specific service in a callback `widgets`
 intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
-    widgets.load('mouse-phenotype-dendrogram', '#dendrogram');
+    widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 1000, 'height': 800, 'symbol': 'MGI:97747' });
 });
         </code></pre>
         <script>
             (function() {
-                this.widgets.load('mouse-phenotype-dendrogram', '#dendrogram');
+                this.widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 1000, 'height': 800, 'symbol': 'MGI:97747' });
             })();
         </script>
         <div id="dendrogram"></div>

@@ -1,0 +1,3 @@
+<h4><%= @title %></h4>
+<div class="config"></div>
+<div class="graph"></div>
