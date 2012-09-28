@@ -228,10 +228,27 @@ class Widget
             # Show a message of this fact instead.
             return target.html $ '<div/>', 'class': 'alert-box', 'text': 'Nothing to show. Adjust the filters above to display the graph.'
 
-        width = @config.width
-        height = @config.height
-        rx = width / 2
-        ry = height / 2
+        # A `RadialDendrogram`.
+        new RadialDendrogram
+            'data':   data
+            'width':  @config.width
+            'height': @config.height
+            'el':     target[0]
+
+
+# Represents a Dendrogram Tree Node graph in a radial/circular fashion.
+class RadialDendrogram
+
+    constructor: (opts) ->
+        assert opts.width? and typeof opts.width is 'number', '`width` is missing and needs to be a number'
+        assert opts.height? and typeof opts.height is 'number', '`height` is missing and needs to be a number'
+        assert opts.el? and opts.el.constructor.name is 'HTMLDivElement', '`el` is missing and needs to be an HTMLDivElement'
+        assert typeof opts.data is 'object', '`data` need to be provided in an Object form, read up on D3.js'
+
+        ( @[key] = value for key, value of opts )
+
+        rx = @width / 2
+        ry = @height / 2
         
         # Sorting function for sibling nodes.
         sort = (a, b) ->
@@ -251,20 +268,20 @@ class Widget
         diagonal = d3.svg.diagonal.radial().projection (d) -> [d.y, d.x / 180 * Math.PI]
         
         # Wrapper SVG.
-        vis = d3.select(target[0]).append("svg:svg")
-            .attr("width", width)
-            .attr("height", height)
+        vis = d3.select(@el).append("svg:svg")
+            .attr("width", @width)
+            .attr("height", @height)
             # Center the graph.
             .append("svg:g")
                 .attr("transform", "translate(#{rx},#{ry})")
 
         # Draw the white arc where the end nodes lie.
-        vis.append("svg:path")
+        arc = vis.append("svg:path")
             .attr("class", "arc")
                 .attr("d", d3.svg.arc().innerRadius(ry - 50).outerRadius(ry - 20).startAngle(0).endAngle(2 * Math.PI))
 
         # Create cluster nodes from data.
-        nodes = cluster.nodes(data)
+        nodes = cluster.nodes(@data)
 
         # Create links between the nodes.
         links = vis.append("svg:g")
@@ -277,9 +294,9 @@ class Widget
         # Create three depths to draw from the back forward.
         n = vis.append("svg:g").attr("class", "nodes")
         depths = [
-            n.append("svg:g").attr("class", "depth-2")
-            n.append("svg:g").attr("class", "depth-1")
-            n.append("svg:g").attr("class", "depth-0")
+            n.append("svg:g").attr("class", "tier depth-2")
+            n.append("svg:g").attr("class", "tier depth-1")
+            n.append("svg:g").attr("class", "tier depth-0")
         ]
 
         # Create the actual nodes.
