@@ -257,12 +257,12 @@ class Widget
             # Center the graph.
             .append("svg:g")
                 .attr("transform", "translate(#{rx},#{ry})")
-        
+
         # Draw the white arc where the end nodes lie.
         vis.append("svg:path")
             .attr("class", "arc")
                 .attr("d", d3.svg.arc().innerRadius(ry - 50).outerRadius(ry - 20).startAngle(0).endAngle(2 * Math.PI))
-        
+
         # Create cluster nodes from data.
         nodes = cluster.nodes(data)
 
@@ -271,7 +271,7 @@ class Widget
             .attr("class", "links")
         for link in cluster.links(nodes)
             links.append("svg:path")
-                .attr("class", "link")
+                .attr("class", if link.target.band? then "link band-#{link.target.band}" else 'link')
                 .attr("d", diagonal(link))
         
         # Create three depths to draw from the back forward.

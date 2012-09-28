@@ -5,6 +5,7 @@ path.arc { fill:#FFF; }
 .node.depth-2 { font-size:10px; }
 
 .node circle { fill:#FFF; stroke:#CCC; stroke-width:1.5px; }
+
 /* ColorBrewer colors */
 .node.depth-2 circle { stroke:#FEE5D9; fill:#FEE5D9; }
 .node circle.band-1 { stroke:#FCAE91; fill:#FCAE91; }
@@ -12,7 +13,12 @@ path.arc { fill:#FFF; }
 .node circle.band-3 { stroke:#DE2D26; fill:#DE2D26; }
 .node circle.band-4 { stroke:#A50F15; fill:#A50F15; }
 
-.link { fill:none; stroke:#CCC; stroke-width:1.5px; }
+.link { fill:none; stroke:#CCC; stroke-width:1px; }
+.link.band-0 { stroke:#FEE5D9; }
+.link.band-1 { stroke:#FCAE91; }
+.link.band-2 { stroke:#FB6A4A; }
+.link.band-3 { stroke:#DE2D26; }
+.link.band-4 { stroke:#A50F15; }
 
 .config { background:#FFF; padding:20px; box-shadow:0 0 10px #CCC; }
 .config>div { margin:0; }
@@ -22,6 +28,7 @@ path.arc { fill:#FFF; }
 .config ul li { display:inline-block; white-space:nowrap; margin-top:6px; }
 .config ul li:not(:last-child) { margin-right:5px; }
 .config ul li:not(:last-child):after { content:','; color:#222; }
+
 /* to match the style of Tangle */
 .config .option { color:#46f; border-bottom:1px dashed #46f; cursor:pointer; position:relative; }
 .config .option.selected { color:#00c; }
