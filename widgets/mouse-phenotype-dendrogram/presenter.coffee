@@ -149,6 +149,17 @@ class Widget
             # Update the graph (setting a value triggers and update() event).
             tangle.setValue 'showCategory', $(e.target).text()
 
+        # Switch between graph types.
+        $(@target).find('.config .types .option').click (e) =>
+            assert tangle?, 'wow a bit too fast there fella'
+            
+            # Remove all other.
+            $(@target).find('.config .types .option.selected').removeClass('selected')
+            # Select us.
+            $(e.target).addClass('selected')
+            # Update the graph (setting a value triggers and update() event).
+            tangle.setValue 'type', $(e.target).text()
+
         # Reactivize document.
         widget = @
         tangle = new Tangle $(@target).find('.config')[0],
@@ -156,9 +167,11 @@ class Widget
                 # Show term text when...
                 @termTextBand = 3
                 # Hide terms when...
-                @hideTermsBand = 1
+                @hideTermsBand = 2
                 # Only show terms in HLT...
                 @showCategory = 'all'
+                # Which type?
+                @type = 'radial'
 
             update: ->
                 # Show term text when...
@@ -228,15 +241,19 @@ class Widget
             # Show a message of this fact instead.
             return target.html $ '<div/>', 'class': 'alert-box', 'text': 'Nothing to show. Adjust the filters above to display the graph.'
 
-        # A `RadialDendrogram`.
-        new RadialDendrogram
-            'data':   data
-            'width':  @config.width
-            'height': @config.height
-            'el':     target[0]
+        params =
+            'termTextBand': opts.termTextBand
+            'data':         data
+            'width':        @config.width
+            'height':       @config.height
+            'el':           target[0]
+
+        switch opts.type
+            when 'radial' then new RadialDendrogram params
+            when 'tree'   then new TreeDendrogram   params
 
 
-# Represents a Dendrogram Tree Node graph in a radial/circular fashion.
+# Represents a Dendrogram Node graph in a radial/circular fashion.
 class RadialDendrogram
 
     constructor: (opts) ->
@@ -244,6 +261,7 @@ class RadialDendrogram
         assert opts.height? and typeof opts.height is 'number', '`height` is missing and needs to be a number'
         assert opts.el? and opts.el.constructor.name is 'HTMLDivElement', '`el` is missing and needs to be an HTMLDivElement'
         assert typeof opts.data is 'object', '`data` need to be provided in an Object form, read up on D3.js'
+        assert opts.termTextBand?, "`termTextBand` representing the node text cutoff not present"
 
         ( @[key] = value for key, value of opts )
 
@@ -303,7 +321,7 @@ class RadialDendrogram
         for d in nodes
             node = depths[Math.abs(d.depth - 2)].append("svg:g")
                 .attr("class", if d.count? then "node depth-#{d.depth} count-#{d.count}" else "node depth-#{d.depth}")
-                .attr("transform", "rotate(#{d.x - 90})translate(#{d.y})" )
+                .attr("transform", "rotate(#{d.x - 90})translate(#{d.y})")
 
             # Draw a node circle.
             node.append("svg:circle")
@@ -315,10 +333,89 @@ class RadialDendrogram
                 .text(d.name)
 
             # Show text only for the top 'band' terms.
-            if !d.band? or d.band > (opts.termTextBand - 2)
+            if !d.band? or d.band > (@termTextBand - 2)
                 node.append("svg:text")
                     .attr("dx", if d.x < 180 then 8 else -8)
                     .attr("dy", ".31em")
                     .attr("text-anchor", if d.x < 180 then "start" else "end")
                     .attr("transform", if d.x < 180 then null else "rotate(180)")
+                    .text(if d.name.length > 50 then d.name[0...50] + '...' else d.name)
+
+
+# Represents a Dendrogram Node graph in a square/tree fashion.
+class TreeDendrogram
+
+    constructor: (opts) ->
+        assert opts.width? and typeof opts.width is 'number', '`width` is missing and needs to be a number'
+        assert opts.height? and typeof opts.height is 'number', '`height` is missing and needs to be a number'
+        assert opts.el? and opts.el.constructor.name is 'HTMLDivElement', '`el` is missing and needs to be an HTMLDivElement'
+        assert typeof opts.data is 'object', '`data` need to be provided in an Object form, read up on D3.js'
+        assert opts.termTextBand?, "`termTextBand` representing the node text cutoff not present"
+
+        ( @[key] = value for key, value of opts )
+
+        # Sorting function for sibling nodes.
+        sort = (a, b) ->
+            switch b.depth - a.depth
+                # Based on depth.
+                when -1 then return -1
+                when 1 then return 1
+                else
+                    # Based on count.
+                    return b.count - a.count if a.count? and b.count?
+            0
+
+        # Create a dendrogram layout.
+        cluster = d3.layout.cluster().size([@height, @width / 2]).sort(sort)
+        
+        # Diagonal generator producing smooth fan.
+        diagonal = d3.svg.diagonal().projection( (d) -> [d.y, d.x] )
+        
+        # Wrapper SVG.
+        vis = d3.select(@el).append("svg")
+            .attr("width", @width)
+            .attr("height", @height)
+                .append("g")
+                    .attr("transform", "translate(120, 0)")
+        
+        # Create cluster nodes from data.
+        nodes = cluster.nodes(@data)
+        
+        # Create links between the nodes.
+        links = vis.append("svg:g")
+            .attr("class", "links")
+        for link in cluster.links(nodes)
+            links.append("svg:path")
+                .attr("class", if link.target.band? then "link band-#{link.target.band}" else 'link')
+                .attr("d", diagonal(link))
+        
+        # Create three depths to draw from the back forward.
+        n = vis.append("svg:g").attr("class", "nodes")
+        depths = [
+            n.append("svg:g").attr("class", "tier depth-2")
+            n.append("svg:g").attr("class", "tier depth-1")
+            n.append("svg:g").attr("class", "tier depth-0")
+        ]
+
+        # Create the actual nodes.
+        for d in nodes
+            node = depths[Math.abs(d.depth - 2)].append("svg:g")
+                .attr("class", if d.count? then "node depth-#{d.depth} count-#{d.count}" else "node depth-#{d.depth}")
+                .attr("transform", "translate(#{d.y},#{d.x})")
+
+            # Draw a node circle.
+            node.append("svg:circle")
+                .attr("r", Math.abs(d.depth - 6))
+                .attr("class", "band-#{d.band}" if d.band )
+
+            # Append a rotated text to the node.
+            node.append("svg:title")
+                .text(d.name)
+
+            # Show text only for the top 'band' terms.
+            if !d.band? or d.band > (@termTextBand - 2)
+                node.append("svg:text")
+                    .attr("dx", if d.children then -8 else 8)
+                    .attr("dy", "3")
+                    .attr("text-anchor", if d.children then "end" else "start")
                     .text(if d.name.length > 50 then d.name[0...50] + '...' else d.name)

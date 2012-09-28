@@ -3,3 +3,5 @@
 <div><strong>Hide terms</strong> when band is <span data-var="hideTermsBand" class="TKAdjustableNumber" data-min="1" data-max="5"></span> or higher corresponding to allele count of <span data-var="hideTermsCount"></span> or higher.</div>
 
 <div class="terms">Show <span class="option selected">all</span> or only <ul></ul> terms.</div>
+
+<div class="types">Use a <a class="option selected">radial</a> or <a class="option">tree</a> <strong>dendrogram</strong>.</div>
