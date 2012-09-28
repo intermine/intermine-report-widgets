@@ -84,10 +84,6 @@ class Widget
 
                 # A map from high level terms to child terms (and eventually their counts).
                 for [ parent, child ] in rows
-                    # First populate a list of hlts.
-                    unless @hlts? then @hlts = []
-                    if parent not in @hlts then @hlts.push parent
-
                     if terms[parent]?
                         # add child terms and its count
                         terms[parent].children.push
@@ -101,7 +97,11 @@ class Widget
                             'children': [] # new term
                             'depth': 1 # high level term depth
 
-                cb 'name': @config.symbol, 'children': _(terms).toArray(), 'depth': 0
+                # Arrayize on non empty HLTs.
+                @hlts = []
+                terms = ( ( do => @hlts.push(t.name) ; t ) for t in _(terms).toArray() when t.children.length isnt 0 )
+
+                cb 'name': @config.symbol, 'children': terms, 'depth': 0
 
     # Create a new service connection.
     constructor: (@config, @templates) ->
@@ -132,10 +132,22 @@ class Widget
         
         # Show the config for the graph.
         $(@target).find('.config').html @templates.config()
-        
+
         # Populate the list of HLTs in the config.
-        l = $(@target).find('.config div.terms ul')
+        l = $(@target).find('.config .terms ul')
+        # Append the actual `li`.
         ( l.append $('<li/>', 'class': 'option', 'text': term ) for term in @hlts )
+        
+        # Now that we have them all add events to them.
+        $(@target).find('.config .terms .option').click (e) =>
+            assert tangle?, 'wow a bit too fast there fella'
+            
+            # Remove all other.
+            $(@target).find('.config .terms .option.selected').removeClass('selected')
+            # Select us.
+            $(e.target).addClass('selected')
+            # Update the graph (setting a value triggers and update() event).
+            tangle.setValue 'showCategory', $(e.target).text()
 
         # Reactivize document.
         widget = @
@@ -144,7 +156,9 @@ class Widget
                 # Show term text when...
                 @termTextBand = 3
                 # Hide terms when...
-                @hideTermsBand = 2
+                @hideTermsBand = 1
+                # Only show terms in HLT...
+                @showCategory = 'all'
 
             update: ->
                 # Show term text when...
@@ -165,10 +179,22 @@ class Widget
         # Filter nodes with a low band.
         # ...also make a deep copy of `data`.
         # ...also prune level 1 nodes that are empty.
-        data = (filterChildren = (node, cutoff) ->
-            # Early baths.
-            return if node.depth is 1 and (!node.children? or node.children.length is 0)
+        # ...also filter on HLT category.
+        data = (filterChildren = (node, bandCutoff, category) ->
+            assert node?, '`node` not provided'
+            assert bandCutoff?, '`bandCutoff` not provided'
+            assert category?, '`category` not provided'
+
+            # A HLT?
+            if node.depth is 1
+                # Do not show HLTs that have no children.
+                return if !node.children? or node.children.length is 0
+                # Do not show HLTs if we have constrained on category.
+                return if category isnt 'all' and node.name isnt category
+            # Do not process further if we do not have children.
             return node unless node.children? and node.children.length > 0
+
+            assert node.children?, 'need children at this point, knock me up!'
 
             # Prep for deep copy.
             children = []
@@ -176,9 +202,9 @@ class Widget
             # Traverse the original.
             for ch in node.children
                 # Do we have chomping to do?
-                unless ch.band? and ch.band < (cutoff - 1)
+                unless ch.band? and ch.band < (bandCutoff - 1)
                     # Children of our own?
-                    ch = filterChildren ch, cutoff
+                    ch = filterChildren ch, bandCutoff, category
                     # Push to new arr?
                     children.push ch if ch?
 
@@ -189,10 +215,18 @@ class Widget
                 'band':     node.band  # number
                 'children': children   # deep copy array
         
-        ) data, opts.hideTermsBand
+        ) data, opts.hideTermsBand, opts.showCategory
+
+        # Target.
+        target = $(@target).find('.graph')
 
         # Clear any previous content.
-        $(@target).find('.graph').empty()
+        target.empty()
+
+        # Do we actually have anything to show?
+        unless data?
+            # Show a message of this fact instead.
+            return target.html $ '<div/>', 'class': 'alert-box', 'text': 'Nothing to show. Adjust the filters above to display the graph.'
 
         width = @config.width
         height = @config.height
@@ -217,7 +251,7 @@ class Widget
         diagonal = d3.svg.diagonal.radial().projection (d) -> [d.y, d.x / 180 * Math.PI]
         
         # Wrapper SVG.
-        vis = d3.select($(@target).find('.graph')[0]).append("svg:svg")
+        vis = d3.select(target[0]).append("svg:svg")
             .attr("width", width)
             .attr("height", height)
             # Center the graph.

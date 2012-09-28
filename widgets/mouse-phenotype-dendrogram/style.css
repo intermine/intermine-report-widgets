@@ -19,10 +19,12 @@ path.arc { fill:#FFF; }
 .config>div:not(:last-child) { margin-bottom:10px; }
 
 .config ul { display:inline; margin:0; list-style-type:none; }
-.config ul li { display:inline-block; white-space:nowrap; }
+.config ul li { display:inline-block; white-space:nowrap; margin-top:6px; }
 .config ul li:not(:last-child) { margin-right:5px; }
-.config ul li:not(:last-child):after { content:','; }
+.config ul li:not(:last-child):after { content:','; color:#222; }
 /* to match the style of Tangle */
 .config .option { color:#46f; border-bottom:1px dashed #46f; cursor:pointer; position:relative; }
 .config .option.selected { color:#00c; }
-.config .option:not(.selected):hover:before { content:'select'; color:#00f; position:absolute; top:-10px; left:0; font:9px "Helvetica-Neue","Arial",sans-serif; }
+.config .option:not(.selected):hover:before { content:'select'; color:#00f; position:absolute; top:-6px; left:0; font:9px "Helvetica-Neue","Arial",sans-serif; }
+
+.alert-box { margin-top:10px; }
