@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Fri, 28 Sep 2012 17:07:23 GMT
+ *  Generated: Mon, 01 Oct 2012 11:59:27 GMT
  */
 
 (function() {
@@ -323,7 +323,7 @@ var root = this;
       var arc, cluster, d, depths, diagonal, key, link, links, n, node, nodes, rx, ry, sort, value, vis, _i, _j, _len, _len1, _ref;
       assert((opts.width != null) && typeof opts.width === 'number', '`width` is missing and needs to be a number');
       assert((opts.height != null) && typeof opts.height === 'number', '`height` is missing and needs to be a number');
-      assert((opts.el != null) && opts.el.constructor.name === 'HTMLDivElement', '`el` is missing and needs to be an HTMLDivElement');
+      assert((opts.el != null) && typeof opts.el === 'object', '`el` is missing and needs to be an HTMLDivElement');
       assert(typeof opts.data === 'object', '`data` need to be provided in an Object form, read up on D3.js');
       assert(opts.termTextBand != null, "`termTextBand` representing the node text cutoff not present");
       for (key in opts) {
@@ -381,7 +381,7 @@ var root = this;
       var cluster, d, depths, diagonal, key, link, links, n, node, nodes, sort, value, vis, _i, _j, _len, _len1, _ref;
       assert((opts.width != null) && typeof opts.width === 'number', '`width` is missing and needs to be a number');
       assert((opts.height != null) && typeof opts.height === 'number', '`height` is missing and needs to be a number');
-      assert((opts.el != null) && opts.el.constructor.name === 'HTMLDivElement', '`el` is missing and needs to be an HTMLDivElement');
+      assert((opts.el != null) && typeof opts.el === 'object', '`el` is missing and needs to be an HTMLDivElement');
       assert(typeof opts.data === 'object', '`data` need to be provided in an Object form, read up on D3.js');
       assert(opts.termTextBand != null, "`termTextBand` representing the node text cutoff not present");
       for (key in opts) {

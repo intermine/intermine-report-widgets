@@ -259,7 +259,7 @@ class RadialDendrogram
     constructor: (opts) ->
         assert opts.width? and typeof opts.width is 'number', '`width` is missing and needs to be a number'
         assert opts.height? and typeof opts.height is 'number', '`height` is missing and needs to be a number'
-        assert opts.el? and opts.el.constructor.name is 'HTMLDivElement', '`el` is missing and needs to be an HTMLDivElement'
+        assert opts.el? and typeof opts.el is 'object', '`el` is missing and needs to be an HTMLDivElement'
         assert typeof opts.data is 'object', '`data` need to be provided in an Object form, read up on D3.js'
         assert opts.termTextBand?, "`termTextBand` representing the node text cutoff not present"
 
@@ -348,7 +348,7 @@ class TreeDendrogram
     constructor: (opts) ->
         assert opts.width? and typeof opts.width is 'number', '`width` is missing and needs to be a number'
         assert opts.height? and typeof opts.height is 'number', '`height` is missing and needs to be a number'
-        assert opts.el? and opts.el.constructor.name is 'HTMLDivElement', '`el` is missing and needs to be an HTMLDivElement'
+        assert opts.el? and typeof opts.el is 'object', '`el` is missing and needs to be an HTMLDivElement'
         assert typeof opts.data is 'object', '`data` need to be provided in an Object form, read up on D3.js'
         assert opts.termTextBand?, "`termTextBand` representing the node text cutoff not present"
 
