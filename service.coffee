@@ -29,7 +29,7 @@ app.use flatiron.plugins.http,
     ]
     'after':  []
 
-app.start config.service.port, (err) ->
+app.start process.env.OPENSHIFT_INTERNAL_PORT or config.service.port, process.env.OPENSHIFT_INTERNAL_IP, (err) ->
     throw err if err
     winston.info "Listening on port #{app.server.address().port}".green
 
