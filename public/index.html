@@ -26,7 +26,7 @@
     <script src="js/client.js"></script>
 
     <script>
-        var widgets = new window.ReportWidgets('http://aragorn:1119');
+        var widgets = new window.ReportWidgets('http://reportwidgets-intermine.rhcloud.com');
     </script>
 </head>
 <body>
@@ -38,7 +38,7 @@
         <h3>Publications Displayer</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
+intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
     widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
 });
@@ -55,7 +55,7 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
         <h3>Histogram</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
+intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
     // now load a specific widget and place it in a target element.
     widgets.load('spell-histogram', '#spell');
 });
@@ -72,7 +72,7 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
         <h3>Dendrogram Clustering</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
+intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
     widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 1000, 'height': 800, 'symbol': 'MGI:97747' });
 });
