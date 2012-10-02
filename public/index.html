@@ -75,12 +75,12 @@ intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', f
 // give us report widgets from a specific service in a callback `widgets`
 intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
-    widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 800, 'symbol': 'MGI:97747' });
+    widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 600, 'symbol': 'MGI:97747' });
 });
         </code></pre>
         <script>
             (function() {
-                this.widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 800, 'symbol': 'MGI:97747' });
+                this.widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 600, 'symbol': 'MGI:97747' });
             })();
         </script>
         <div id="dendrogram"></div>

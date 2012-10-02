@@ -90,12 +90,12 @@ class Widget
                             'name': child
                             'count': children[child].count
                             'band': Math.floor(children[child].count / @band)
-                            'depth': 2 # leaf node (branch node more like)
+                            'type': 'leaf'
                     else
                         terms[parent] =
                             'name': parent
                             'children': [] # new term
-                            'depth': 1 # high level term depth
+                            'type': 'hlt'
 
                 # Arrayize on non empty HLTs.
                 @hlts = []
@@ -135,23 +135,23 @@ class Widget
         config.update (config) =>  @dendrogram data, config
 
     # Render the dendrogram node graph.
-    dendrogram: (data, opts) =>
+    dendrogram: (data, config) =>
         assert @target?, 'need to have a target for rendering defined'
         assert @config.width?, 'need to provide a `width` for the chart'
         assert @config.height?, 'need to provide a `height` for the chart'
-        assert typeof opts is 'object', '`opts` of the graph are not provided by Tangle, go untangle'
+        assert typeof config is 'object', '`config` of the graph are not provided'
 
         # Filter nodes with a low band.
         # ...also make a deep copy of `data`.
         # ...also prune level 1 nodes that are empty.
         # ...also filter on HLT category.
-        data = (filterChildren = (node, bandCutoff, category='all') ->
+        data = (filterChildren = (node, bandCutoff, category) ->
             assert node?, '`node` not provided'
             assert bandCutoff?, '`bandCutoff` not provided'
             assert category?, '`category` not provided'
 
             # A HLT?
-            if node.depth is 1
+            if node.type is 'hlt'
                 # Do not show HLTs that have no children.
                 return if !node.children? or node.children.length is 0
                 # Do not show HLTs if we have constrained on category.
@@ -178,9 +178,10 @@ class Widget
                 'name':     node.name  # string
                 'count':    node.count # number
                 'band':     node.band  # number
+                'type':     node.type  # node type
                 'children': children   # deep copy array
         
-        ) data, opts.hideTermsBand
+        ) data, config.opts.hideTermsBand, config.opts.category
 
         # Target.
         target = $(@target).find('.graph')
@@ -194,43 +195,63 @@ class Widget
             return target.html $ '<div/>', 'class': 'alert-box', 'text': 'Nothing to show. Adjust the filters above to display the graph.'
 
         params =
-            'termTextBand': opts.termTextBand
+            'termTextBand': config.opts.termTextBand
             'data':         data
             'width':        @config.width
             'height':       @config.height
             'el':           target[0]
 
-        switch opts.type
-            when 'radial' then new RadialDendrogram params
-            when 'tree'   then new TreeDendrogram   params
+        # New graph.
+        switch config.opts.type
+            when 'radial' then graph = new RadialDendrogram params
+            when 'tree'   then graph = new TreeDendrogram   params
+
+        # Graph events.
+        graph.click (node) ->
+            # What is the current category?
+            if config.opts.category is 'all'
+                config.set 'category', node # narrow down
+            else
+                config.set 'category', 'all' # reset back
 
 
 # Config toolbox widget controls thingie.
 class Config
     
-    data:
+    opts:
         # Show term text when...
         'termTextBand': 3
         # Hide terms when...
         'hideTermsBand': 2
         # Which type?
         'type': 'radial'
+        # Which category? All by default.
+        'category': 'all'
 
     constructor: (template, target) ->
         # Render the template.
-        $(target).html template @data
+        $(target).html template @opts
 
         # Map the events.
-        for k, v of @data then do (k) =>
+        for k, v of @opts then do (k) =>
             $(target).find(".#{k} input").change (e) =>
-                @data[k] = $(e.target).val() ; @fn @data
+                @opts[k] = $(e.target).val() ; @fn @
+
+    # Opts can also be changed manually.
+    set: (key, value) -> @opts[key] = value ; @fn @
 
     # Now and in the future call this.
-    update: (@fn) -> @fn @data
+    update: (@fn) -> @fn @
+
+
+# A top level class for events mainly.
+class Dendrogram
+
+    click: (@fn) ->
 
 
 # Represents a Dendrogram Node graph in a radial/circular fashion.
-class RadialDendrogram
+class RadialDendrogram extends Dendrogram
 
     constructor: (opts) ->
         assert opts.width? and typeof opts.width is 'number', '`width` is missing and needs to be a number'
@@ -294,10 +315,21 @@ class RadialDendrogram
         ]
 
         # Create the actual nodes.
-        for d in nodes
+        for d in nodes then do (d) =>
             node = depths[Math.abs(d.depth - 2)].append("svg:g")
-                .attr("class", if d.count? then "node depth-#{d.depth} count-#{d.count}" else "node depth-#{d.depth}")
+                .attr("class",
+                    if d.count?
+                        "node depth-#{d.depth} count-#{d.count}"
+                    else
+                        if d.type?
+                            "node depth-#{d.depth} #{d.type}"
+                        else
+                            "node depth-#{d.depth}"
+                )
                 .attr("transform", "rotate(#{d.x - 90})translate(#{d.y})")
+            
+            # Onlick if we are a HLT.
+            if d.type is 'hlt' then node.on "click", => if @fn? then @fn d.name
 
             # Draw a node circle.
             node.append("svg:circle")
@@ -319,7 +351,7 @@ class RadialDendrogram
 
 
 # Represents a Dendrogram Node graph in a square/tree fashion.
-class TreeDendrogram
+class TreeDendrogram extends Dendrogram
 
     constructor: (opts) ->
         assert opts.width? and typeof opts.width is 'number', '`width` is missing and needs to be a number'
@@ -378,6 +410,21 @@ class TreeDendrogram
             node = depths[Math.abs(d.depth - 2)].append("svg:g")
                 .attr("class", if d.count? then "node depth-#{d.depth} count-#{d.count}" else "node depth-#{d.depth}")
                 .attr("transform", "translate(#{d.y},#{d.x})")
+
+            node = depths[Math.abs(d.depth - 2)].append("svg:g")
+                .attr("class",
+                    if d.count?
+                        "node depth-#{d.depth} count-#{d.count}"
+                    else
+                        if d.type?
+                            "node depth-#{d.depth} #{d.type}"
+                        else
+                            "node depth-#{d.depth}"
+                )
+                .attr("transform", "translate(#{d.y},#{d.x})")
+            
+            # Onlick if we are a HLT.
+            if d.type is 'hlt' then node.on "click", => if @fn? then @fn d.name
 
             # Draw a node circle.
             node.append("svg:circle")

@@ -5,6 +5,7 @@ path.arc { fill:#FFF; }
 .node.depth-0 { font-size:18px; }
 .node.depth-1 { font-size:14px; }
 .node.depth-2 { font-size:10px; }
+.node.hlt { cursor:pointer; }
 
 .node circle { fill:#FFF; stroke:#CCC; stroke-width:1.5px; }
 
