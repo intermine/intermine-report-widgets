@@ -125,62 +125,14 @@ class Widget
     renderGraph: (data) =>
         assert typeof data is 'object' and data.children?, '`data` needs to be an Object with `children`'
         assert @target?, 'need to have a target for rendering defined'
-        assert Tangle?, 'Tangle lib does not seem to be loaded'
         assert @band?, '`band` of allele counts not provided'
         assert @max?, '`max` top allele count not provided'
-        assert @hlts? and @hlts instanceof Array, '`hlts` needs to be populated by an Array of High Level Terms'
-        
+
         # Show the config for the graph.
-        $(@target).find('.config').html @templates.config()
+        config = new Config @templates.config, $(@target).find('.config')
 
-        # Populate the list of HLTs in the config.
-        l = $(@target).find('.config .terms ul')
-        # Append the actual `li`.
-        ( l.append $('<li/>', 'class': 'option', 'text': term ) for term in @hlts )
-        
-        # Now that we have them all add events to them.
-        $(@target).find('.config .terms .option').click (e) =>
-            assert tangle?, 'wow a bit too fast there fella'
-            
-            # Remove all other.
-            $(@target).find('.config .terms .option.selected').removeClass('selected')
-            # Select us.
-            $(e.target).addClass('selected')
-            # Update the graph (setting a value triggers and update() event).
-            tangle.setValue 'showCategory', $(e.target).text()
-
-        # Switch between graph types.
-        $(@target).find('.config .types .option').click (e) =>
-            assert tangle?, 'wow a bit too fast there fella'
-            
-            # Remove all other.
-            $(@target).find('.config .types .option.selected').removeClass('selected')
-            # Select us.
-            $(e.target).addClass('selected')
-            # Update the graph (setting a value triggers and update() event).
-            tangle.setValue 'type', $(e.target).text()
-
-        # Reactivize document.
-        widget = @
-        tangle = new Tangle $(@target).find('.config')[0],
-            initialize: ->
-                # Show term text when...
-                @termTextBand = 3
-                # Hide terms when...
-                @hideTermsBand = 2
-                # Only show terms in HLT...
-                @showCategory = 'all'
-                # Which type?
-                @type = 'radial'
-
-            update: ->
-                # Show term text when...
-                @termTextCount = (@termTextBand - 1) * widget.band
-                # Hide terms when...
-                @hideTermsCount = (@hideTermsBand - 1) * widget.band
-                
-                # Re-render the graph.
-                widget.dendrogram data, @
+        # Re-render the graph on config update.
+        config.update (config) =>  @dendrogram data, config
 
     # Render the dendrogram node graph.
     dendrogram: (data, opts) =>
@@ -193,7 +145,7 @@ class Widget
         # ...also make a deep copy of `data`.
         # ...also prune level 1 nodes that are empty.
         # ...also filter on HLT category.
-        data = (filterChildren = (node, bandCutoff, category) ->
+        data = (filterChildren = (node, bandCutoff, category='all') ->
             assert node?, '`node` not provided'
             assert bandCutoff?, '`bandCutoff` not provided'
             assert category?, '`category` not provided'
@@ -228,7 +180,7 @@ class Widget
                 'band':     node.band  # number
                 'children': children   # deep copy array
         
-        ) data, opts.hideTermsBand, opts.showCategory
+        ) data, opts.hideTermsBand
 
         # Target.
         target = $(@target).find('.graph')
@@ -251,6 +203,30 @@ class Widget
         switch opts.type
             when 'radial' then new RadialDendrogram params
             when 'tree'   then new TreeDendrogram   params
+
+
+# Config toolbox widget controls thingie.
+class Config
+    
+    data:
+        # Show term text when...
+        'termTextBand': 3
+        # Hide terms when...
+        'hideTermsBand': 2
+        # Which type?
+        'type': 'radial'
+
+    constructor: (template, target) ->
+        # Render the template.
+        $(target).html template @data
+
+        # Map the events.
+        for k, v of @data then do (k) =>
+            $(target).find(".#{k} input").change (e) =>
+                @data[k] = $(e.target).val() ; @fn @data
+
+    # Now and in the future call this.
+    update: (@fn) -> @fn @data
 
 
 # Represents a Dendrogram Node graph in a radial/circular fashion.
