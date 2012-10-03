@@ -20,9 +20,9 @@ class Widget
     pq:
         alleleTerms:
             "select": [
-                "Gene.symbol",
-                "Gene.alleles.id",
-                "Gene.alleles.genotypes.id",
+                "Gene.symbol"
+                "Gene.alleles.id"
+                "Gene.alleles.genotypes.id"
                 "Gene.alleles.genotypes.phenotypeTerms.id"
                 "Gene.alleles.genotypes.phenotypeTerms.name"
             ],
@@ -30,8 +30,21 @@ class Widget
         
         highLevelTerms:
             "select": [
-                "Allele.highLevelPhenotypeTerms.name",
+                "Allele.highLevelPhenotypeTerms.name"
                 "Allele.highLevelPhenotypeTerms.relations.childTerm.name"
+            ],
+            "constraints": []
+
+        alleles:
+            "select": [
+                "Gene.alleles.genotypes.phenotypeTerms.name"
+                "Gene.alleles.symbol"
+                "Gene.alleles.primaryIdentifier"
+                "Gene.alleles.name"
+                "Gene.alleles.type"
+                "Gene.alleles.genotypes.geneticBackground"
+                "Gene.alleles.genotypes.zygosity"
+                "Gene.alleles.organism.name"
             ],
             "constraints": []
 
@@ -93,7 +106,7 @@ class Widget
                             'type': 'leaf'
                     else
                         terms[parent] =
-                            'name': parent
+                            'name': parent.replace(' phenotype', '')
                             'children': [] # new term
                             'type': 'hlt'
 
@@ -207,12 +220,38 @@ class Widget
             when 'tree'   then graph = new TreeDendrogram   params
 
         # Graph events.
-        graph.click (node) ->
-            # What is the current category?
-            if config.opts.category is 'all'
-                config.set 'category', node # narrow down
-            else
-                config.set 'category', 'all' # reset back
+        graph.click (type, node) =>
+            switch type
+                # High Level Term node.
+                when 'hlt'
+                    # What is the current category?
+                    if config.opts.category is 'all'
+                        config.set 'category', node # narrow down
+                    else
+                        config.set 'category', 'all' # reset back
+                # Leaf node.
+                when 'leaf'
+                    # Constrain the PQ.
+                    pq = @pq.alleles
+                    pq.constraints = [] # clear any previous
+                    pq.constraints.push
+                        "path": "Gene.alleles.genotypes.phenotypeTerms.name"
+                        "op": "="
+                        "value": node
+                    pq.constraints.push
+                        "path": "Gene"
+                        "op": "LOOKUP"
+                        "value": @config.symbol
+
+                    # Clear previous.
+                    @popover?.remove()
+
+                    # Render new.
+                    @popover = new PopoverTable
+                        'el': target
+                        'pq': pq
+                        'service': @service
+                        'template': @templates.popover
 
 
 # Config toolbox widget controls thingie.
@@ -321,20 +360,22 @@ class RadialDendrogram extends Dendrogram
                     if d.count?
                         "node depth-#{d.depth} count-#{d.count}"
                     else
-                        if d.type?
-                            "node depth-#{d.depth} #{d.type}"
-                        else
-                            "node depth-#{d.depth}"
+                        "node depth-#{d.depth}"
                 )
                 .attr("transform", "rotate(#{d.x - 90})translate(#{d.y})")
-            
-            # Onlick if we are a HLT.
-            if d.type is 'hlt' then node.on "click", => if @fn? then @fn d.name
 
             # Draw a node circle.
-            node.append("svg:circle")
+            circle = node.append("svg:circle")
                 .attr("r", Math.abs(d.depth - 6))
-                .attr("class", "band-#{d.band}" if d.band )
+                .attr("class",
+                    if d.band
+                        if d.type then "band-#{d.band} type #{d.type}" else "band-#{d.band}"
+                    else
+                        if d.type then "type #{d.type}"
+                )
+
+            # Onlick node circle.
+            circle.on "click", => if @fn? then @fn d.type, d.name
 
             # Append a rotated text to the node.
             node.append("svg:title")
@@ -408,28 +449,26 @@ class TreeDendrogram extends Dendrogram
         # Create the actual nodes.
         for d in nodes then do (d) =>
             node = depths[Math.abs(d.depth - 2)].append("svg:g")
-                .attr("class", if d.count? then "node depth-#{d.depth} count-#{d.count}" else "node depth-#{d.depth}")
-                .attr("transform", "translate(#{d.y},#{d.x})")
-
-            node = depths[Math.abs(d.depth - 2)].append("svg:g")
                 .attr("class",
                     if d.count?
                         "node depth-#{d.depth} count-#{d.count}"
                     else
-                        if d.type?
-                            "node depth-#{d.depth} #{d.type}"
-                        else
-                            "node depth-#{d.depth}"
+                        "node depth-#{d.depth}"
                 )
                 .attr("transform", "translate(#{d.y},#{d.x})")
-            
-            # Onlick if we are a HLT.
-            if d.type is 'hlt' then node.on "click", => if @fn? then @fn d.name
 
             # Draw a node circle.
-            node.append("svg:circle")
+            circle = node.append("svg:circle")
                 .attr("r", Math.abs(d.depth - 6))
-                .attr("class", "band-#{d.band}" if d.band )
+                .attr("class",
+                    if d.band
+                        if d.type then "band-#{d.band} type #{d.type}" else "band-#{d.band}"
+                    else
+                        if d.type then "type #{d.type}"
+                )
+
+            # Onlick node circle.
+            circle.on "click", => if @fn? then @fn d.type, d.name
 
             # Append a rotated text to the node.
             node.append("svg:title")
@@ -442,3 +481,25 @@ class TreeDendrogram extends Dendrogram
                     .attr("dy", "3")
                     .attr("text-anchor", if d.children then "end" else "start")
                     .text(if d.name.length > 50 then d.name[0...50] + '...' else d.name)
+
+
+# Data visualized in a popover table.
+class PopoverTable
+
+    constructor: (opts) ->
+        # Expand on us.
+        ( @[key] = value for key, value of opts )
+
+        # Make the service call.
+        @service.query @pq, (q) =>
+            q.rows (rows) =>
+                # Render.
+                $(@el).append @html = $ @template
+                    'columns': @pq.select
+                    'rows': rows
+                    titleize: (text) -> text.split('.').pop().replace(/([A-Z])/g, ' $1')
+
+                # Events.
+                @html.find('a.close').click @remove
+
+    remove: => @html?.remove()

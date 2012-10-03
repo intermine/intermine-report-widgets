@@ -84,7 +84,7 @@
             "author": "Radek",
             "title": "Mouse Phenotype Dendrogram Clustering",
             "description": "Replaces a tag cloud of phenotypes associated with alleles and their scores",
-            "version": "0.3.1",
+            "version": "0.3.2",
             "dependencies": [
                 {
                     "name": "jQuery",
@@ -99,17 +99,12 @@
                     "wait": true
                 },
                 {
+                    "path": "http://cdn.intermine.org/js/intermine/imjs/latest/imjs.js",
+                    "type": "js"
+                },
+                {
                     "name": "d3",
                     "path": "http://d3js.org/d3.v2.min.js",
-                    "type": "js"
-                },
-                {
-                    "name": "Backbone",
-                    "path": "http://cdn.intermine.org/js/backbone.js/0.9.2/backbone-min.js",
-                    "type": "js"
-                },
-                {
-                    "path": "http://cdn.intermine.org/js/intermine/imjs/latest/imjs.js",
                     "type": "js"
                 }
             ]
