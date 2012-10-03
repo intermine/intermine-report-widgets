@@ -406,7 +406,7 @@ class TreeDendrogram extends Dendrogram
         ]
 
         # Create the actual nodes.
-        for d in nodes
+        for d in nodes then do (d) =>
             node = depths[Math.abs(d.depth - 2)].append("svg:g")
                 .attr("class", if d.count? then "node depth-#{d.depth} count-#{d.count}" else "node depth-#{d.depth}")
                 .attr("transform", "translate(#{d.y},#{d.x})")
