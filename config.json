@@ -54,7 +54,7 @@
             "author": "Radek",
             "title": "SPELL YeastMine Histogram",
             "description": "Shows a SPELL Expression Summary for YeastMine gene experiments data",
-            "version": "0.0.3",
+            "version": "0.1.0",
             "dependencies": [
                 {
                     "name": "jQuery",
@@ -69,6 +69,10 @@
                     "wait": true
                 },
                 {
+                    "path": "http://cdn.intermine.org/js/intermine/imjs/latest/imjs.js",
+                    "type": "js"
+                },
+                {
                     "name": "google",
                     "path": "https://www.google.com/jsapi",
                     "type": "js"
@@ -78,7 +82,17 @@
                     "path": "http://d3js.org/d3.v2.min.js",
                     "type": "js"
                 }
-            ]
+            ],
+            "config": {
+                "mine": "http://yeastmine-test.yeastgenome.org:8080/yeastmine-dev/",
+                "pathQueries": {
+                    "expressionScores": {
+                        "select": [
+                            "TYPE.expressionScores.score"
+                        ]
+                    }
+                }
+            }
         },
         "mouse-phenotype-dendrogram": {
             "author": "Radek",

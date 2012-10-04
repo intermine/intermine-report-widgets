@@ -2,4 +2,6 @@
     <h4>SPELL Expression Summary</h4>
 </header>
 
-<div class="chart"></div>
+<div class="chart">
+    <div class="alert-box">Loading &hellip;</div>
+</div>

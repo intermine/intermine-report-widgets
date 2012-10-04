@@ -11,14 +11,41 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Wed, 03 Oct 2012 15:48:00 GMT
+ *  Generated: Thu, 04 Oct 2012 15:07:52 GMT
  */
 
 (function() {
 var root = this;
 
   /**#@+ the presenter */
-  var Widget;
+  var AssertException, Widget;
+  
+  AssertException = (function() {
+  
+    function AssertException(message) {
+      this.message = message;
+    }
+  
+    AssertException.prototype.toString = function() {
+      return "AssertException: " + this.message;
+    };
+  
+    return AssertException;
+  
+  })();
+  
+  /*
+  Set the assertion on the window object.
+  @param {boolean} exp Expression to be truthy
+  @param {string} message Exception text to show if `exp` is not truthy fruthy
+  */
+  
+  
+  this.assert = function(exp, message) {
+    if (!exp) {
+      throw new AssertException(message);
+    }
+  };
   
   Widget = (function() {
   
@@ -55,6 +82,10 @@ var root = this;
     function Widget(config, templates) {
       this.config = config;
       this.templates = templates;
+      assert(this.config.mine != null, '`mine` needs to point to an InterMine instance');
+      this.service = new intermine.Service({
+        'root': "" + this.config.mine + "service/"
+      });
     }
   
     /*
@@ -65,25 +96,70 @@ var root = this;
   
   
     Widget.prototype.render = function(target) {
-      var data, twoDArray, values, x,
+      var pq, replaceType, _ref,
         _this = this;
       this.target = target;
-      values = d3.range(1000).map(d3.random.irwinHall(10));
-      x = d3.scale.linear().domain([0, 1]).range([-20, 20]);
-      data = d3.layout.histogram().bins(x.ticks(20))(values);
-      twoDArray = _(data).map(function(bin) {
-        var from;
-        from = x(bin.x);
-        return ["" + from + " to " + (from + 2), bin.y];
-      });
+      assert((this.config.pathQueries != null) && (this.config.pathQueries.expressionScores != null), 'PathQuery of `expressionScores` not set');
+      assert(this.config.type, 'an object `type` needs to be set');
+      assert(this.config.symbol, 'an object `symbol` needs to be set');
       $(this.target).html(this.templates.chart());
-      return google.load('visualization', '1.0', {
-        'packages': ['corechart'],
-        callback: function() {
-          var chart;
-          chart = new google.visualization.ColumnChart($(_this.target).find('.chart')[0]);
-          return chart.draw(google.visualization.arrayToDataTable(twoDArray, false), _this.chartOptions);
+      pq = (replaceType = function(obj, type) {
+        var item, key, o, value, _i, _len, _results;
+        if (typeof obj === 'object') {
+          o = {};
+          for (key in obj) {
+            value = obj[key];
+            o[key] = replaceType(value, type);
+          }
+          return o;
+        } else if (obj instanceof Array) {
+          _results = [];
+          for (_i = 0, _len = obj.length; _i < _len; _i++) {
+            item = obj[_i];
+            _results.push(replaceType(item, type));
+          }
+          return _results;
+        } else if (typeof obj === 'string') {
+          return obj.replace(/TYPE/g, type);
         }
+      })(this.config.pathQueries.expressionScores, this.config.type);
+      if ((_ref = pq.constraints) == null) {
+        pq.constraints = [];
+      }
+      pq.constraints.push({
+        'path': this.config.type,
+        'op': 'LOOKUP',
+        'value': this.config.symbol
+      });
+      return this.service.query(pq, function(q) {
+        return q.rows(function(rows) {
+          var data, twoDArray, x;
+          rows = (function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = rows.length; _i < _len; _i++) {
+              x = rows[_i];
+              _results.push(x.pop());
+            }
+            return _results;
+          })();
+          x = d3.scale.linear().domain([-20, 20]).range([-20, 20]);
+          data = d3.layout.histogram().bins(x.ticks(20))(rows);
+          twoDArray = _(data).map(function(bin) {
+            var from;
+            from = x(bin.x);
+            return ["" + from + " to " + (from + 2), bin.y];
+          });
+          return google.load('visualization', '1.0', {
+            'packages': ['corechart'],
+            callback: function() {
+              var chart, t;
+              (t = $(_this.target).find('.chart')).empty();
+              chart = new google.visualization.ColumnChart(t[0]);
+              return chart.draw(google.visualization.arrayToDataTable(twoDArray, false), _this.chartOptions);
+            }
+          });
+        });
       });
     };
   
@@ -96,7 +172,7 @@ var root = this;
 
   /**#@+ the templates */
   var templates = {};
-  templates.chart=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<header>    \n    <h4>SPELL Expression Summary</h4>\n</header>\n\n<div class="chart"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.chart=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<header>    \n    <h4>SPELL Expression Summary</h4>\n</header>\n\n<div class="chart">\n    <div class="alert-box">Loading &hellip;</div>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   /**#@+ callback */
   (function() {
     var parent, part, _i, _len, _ref;
