@@ -69,7 +69,27 @@ class Widget
         assert @config.symbol, 'an object `symbol` needs to be set'
 
         # Render template with loading text.
-        $(@target).html @templates.chart()
+        $(@target).html @templates.chart
+            'symbol': @config.symbol
+
+        # Attach an event to update graph on symbol change.
+        $(@target).find('input.symbol').keyup (e) =>
+            symbol = $(e.target).val()
+            # A new symbol?
+            if symbol isnt @config.symbol
+                @config.symbol = symbol
+                # Render then.
+                @histogram()
+
+        # Make the initial graph rendering after fetching Google Visualization packages.
+        google.load 'visualization', '1.0',
+            'packages': [ 'corechart' ]
+            callback: => @histogram()
+
+    # Make a clone of the PathQuery, bin data and display them.
+    histogram: =>
+        # Add a loading sign.
+        $(@target).find('.chart').html '<div class="alert-box">Loading &hellip;</div>'
 
         # Replace all occurences of 'TYPE' with the actual object type.
         pq = (replaceType = (obj, type) ->
@@ -107,16 +127,11 @@ class Widget
                 # Coerce the data into the Google Visualization format.
                 twoDArray = _(data).map (bin) -> from = x(bin.x) ; [ "#{from} to #{from + 2}", bin.y ]
 
-                # Render the chart itself.
-                google.load 'visualization', '1.0',
-                    'packages': [ 'corechart' ]
-                    # Once we have loaded the CoreChart package, render the chart.
-                    callback: => # Using the fat arrow means I can reference objects one scope up.
-                        # Remove loading sign.
-                        (t = $(@target).find('.chart')).empty()
+                # Remove loading sign.
+                (t = $(@target).find('.chart')).empty()
 
-                        # Point the chart to render to the `target` element's specified `chart` div.
-                        chart = new google.visualization.ColumnChart t[0]
-                        # 1. Take the 2-dimensional array and turn it into a DataTable, first row is header labels.
-                        # 2. Draw the visualization on the page passing in options that we specified higher up.
-                        chart.draw(google.visualization.arrayToDataTable(twoDArray, false), @chartOptions)
+                # Point the chart to render to the `target` element's specified `chart` div.
+                chart = new google.visualization.ColumnChart t[0]
+                # 1. Take the 2-dimensional array and turn it into a DataTable, first row is header labels.
+                # 2. Draw the visualization on the page passing in options that we specified higher up.
+                chart.draw(google.visualization.arrayToDataTable(twoDArray, false), @chartOptions)

@@ -11,14 +11,15 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Thu, 04 Oct 2012 15:07:52 GMT
+ *  Generated: Thu, 04 Oct 2012 15:40:50 GMT
  */
 
 (function() {
 var root = this;
 
   /**#@+ the presenter */
-  var AssertException, Widget;
+  var AssertException, Widget,
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
   
   AssertException = (function() {
   
@@ -82,6 +83,8 @@ var root = this;
     function Widget(config, templates) {
       this.config = config;
       this.templates = templates;
+      this.histogram = __bind(this.histogram, this);
+  
       assert(this.config.mine != null, '`mine` needs to point to an InterMine instance');
       this.service = new intermine.Service({
         'root': "" + this.config.mine + "service/"
@@ -96,13 +99,34 @@ var root = this;
   
   
     Widget.prototype.render = function(target) {
-      var pq, replaceType, _ref,
-        _this = this;
+      var _this = this;
       this.target = target;
       assert((this.config.pathQueries != null) && (this.config.pathQueries.expressionScores != null), 'PathQuery of `expressionScores` not set');
       assert(this.config.type, 'an object `type` needs to be set');
       assert(this.config.symbol, 'an object `symbol` needs to be set');
-      $(this.target).html(this.templates.chart());
+      $(this.target).html(this.templates.chart({
+        'symbol': this.config.symbol
+      }));
+      $(this.target).find('input.symbol').keyup(function(e) {
+        var symbol;
+        symbol = $(e.target).val();
+        if (symbol !== _this.config.symbol) {
+          _this.config.symbol = symbol;
+          return _this.histogram();
+        }
+      });
+      return google.load('visualization', '1.0', {
+        'packages': ['corechart'],
+        callback: function() {
+          return _this.histogram();
+        }
+      });
+    };
+  
+    Widget.prototype.histogram = function() {
+      var pq, replaceType, _ref,
+        _this = this;
+      $(this.target).find('.chart').html('<div class="alert-box">Loading &hellip;</div>');
       pq = (replaceType = function(obj, type) {
         var item, key, o, value, _i, _len, _results;
         if (typeof obj === 'object') {
@@ -133,7 +157,7 @@ var root = this;
       });
       return this.service.query(pq, function(q) {
         return q.rows(function(rows) {
-          var data, twoDArray, x;
+          var chart, data, t, twoDArray, x;
           rows = (function() {
             var _i, _len, _results;
             _results = [];
@@ -150,15 +174,9 @@ var root = this;
             from = x(bin.x);
             return ["" + from + " to " + (from + 2), bin.y];
           });
-          return google.load('visualization', '1.0', {
-            'packages': ['corechart'],
-            callback: function() {
-              var chart, t;
-              (t = $(_this.target).find('.chart')).empty();
-              chart = new google.visualization.ColumnChart(t[0]);
-              return chart.draw(google.visualization.arrayToDataTable(twoDArray, false), _this.chartOptions);
-            }
-          });
+          (t = $(_this.target).find('.chart')).empty();
+          chart = new google.visualization.ColumnChart(t[0]);
+          return chart.draw(google.visualization.arrayToDataTable(twoDArray, false), _this.chartOptions);
         });
       });
     };
@@ -172,7 +190,14 @@ var root = this;
 
   /**#@+ the templates */
   var templates = {};
-  templates.chart=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<header>    \n    <h4>SPELL Expression Summary</h4>\n</header>\n\n<div class="chart">\n    <div class="alert-box">Loading &hellip;</div>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.chart=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<header>    \n    <h4>SPELL Expression Summary for</h4> <input type="text" placeholder="S000001855" class="symbol three columns" value="'),t.push(r(this.symbol)),t.push('" />\n</header>\n\n<div class="chart"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  
+  /**#@+ css */
+  var style = document.createElement('style');
+  style.type = 'text/css';
+  style.innerHTML = 'div#w#@+CALLBACK h4{float:left}div#w#@+CALLBACK header:after{content:" ";display:block;clear:both}div#w#@+CALLBACK input.symbol{color:#8E0022;background:0;border:0;-webkit-box-shadow:none;-moz-box-shadow:none;box-shadow:none;font-family:\'Droid Serif\',serif;font-size:23px;font-weight:700;padding:0;margin:10px 0;margin-left:4px}';
+  document.head.appendChild(style);
+  
   /**#@+ callback */
   (function() {
     var parent, part, _i, _len, _ref;

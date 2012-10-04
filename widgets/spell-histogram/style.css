@@ -1,0 +1,4 @@
+h4 { float:left; }
+header:after { content:" "; display:block; clear:both; }
+input.symbol { color:#8E0022; background:none; border:0; -webkit-box-shadow:none; -moz-box-shadow:none; box-shadow:none;
+    font-family:'Droid Serif',serif; font-size:23px; font-weight:bold; padding:0; margin:10px 0; margin-left:4px; }

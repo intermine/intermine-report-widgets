@@ -54,7 +54,7 @@
             "author": "Radek",
             "title": "SPELL YeastMine Histogram",
             "description": "Shows a SPELL Expression Summary for YeastMine gene experiments data",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "dependencies": [
                 {
                     "name": "jQuery",

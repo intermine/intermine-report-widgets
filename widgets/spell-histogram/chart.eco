@@ -1,7 +1,5 @@
 <header>    
-    <h4>SPELL Expression Summary</h4>
+    <h4>SPELL Expression Summary for</h4> <input type="text" placeholder="S000001855" class="symbol three columns" value="<%= @symbol %>" />
 </header>
 
-<div class="chart">
-    <div class="alert-box">Loading &hellip;</div>
-</div>
+<div class="chart"></div>
