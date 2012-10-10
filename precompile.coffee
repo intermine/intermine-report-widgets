@@ -6,6 +6,7 @@ winston   = require 'winston'
 
 eco       = require 'eco'
 cs        = require 'coffee-script'
+stylus    = require 'stylus'
 
 uglifyJs  = require 'uglify-js'
 cleanCss  = require 'clean-css'
@@ -96,15 +97,44 @@ exports.single = (widgetId, callback, config, output) ->
 
                 js.push tml.join "\n"
 
-                # Do we have a custom CSS file?
-                path = "./widgets/#{widgetId}/style.css"
-                try
-                    exists = fs.lstatSync path
-                catch e
-                if exists
-                    # Read the file.
-                    css = fs.readFileSync path, "utf-8"
+                # Stylus or CSS?
+                ( (cb) ->                    
+                    # Do we have a custom Stylus file?
+                    path = "./widgets/#{widgetId}/style.styl"
+                    try
+                        exists = fs.lstatSync path
+                    catch e
+                    if exists
+                        # Read the file.
+                        styl = fs.readFileSync path, "utf-8"
 
+                        # Is it not empty?
+                        if styl.length isnt 0
+                            winston.info "Compiling custom .styl file".grey
+
+                            stylus.render styl
+                            , (err, css) ->
+                                if err
+                                    ( winston.info line.red for line in err.message.split("\n") )
+                                    output "Widget `#{widgetId}` has Stylus error"
+                                else
+                                    cb css
+                        else
+                            cb null
+                    else
+                        # Do we have a custom CSS file?
+                        path = "./widgets/#{widgetId}/style.css"
+                        try
+                            exists = fs.lstatSync path
+                        catch e
+                        if exists
+                            # Read the file.
+                            css = fs.readFileSync path, "utf-8"
+
+                            cb css
+                        else
+                            cb null
+                ) (css) ->
                     # Is it not empty?
                     if css.length isnt 0
                         winston.info "Adding custom .css file".grey
@@ -125,24 +155,24 @@ exports.single = (widgetId, callback, config, output) ->
                         """
                         js.push ("  #{line}" for line in exec.split("\n")).join("\n")
 
-                # Finally add us to the browser `cache` under the callback id.
-                cb = """
-                /**#@+ callback */
-                (function() {
-                  var parent, part, _i, _len, _ref;
-                  parent = this;
-                  _ref = 'intermine.temp.widgets'.split('.');
-                  for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                    part = _ref[_i];
-                    parent = parent[part] = parent[part] || {};
-                  }
-                }).call(root);
-                """
-                js.push ("  #{line}" for line in cb.split("\n")).join("\n")
-                js.push "  root.intermine.temp.widgets['#{callback}'] = new Widget(config, templates);\n\n}).call(this);"
+                    # Finally add us to the browser `cache` under the callback id.
+                    cb = """
+                    /**#@+ callback */
+                    (function() {
+                      var parent, part, _i, _len, _ref;
+                      parent = this;
+                      _ref = 'intermine.temp.widgets'.split('.');
+                      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                        part = _ref[_i];
+                        parent = parent[part] = parent[part] || {};
+                      }
+                    }).call(root);
+                    """
+                    js.push ("  #{line}" for line in cb.split("\n")).join("\n")
+                    js.push "  root.intermine.temp.widgets['#{callback}'] = new Widget(config, templates);\n\n}).call(this);"
 
-                # Return the result.
-                output null, js.join "\n"
+                    # Return the result.
+                    output null, js.join "\n"
 
 # Precompile all widgets in a directory for InterMine use.
 exports.all = ->
