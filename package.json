@@ -2,7 +2,7 @@
 {
     "name": "intermine-report-widgets-service",
     "author": "Radek <rs676@cam.ac.uk>",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "engines": {
         "node": ">= 0.6.4",
         "npm": ">= 1.0.0"

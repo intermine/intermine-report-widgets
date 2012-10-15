@@ -69,5 +69,9 @@ class ReportWidgets
             if deps? then root.intermine.load deps, run
             else run
 
-# Expose class globally
-root.ReportWidgets = ReportWidgets
+# Do we have the InterMine API Loader?
+if not root.intermine
+    throw 'You need to include the InterMine API Loader first!'
+else
+    # Expose class globally
+    root.intermine.reportWidgets = ReportWidgets

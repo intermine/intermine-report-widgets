@@ -26,8 +26,8 @@
     <script src="js/client.js"></script>
 
     <script>
-        //var widgets = new window.ReportWidgets('http://reportwidgets-intermine.rhcloud.com');
-        var widgets = new window.ReportWidgets('http://127.0.0.1:1119');
+        //var widgets = new window.reportWidgets('http://reportwidgets-intermine.rhcloud.com');
+        var widgets = new intermine.reportWidgets('http://127.0.0.1:1119');
     </script>
 </head>
 <body>
@@ -39,7 +39,7 @@
         <h3>Publications Displayer</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
     widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
 });
@@ -56,7 +56,7 @@ intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', f
         <h3>Histogram</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
     // now load a specific widget and place it in a target element.
     widgets.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
 });
@@ -73,7 +73,7 @@ intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', f
         <h3>Dendrogram Clustering</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('report-widgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
     widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 600, 'symbol': 'MGI:97747' });
 });

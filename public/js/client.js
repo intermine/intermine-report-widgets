@@ -83,6 +83,10 @@
 
   })();
 
-  root.ReportWidgets = ReportWidgets;
+  if (!root.intermine) {
+    throw 'You need to include the InterMine API Loader first!';
+  } else {
+    root.intermine.reportWidgets = ReportWidgets;
+  }
 
 }).call(this);
