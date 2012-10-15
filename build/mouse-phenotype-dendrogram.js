@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 15 Oct 2012 12:09:39 GMT
+ *  Generated: Mon, 15 Oct 2012 16:06:37 GMT
  */
 
 (function() {
@@ -68,10 +68,16 @@ var root = this;
     };
   
     Widget.prototype.alleleTerms = function(cb) {
-      var pq,
+      var c, i, pq, _i, _ref,
         _this = this;
       assert(this.config.symbol != null, '`symbol` of the gene in question not provided');
       pq = this.pq.alleleTerms;
+      for (i = _i = 0, _ref = pq.constraints.length; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+        c = pq.constraints[i];
+        if ((c != null ? c.path : void 0) === 'Gene' && (c != null ? c.op : void 0) === 'LOOKUP') {
+          pq.constraints.splice(i, 1);
+        }
+      }
       pq.constraints.push({
         "path": "Gene",
         "op": "LOOKUP",
@@ -79,18 +85,21 @@ var root = this;
       });
       return this.service.query(pq, function(q) {
         return q.records(function(records) {
-          var allele, genotype, term, terms, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2;
+          var allele, genotype, term, terms, _j, _k, _l, _len, _len1, _len2, _ref1, _ref2, _ref3;
+          if (records.length === 0) {
+            return _this.message('No results found');
+          }
           _this.max = 1;
           terms = {};
-          _ref = records[0]['alleles'];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            allele = _ref[_i];
-            _ref1 = allele.genotypes;
-            for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-              genotype = _ref1[_j];
-              _ref2 = genotype.phenotypeTerms;
-              for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
-                term = _ref2[_k];
+          _ref1 = records[0]['alleles'];
+          for (_j = 0, _len = _ref1.length; _j < _len; _j++) {
+            allele = _ref1[_j];
+            _ref2 = allele.genotypes;
+            for (_k = 0, _len1 = _ref2.length; _k < _len1; _k++) {
+              genotype = _ref2[_k];
+              _ref3 = genotype.phenotypeTerms;
+              for (_l = 0, _len2 = _ref3.length; _l < _len2; _l++) {
+                term = _ref3[_l];
                 if (terms[term.name] != null) {
                   terms[term.name].count += 1;
                   if (terms[term.name].count > _this.max) {
@@ -111,12 +120,18 @@ var root = this;
     };
   
     Widget.prototype.highLevelTerms = function(children, cb) {
-      var k, pq, v,
+      var c, i, k, pq, v, _i, _ref,
         _this = this;
       assert(cb != null, 'callback `cb` needs to be provided, we use async data loading');
       assert(this.config.symbol != null, '`symbol` of the gene in question not provided');
       assert(this.band != null, '`band` of allele counts not provided');
       pq = this.pq.highLevelTerms;
+      for (i = _i = 0, _ref = pq.constraints.length; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+        c = pq.constraints[i];
+        if ((c != null ? c.path : void 0) === 'Allele.highLevelPhenotypeTerms.relations.childTerm.name' && (c != null ? c.op : void 0) === 'ONE OF') {
+          pq.constraints.splice(i, 1);
+        }
+      }
       pq.constraints.push({
         "path": "Allele.highLevelPhenotypeTerms.relations.childTerm.name",
         "op": "ONE OF",
@@ -132,10 +147,10 @@ var root = this;
       });
       return this.service.query(pq, function(q) {
         return q.rows(function(rows) {
-          var child, parent, t, terms, _i, _len, _ref;
+          var child, parent, t, terms, _j, _len, _ref1;
           terms = {};
-          for (_i = 0, _len = rows.length; _i < _len; _i++) {
-            _ref = rows[_i], parent = _ref[0], child = _ref[1];
+          for (_j = 0, _len = rows.length; _j < _len; _j++) {
+            _ref1 = rows[_j], parent = _ref1[0], child = _ref1[1];
             if (terms[parent] != null) {
               terms[parent].children.push({
                 'name': child,
@@ -153,12 +168,12 @@ var root = this;
           }
           _this.hlts = [];
           terms = (function() {
-            var _j, _len1, _ref1, _results,
+            var _k, _len1, _ref2, _results,
               _this = this;
-            _ref1 = _(terms).toArray();
+            _ref2 = _(terms).toArray();
             _results = [];
-            for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-              t = _ref1[_j];
+            for (_k = 0, _len1 = _ref2.length; _k < _len1; _k++) {
+              t = _ref2[_k];
               if (t.children.length !== 0) {
                 _results.push((function() {
                   _this.hlts.push(t.name);
@@ -190,14 +205,32 @@ var root = this;
     }
   
     Widget.prototype.render = function(target) {
-      var _this = this;
+      var dis,
+        _this = this;
       this.target = target;
       $(this.target).html(this.templates.widget({
-        'title': "Alleles phenotype terms for " + this.config.symbol
+        'symbol': this.config.symbol
       }));
-      return this.alleleTerms(function(children) {
-        return _this.highLevelTerms(children, _this.renderGraph);
+      (dis = function() {
+        return _this.alleleTerms(function(children) {
+          return _this.highLevelTerms(children, _this.renderGraph);
+        });
+      })();
+      return $(this.target).find('input.symbol').keyup(function(e) {
+        var symbol;
+        symbol = $(e.target).val();
+        if (symbol !== _this.config.symbol) {
+          _this.config.symbol = symbol;
+          return dis();
+        }
       });
+    };
+  
+    Widget.prototype.message = function(text) {
+      return $(this.target).find('.graph').html($('<div/>', {
+        'class': 'alert-box',
+        'text': text
+      }));
     };
   
     /*
@@ -267,10 +300,7 @@ var root = this;
       target = $(this.target).find('.graph');
       target.empty();
       if (data == null) {
-        return target.html($('<div/>', {
-          'class': 'alert-box',
-          'text': 'Nothing to show. Adjust the filters above to display the graph.'
-        }));
+        return this.message('Nothing to show. Adjust the filters above to display the graph.');
       }
       params = {
         'termTextBand': config.opts.termTextBand,
@@ -555,13 +585,13 @@ var root = this;
   /**#@+ the templates */
   var templates = {};
   templates.config=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<div class="hideTermsBand">\n    Term cutoff\n    <input type="range" min="1" max="5" step="1" value="'),t.push(r(this.hideTermsBand)),t.push('" />\n</div>\n\n<div class="termTextBand">\n    Term text cutoff\n    <input type="range" min="1" max="5" step="1" value="'),t.push(r(this.termTextBand)),t.push('" />\n</div>\n\n<div class="type">\n    Use a \n    <input type="radio" name="type" value="radial" checked="checked">radial\n    <input type="radio" name="type" value="tree">tree\n    dendrogram\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
-  templates.widget=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<h4>"),t.push(r(this.title)),t.push('</h4>\n<div class="config">Loading &hellip;</div>\n<div class="graph"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.widget=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<h4>Alleles phenotype terms for</h4> <input type="text" placeholder="MGI:97747" class="symbol three columns" value="'),t.push(r(this.symbol)),t.push('" />\n<div style="clear:both"></div>\n<div class="config">Loading &hellip;</div>\n<div class="graph"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   templates.popover=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){var e,n,i,s,o,u,a,f,l,c,h;t.push('<div class="popover">\n    <a class="close">close</a>\n    <div class="inner">\n        <table>\n            <thead>\n                <tr>\n                    '),c=this.columns;for(s=0,a=c.length;s<a;s++)e=c[s],t.push('\n                        <th title="'),t.push(r(e)),t.push('">'),t.push(r(this.titleize(e))),t.push("</th>\n                    ");t.push("\n                </tr>\n            </thead>\n            <tbody>\n                "),h=this.rows;for(o=0,f=h.length;o<f;o++){n=h[o],t.push("\n                    <tr>\n                        ");for(u=0,l=n.length;u<l;u++)i=n[u],t.push("\n                            <td>"),t.push(r(i)),t.push("</td>\n                        ");t.push("\n                    </tr>\n                ")}t.push("\n            </tbody>\n        </table>\n    </div>\n</div>")}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   
   /**#@+ css */
   var style = document.createElement('style');
   style.type = 'text/css';
-  style.innerHTML = 'div#w#@+CALLBACK article{position:relative}div#w#@+CALLBACK .graph{float:left}div#w#@+CALLBACK path.arc{fill:#fff}div#w#@+CALLBACK .node.depth-0{font-size:18px}div#w#@+CALLBACK .node.depth-1{font-size:14px}div#w#@+CALLBACK .node.depth-2{font-size:10px}div#w#@+CALLBACK circle.hlt,div#w#@+CALLBACK circle.leaf{cursor:pointer}div#w#@+CALLBACK .node circle{fill:#fff;stroke:#ccc;stroke-width:1.5px}div#w#@+CALLBACK .node.depth-2 circle{stroke:#fee5d9;fill:#fee5d9}div#w#@+CALLBACK .node circle.band-1{stroke:#fcae91;fill:#fcae91}div#w#@+CALLBACK .node circle.band-2{stroke:#fb6a4a;fill:#fb6a4a}div#w#@+CALLBACK .node circle.band-3{stroke:#de2d26;fill:#de2d26}div#w#@+CALLBACK .node circle.band-4{stroke:#a50f15;fill:#a50f15}div#w#@+CALLBACK .link{fill:none;stroke:#ccc;stroke-width:1px}div#w#@+CALLBACK .link.band-0{stroke:#fee5d9}div#w#@+CALLBACK .link.band-1{stroke:#fcae91}div#w#@+CALLBACK .link.band-2{stroke:#fb6a4a}div#w#@+CALLBACK .link.band-3{stroke:#de2d26}div#w#@+CALLBACK .link.band-4{stroke:#a50f15}div#w#@+CALLBACK .config{background:#fff;padding:20px;box-shadow:0 0 10px #ccc;width:170px;float:left}div#w#@+CALLBACK .config>div{margin:0}div#w#@+CALLBACK .config>div:not(:last-child){margin-bottom:10px}div#w#@+CALLBACK .alert-box{margin-top:10px}div#w#@+CALLBACK .popover{position:absolute;top:0;left:0;z-index:1;width:100%}div#w#@+CALLBACK .popover .inner{max-height:300px;overflow-y:auto;clear:both;box-shadow:0 0 10px #ccc}div#w#@+CALLBACK .popover a.close{float:right;font-weight:700}div#w#@+CALLBACK .popover table{margin:0}div#w#@+CALLBACK .popover table th{text-transform:capitalize}';
+  style.innerHTML = 'div#w#@+CALLBACK h4{float:left}div#w#@+CALLBACK input.symbol{color:#8e0022;background:0;border:0;font-family:\'Droid Serif\',serif;font-size:23px;font-weight:700;padding:0;margin:10px 0;margin-left:4px;-webkit-box-shadow:none;-moz-box-shadow:none;box-shadow:none}div#w#@+CALLBACK article{position:relative}div#w#@+CALLBACK .graph{float:left}div#w#@+CALLBACK path.arc{fill:#fff}div#w#@+CALLBACK .node.depth-0{font-size:18px}div#w#@+CALLBACK .node.depth-1{font-size:14px}div#w#@+CALLBACK .node.depth-2{font-size:10px}div#w#@+CALLBACK circle.hlt,div#w#@+CALLBACK circle.leaf{cursor:pointer}div#w#@+CALLBACK .node circle{fill:#fff;stroke:#ccc;stroke-width:1.5px}div#w#@+CALLBACK .node.depth-2 circle{stroke:#fee5d9;fill:#fee5d9}div#w#@+CALLBACK .node circle.band-1{stroke:#fcae91;fill:#fcae91}div#w#@+CALLBACK .node circle.band-2{stroke:#fb6a4a;fill:#fb6a4a}div#w#@+CALLBACK .node circle.band-3{stroke:#de2d26;fill:#de2d26}div#w#@+CALLBACK .node circle.band-4{stroke:#a50f15;fill:#a50f15}div#w#@+CALLBACK .link{fill:none;stroke:#ccc;stroke-width:1px}div#w#@+CALLBACK .link.band-0{stroke:#fee5d9}div#w#@+CALLBACK .link.band-1{stroke:#fcae91}div#w#@+CALLBACK .link.band-2{stroke:#fb6a4a}div#w#@+CALLBACK .link.band-3{stroke:#de2d26}div#w#@+CALLBACK .link.band-4{stroke:#a50f15}div#w#@+CALLBACK .config{background:#fff;padding:20px;box-shadow:0 0 10px #ccc;width:170px;float:left}div#w#@+CALLBACK .config>div{margin:0}div#w#@+CALLBACK .config>div:not(:last-child){margin-bottom:10px}div#w#@+CALLBACK .alert-box{margin-top:10px}div#w#@+CALLBACK .popover{position:absolute;top:0;left:0;z-index:1;width:100%}div#w#@+CALLBACK .popover .inner{max-height:300px;overflow-y:auto;clear:both;box-shadow:0 0 10px #ccc}div#w#@+CALLBACK .popover a.close{float:right;font-weight:700}div#w#@+CALLBACK .popover table{margin:0}div#w#@+CALLBACK .popover table th{text-transform:capitalize}';
   document.head.appendChild(style);
   
   /**#@+ callback */

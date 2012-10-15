@@ -52,8 +52,15 @@ class Widget
     alleleTerms: (cb) ->
         assert @config.symbol?, '`symbol` of the gene in question not provided'
 
-        # Constrain on the symbol.
         pq = @pq.alleleTerms
+
+        # First remove any constraints on a symbol already present as pq is q shallow copy and we reuse this.
+        for i in [0...pq.constraints.length]
+            c = pq.constraints[i]
+            if c?.path is 'Gene' and c?.op is 'LOOKUP'
+                pq.constraints.splice(i, 1)
+
+        # Constrain on the symbol.
         pq.constraints.push
             "path": "Gene"
             "op": "LOOKUP"
@@ -61,6 +68,8 @@ class Widget
 
         @service.query pq, (q) =>
             q.records (records) =>
+                return @message 'No results found' if records.length is 0
+
                 @max = 1 # top term count
                 terms = {}
                 # Terms to their counts.
@@ -84,8 +93,15 @@ class Widget
         assert @config.symbol?, '`symbol` of the gene in question not provided'
         assert @band?, '`band` of allele counts not provided'
 
-        # Constrain on these terms.
         pq = @pq.highLevelTerms
+        
+        # First remove any constraints on a symbol already present as pq is q shallow copy and we reuse this.
+        for i in [0...pq.constraints.length]
+            c = pq.constraints[i]
+            if c?.path is 'Allele.highLevelPhenotypeTerms.relations.childTerm.name' and c?.op is 'ONE OF'
+                pq.constraints.splice(i, 1)
+
+        # Constrain on these terms.
         pq.constraints.push
             "path": "Allele.highLevelPhenotypeTerms.relations.childTerm.name",
             "op": "ONE OF",
@@ -124,12 +140,25 @@ class Widget
     render: (@target) ->
         # Render the widget wrapper.
         $(@target).html @templates.widget
-            'title': "Alleles phenotype terms for #{@config.symbol}"
+            'symbol': @config.symbol
 
-        # Fetch phenotypic terms for PPARG mouse.
-        @alleleTerms (children) =>
-            # Fetch high level terms for child terms.
-            @highLevelTerms children, @renderGraph
+        do dis = =>
+            # Fetch phenotypic terms for PPARG mouse.
+            @alleleTerms (children) =>
+                # Fetch high level terms for child terms.
+                @highLevelTerms children, @renderGraph
+
+        # Re-render the chart on new symbol.
+        $(@target).find('input.symbol').keyup (e) =>
+            symbol = $(e.target).val()
+            # A new symbol?
+            if symbol isnt @config.symbol
+                @config.symbol = symbol
+                # Render then.
+                dis()
+
+    # Show a message when we do not have results etc.
+    message: (text) -> $(@target).find('.graph').html $ '<div/>', 'class': 'alert-box', 'text': text
 
     ###
     Once data are loaded or updated, render the dendrogram and init config for it.
@@ -205,7 +234,7 @@ class Widget
         # Do we actually have anything to show?
         unless data?
             # Show a message of this fact instead.
-            return target.html $ '<div/>', 'class': 'alert-box', 'text': 'Nothing to show. Adjust the filters above to display the graph.'
+            return @message 'Nothing to show. Adjust the filters above to display the graph.'
 
         params =
             'termTextBand': config.opts.termTextBand
