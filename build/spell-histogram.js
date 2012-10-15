@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 15 Oct 2012 16:06:36 GMT
+ *  Generated: Mon, 15 Oct 2012 16:19:29 GMT
  */
 
 (function() {
@@ -171,7 +171,7 @@ var root = this;
           data = d3.layout.histogram().bins(x.ticks(20))(rows);
           twoDArray = _(data).map(function(bin) {
             var from;
-            from = x(bin.x);
+            from = Math.round(x(bin.x));
             return ["" + from + " to " + (from + 2), bin.y];
           });
           (t = $(_this.target).find('.chart')).empty();

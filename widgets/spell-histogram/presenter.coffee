@@ -125,7 +125,7 @@ class Widget
                 data = d3.layout.histogram().bins(x.ticks(20))(rows)
 
                 # Coerce the data into the Google Visualization format.
-                twoDArray = _(data).map (bin) -> from = x(bin.x) ; [ "#{from} to #{from + 2}", bin.y ]
+                twoDArray = _(data).map (bin) -> from = Math.round(x(bin.x)) ; [ "#{from} to #{from + 2}", bin.y ]
 
                 # Remove loading sign.
                 (t = $(@target).find('.chart')).empty()

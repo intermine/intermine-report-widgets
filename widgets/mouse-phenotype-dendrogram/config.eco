@@ -9,8 +9,9 @@
 </div>
 
 <div class="type">
-    Use a 
-    <input type="radio" name="type" value="radial" checked="checked">radial
-    <input type="radio" name="type" value="tree">tree
+    Use a radial
+    <input type="radio" name="type" value="radial" checked="checked">
+    or a tree
+    <input type="radio" name="type" value="tree">
     dendrogram
 </div>

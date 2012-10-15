@@ -7,7 +7,7 @@
             "author": "Radek",
             "title": "Publications for Gene",
             "description": "Shows a list of publications for a specific gene",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "dependencies": [
                 {
                     "name": "jQuery",
@@ -98,7 +98,7 @@
             "author": "Radek",
             "title": "Mouse Phenotype Dendrogram Clustering",
             "description": "Replaces a tag cloud of phenotypes associated with alleles and their scores",
-            "version": "0.3.3",
+            "version": "0.3.4",
             "dependencies": [
                 {
                     "name": "jQuery",

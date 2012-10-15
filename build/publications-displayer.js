@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 15 Oct 2012 16:06:37 GMT
+ *  Generated: Mon, 15 Oct 2012 16:19:29 GMT
  */
 
 (function() {
