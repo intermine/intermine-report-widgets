@@ -136,7 +136,7 @@ exports.single = (widgetId, callback, config, output) ->
                             cb null
                 ) (css) ->
                     # Is it not empty?
-                    if css.length isnt 0
+                    if css and css.length isnt 0
                         winston.info "Adding custom .css file".grey
 
                         # Prefix CSS selectors with a callback id.
