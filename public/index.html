@@ -92,12 +92,12 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
 // give us report widgets from a specific service in a callback `widgets`
 intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
-    widgets.load('pathways-displayer', '#pathways');
+    widgets.load('pathways-displayer', '#pathways', { 'symbol': 'eve' });
 });
         </code></pre>
         <script>
             (function() {
-                this.widgets.load('pathways-displayer', '#pathways');
+                this.widgets.load('pathways-displayer', '#pathways', { 'symbol': 'eve' });
             })();
         </script>
         <div id="pathways"></div>

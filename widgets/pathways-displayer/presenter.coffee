@@ -1,6 +1,7 @@
 class Widget
 
     constructor: (@config, @templates) ->
+        @service = new intermine.Service 'root': 'http://beta.flymine.org/beta/service/'
 
     render: (@target) ->
         # The mines we will be 'querying'.
@@ -24,7 +25,24 @@ class Widget
         for mine in data then do (mine) ->
             for pathway in mine.pathways then do (mine, pathway) ->
                 # Now add the pathway for this mine into the grid.
-                grid.add pathway, mine['name'], $("<span/>", 'class': 'label label-success', 'text':    'Yes')
+                grid.add pathway, mine['name'], $("<span/>", 'class': 'label label-success', 'text': 'Yes')
+
+        @getHomologues @config.symbol, (homologues) ->
+            console.log homologues
+
+    # For a given symbol callback with a list of homologues.
+    # Modifies @config.pathQueries!
+    getHomologues: (symbol, cb) =>
+        # Constrain on 'this' gene.
+        pq = @config.pathQueries.homologues
+        pq.constraints ?= []
+        pq.constraints.push
+            "path": "Gene"
+            "op": "LOOKUP"
+            "value": symbol
+        
+        # Run the query giving us homologues.
+        @service.query pq, (q) -> q.rows (rows) -> cb ( g[0] for g in rows when g[0] )
 
 
 ### Maintain and dynamically update data in a grid/table.###
@@ -93,8 +111,6 @@ class Grid
                         rowEl.append el = $ '<td/>', 'class': column
                         el
             ) rowS, columnS
-
-        console.log columnS
 
         # We have the grid in place, add the element.
         @grid[rowS]['columns'][columnS].html data
