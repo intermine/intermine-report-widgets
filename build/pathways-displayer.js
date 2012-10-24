@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Wed, 24 Oct 2012 12:26:04 GMT
+ *  Generated: Wed, 24 Oct 2012 12:48:37 GMT
  */
 
 (function() {
@@ -44,8 +44,7 @@ var root = this;
           'pathways': ["citric acid CYCLE", "Lipogenesis", "inositol", "Nitrogen metabolism"]
         }
       ];
-      $(this.target).append(target = $('<table/>'));
-      grid = new Grid(target, mines);
+      grid = new Grid(this.target, mines);
       _results = [];
       for (_i = 0, _len = data.length; _i < _len; _i++) {
         mine = data[_i];
@@ -86,6 +85,7 @@ var root = this;
   
     function Grid(el, head) {
       var column, columnS, row, _i, _len;
+      $(el).append(el = $('<table/>'));
       $(el).append(this.body = $('<tbody/>'));
       row = $('<tr/>');
       row.append($('<th/>'));
@@ -106,9 +106,9 @@ var root = this;
       rowS = this.slugify(row);
       columnS = this.slugify(column);
       if (__indexOf.call(this.rows, rowS) < 0) {
-        rowEl = $("<tr/>", {
+        rowEl = $('<tr/>', {
           'class': rowS
-        }).append($("<td/>", {
+        }).append($('<td/>', {
           'text': row
         }));
         if (!this.rows.length) {
@@ -130,27 +130,28 @@ var root = this;
             return _this.body.append(rowEl);
           })();
         }
-        (function() {
+        (function(row, column) {
           var _i, _len, _ref, _results;
-          _this.grid[rowS] = {
+          _this.grid[row] = {
             'el': rowEl,
             'columns': {}
           };
           _ref = _this.columns;
           _results = [];
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            columnS = _ref[_i];
-            _results.push(_this.grid[rowS]['columns'][columnS] = (function() {
+            column = _ref[_i];
+            _results.push(_this.grid[row]['columns'][column] = (function() {
               var el;
               rowEl.append(el = $('<td/>', {
-                'class': columnS
+                'class': column
               }));
               return el;
             })());
           }
           return _results;
-        })();
+        })(rowS, columnS);
       }
+      console.log(columnS);
       return this.grid[rowS]['columns'][columnS].html(data);
     };
   

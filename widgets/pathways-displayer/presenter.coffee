@@ -18,9 +18,7 @@ class Widget
             'pathways': [ "citric acid CYCLE", "Lipogenesis", "inositol", "Nitrogen metabolism" ]
         ]
 
-        $(@target).append target = $ '<table/>'
-
-        grid = new Grid target, mines
+        grid = new Grid @target, mines
 
         # Traverse the server data.
         for mine in data then do (mine) ->
@@ -35,12 +33,14 @@ class Grid
     # Holds the slugified columns.
     columns: []
     # Holds the slugified rows in order.
-    rows:        []
+    rows: []
 
     # Actual storage of data.
-    grid:        {}
+    grid: {}
 
     constructor: (el, head) ->
+        $(el).append el = $('<table/>')
+
         # Add target for body of the grid.
         $(el).append @body = $ '<tbody/>'
 
@@ -62,10 +62,9 @@ class Grid
 
         # Do we have this pathway already?
         if rowS not in @rows
-
             # Create the element.
-            rowEl = $("<tr/>", 'class': rowS).append($("<td/>",
-                'text':    row # Use the original text.
+            rowEl = $('<tr/>', 'class': rowS).append($('<td/>',
+                'text': row # use the original text
             ))
 
             # Is this the first row in the grid?
@@ -87,12 +86,15 @@ class Grid
                     @body.append rowEl
 
             # Add row `<td>` columns to the actual grid.
-            do =>
-                @grid[rowS] = { 'el': rowEl, 'columns': {} }
-                for columnS in @columns
-                    @grid[rowS]['columns'][columnS] = do ->
-                        rowEl.append el = $ '<td/>', 'class': columnS
+            ( (row, column) =>
+                @grid[row] = { 'el': rowEl, 'columns': {} }
+                for column in @columns
+                    @grid[row]['columns'][column] = do ->
+                        rowEl.append el = $ '<td/>', 'class': column
                         el
+            ) rowS, columnS
+
+        console.log columnS
 
         # We have the grid in place, add the element.
         @grid[rowS]['columns'][columnS].html data
