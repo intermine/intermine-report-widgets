@@ -12,7 +12,10 @@ class Widget
             for mine, url of @config.otherMines then do (mine, url) =>
                 # Now get pathways in all the mines.
                 @getPathways homologues, url, (pathways) ->
-                    grid.add pathway, mine, $("<span/>", 'class': 'label label-success', 'text': 'Yes') for pathway in pathways
+                    for [ pathway, isCurated ] in pathways
+                        grid.add pathway, mine, $ "<span/>",
+                            'class': if isCurated then 'label success' else 'label secondary'
+                            'text': 'Yes'
 
     # For a given symbol callback with a list of homologues.
     getHomologues: (symbol, cb) ->
@@ -27,7 +30,7 @@ class Widget
         # Run the query giving us homologues.
         @service.query pq, (q) -> q.rows (rows) -> cb ( g[0] for g in rows when g[0] )
 
-    # For a set of identifiers and mine URK callback with pathway names.
+    # For a set of identifiers and mine URL callback with pathway names.
     getPathways: (identifiers, url, cb) ->
         # Constrain on a set of identifiers.
         pq = JSON.parse JSON.stringify @config.pathQueries.pathways
@@ -39,7 +42,7 @@ class Widget
 
         # Run the query giving us homologues.
         service = new intermine.Service 'root': url
-        service.query pq, (q) -> q.rows (rows) -> cb _( g[0] for g in rows when g[0] ).unique()
+        service.query pq, (q) -> q.rows cb
 
 
 ### Maintain and dynamically update data in a grid/table.###
