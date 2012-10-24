@@ -127,7 +127,7 @@
             "author": "Radek",
             "title": "Pathways from other mines",
             "description": "Shows for each pathway which mines carry it",
-            "version": "0.1.2",
+            "version": "0.2.0",
             "dependencies": [
                 {
                     "name": "jQuery",
@@ -147,18 +147,19 @@
                 }
             ],
             "config": {
+                "otherMines": {
+                    "FlyMine": "http://beta.flymine.org/beta",
+                    "metabolicMine": "http://metabolicmine.org/beta"
+                },
                 "pathQueries": {
                     "homologues": {
                         "select": [
                             "Gene.homologues.homologue.primaryIdentifier"
-                        ],
-                        "where": [
-                            {
-                                "path": "Gene.symbol",
-                                "op": "CONTAINS",
-                                "code": "A",
-                                "value": "alpha"
-                            }
+                        ]
+                    },
+                    "pathways": {
+                        "select": [
+                            "Gene.pathways.name"
                         ]
                     }
                 }

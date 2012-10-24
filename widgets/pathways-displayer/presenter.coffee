@@ -1,40 +1,23 @@
 class Widget
 
     constructor: (@config, @templates) ->
-        @service = new intermine.Service 'root': 'http://beta.flymine.org/beta/service/'
+        @service = new intermine.Service 'root': 'http://beta.flymine.org/beta'
 
     render: (@target) ->
-        # The mines we will be 'querying'.
-        mines = [ 'FlyMine', 'CoalMine', 'GoldMine' ]
+        # Init the `Grid`.
+        grid = new Grid @target, ( mine for mine, url of @config.otherMines )
 
-        # Data for each 'mine'.
-        data = [
-            'name':     "FlyMine"
-            'pathways': [ "glycoLysis", "Glucuronic acid", "Lipogenesis", "Citric acid cycle", "Oxidative phosphorylation" ]
-        ,
-            'name':     "GoldMine"
-            'pathways': [ "Nitrogen metabolism", "Glycolysis", "Oxidative phosphorylation", "Inositol", "glucuronic acid" ]
-        ,
-            'name':     "CoalMine"
-            'pathways': [ "citric acid CYCLE", "Lipogenesis", "inositol", "Nitrogen metabolism" ]
-        ]
-
-        grid = new Grid @target, mines
-
-        # Traverse the server data.
-        for mine in data then do (mine) ->
-            for pathway in mine.pathways then do (mine, pathway) ->
-                # Now add the pathway for this mine into the grid.
-                grid.add pathway, mine['name'], $("<span/>", 'class': 'label label-success', 'text': 'Yes')
-
-        @getHomologues @config.symbol, (homologues) ->
-            console.log homologues
+        # Get homologues in this mine.
+        @getHomologues @config.symbol, (homologues) =>
+            for mine, url of @config.otherMines then do (mine, url) =>
+                # Now get pathways in all the mines.
+                @getPathways homologues, url, (pathways) ->
+                    grid.add pathway, mine, $("<span/>", 'class': 'label label-success', 'text': 'Yes') for pathway in pathways
 
     # For a given symbol callback with a list of homologues.
-    # Modifies @config.pathQueries!
-    getHomologues: (symbol, cb) =>
+    getHomologues: (symbol, cb) ->
         # Constrain on 'this' gene.
-        pq = @config.pathQueries.homologues
+        pq = JSON.parse JSON.stringify @config.pathQueries.homologues
         pq.constraints ?= []
         pq.constraints.push
             "path": "Gene"
@@ -43,6 +26,20 @@ class Widget
         
         # Run the query giving us homologues.
         @service.query pq, (q) -> q.rows (rows) -> cb ( g[0] for g in rows when g[0] )
+
+    # For a set of identifiers and mine URK callback with pathway names.
+    getPathways: (identifiers, url, cb) ->
+        # Constrain on a set of identifiers.
+        pq = JSON.parse JSON.stringify @config.pathQueries.pathways
+        pq.constraints ?= []
+        pq.constraints.push
+            "path": "Gene.primaryIdentifier"
+            "op": "ONE OF"
+            "values": identifiers
+
+        # Run the query giving us homologues.
+        service = new intermine.Service 'root': url
+        service.query pq, (q) -> q.rows (rows) -> cb _( g[0] for g in rows when g[0] ).unique()
 
 
 ### Maintain and dynamically update data in a grid/table.###
