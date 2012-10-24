@@ -4,18 +4,30 @@ class Widget
         @service = new intermine.Service 'root': 'http://beta.flymine.org/beta'
 
     render: (@target) ->
+        # Render the template.
+        target = $(@target).html @templates.table()
+
+        # Add the organisms into faux head.
+        for organism in @config.organisms
+            target.find('.faux thead tr').append $ '<th/>', 'text': organism
+
         # Init the `Grid`.
-        grid = new Grid @target, ( mine for mine, url of @config.otherMines )
+        grid = new Grid target.find('.wrapper'), @config.organisms
 
         # Get homologues in this mine.
         @getHomologues @config.symbol, (homologues) =>
-            for mine, url of @config.otherMines then do (mine, url) =>
+            for mine, url of @config.mines then do (mine, url) =>
                 # Now get pathways in all the mines.
                 @getPathways homologues, url, (pathways) ->
-                    for [ pathway, isCurated ] in pathways
-                        grid.add pathway, mine, $ "<span/>",
+                    for [ pathway, isCurated, organism ] in pathways
+                        grid.add pathway, organism, $ "<span/>",
                             'class': if isCurated then 'label success' else 'label secondary'
                             'text': 'Yes'
+                            'title': mine
+
+                        # Fix the faux elements width.
+                        target.find('.wrapper thead th').each (i, th) ->
+                            $(target).find(".faux th:eq(#{i})").width $(th).outerWidth()
 
     # For a given symbol callback with a list of homologues.
     getHomologues: (symbol, cb) ->

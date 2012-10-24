@@ -127,7 +127,7 @@
             "author": "Radek",
             "title": "Pathways from other mines",
             "description": "Shows for each pathway which mines carry it",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "dependencies": [
                 {
                     "name": "jQuery",
@@ -147,10 +147,15 @@
                 }
             ],
             "config": {
-                "otherMines": {
+                "mines": {
                     "FlyMine": "http://beta.flymine.org/beta",
                     "metabolicMine": "http://metabolicmine.org/beta"
                 },
+                "organisms": [
+                    "fruit fly",
+                    "house mouse",
+                    "human"
+                ],
                 "pathQueries": {
                     "homologues": {
                         "select": [
@@ -160,7 +165,8 @@
                     "pathways": {
                         "select": [
                             "Gene.pathways.name",
-                            "Gene.pathways.curated"
+                            "Gene.pathways.curated",
+                            "Gene.organism.commonName"
                         ]
                     }
                 }
