@@ -65,11 +65,17 @@ class Rows extends Backbone.Collection
     model: Row
 
     filter: (re) ->
+        shown = 0 ; hidden = 0
+
         @each (model) ->
             if model.get('text').match re
                 model.set('show': true) unless model.get('show')
+                shown++
             else
                 model.set('show': false) if model.get('show')
+                hidden++
+
+        [ shown, hidden ]
 
 
 ### The table used to render the paginated view.###
@@ -105,7 +111,8 @@ class Grid extends Backbone.View
 
     # Events on the whole grid.
     events:
-        'keyup input.filter': 'filterAction'
+        'keyup input.filter':           'filterAction'
+        'click .filterMessage a.clear': 'clearFilterAction'
 
     # Init the wrapper for the grid table.
     initialize: ->
@@ -119,11 +126,8 @@ class Grid extends Backbone.View
         # Create a collection for rows.
         @collection = new Rows()
 
-        # Create `table` element.
-        @el.find('.wrapper').append table = $ '<table/>'
-
-        # Add target for body of the grid.
-        table.append @body = $ '<tbody/>'
+        # Link to `tbody`.
+        @body = @el.find('.wrapper table tbody')
 
         # Generate the `<thead>`.
         row = $ '<tr/>'
@@ -136,7 +140,7 @@ class Grid extends Backbone.View
             # Add to the faux head.
             @el.find('.faux thead tr').append $ '<th/>', 'text': column
         
-        row.appendTo $('<thead/>').appendTo table
+        row.appendTo @el.find('.wrapper table thead')
 
         # Adjust faux header width whenever the underlying collection changes.
         @collection.bind 'change', @adjustFauxHeader
@@ -221,5 +225,29 @@ class Grid extends Backbone.View
                 # Regex.
                 re = new RegExp "#{query}.*", 'i'
                 # Filter and re-render.
-                @collection.filter re
+                [ shown, hidden ] = @collection.filter re
+                # What about filter clearing message?
+                @filterMessage shown, hidden
         ), 500
+
+    clearFilterAction: ->
+        # Clear input field.
+        @el.find('input.filter').val ''
+        # Filter the collection back.
+        [ shown, hidden ] = @collection.filter()
+        # What about filter clearing message?
+        @filterMessage shown, hidden
+
+    # A message saying how many rows are hidden.
+    filterMessage: (shown, hidden) ->
+        box = @body.find '.filterMessage'
+        msg = @body.find '.filterMessage .text'
+        
+        if hidden isnt 0
+            box.show()
+            if shown isnt 0
+                msg.text "#{hidden} rows are hidden."
+            else
+                msg.text 'All rows are hidden.'
+        else
+            box.hide()

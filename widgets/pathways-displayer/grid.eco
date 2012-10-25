@@ -6,4 +6,17 @@
         </tr>
     </thead>
 </table>
-<div class="wrapper"></div>
+<div class="wrapper">
+    <table>
+        <thead></thead>
+        <tbody>
+            <!-- so we start with a white row... -->
+            <tr></tr>
+            <tr class="filterMessage">
+                <td colspan="99">
+                    <div class="alert-box secondary"><span class="text"></span> <a class="clear">Show all</a></div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
