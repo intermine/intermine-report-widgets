@@ -127,7 +127,7 @@
             "author": "Radek",
             "title": "Pathways from other mines",
             "description": "Shows for each pathway which mines carry it",
-            "version": "0.2.2",
+            "version": "0.3.0",
             "dependencies": [
                 {
                     "name": "jQuery",

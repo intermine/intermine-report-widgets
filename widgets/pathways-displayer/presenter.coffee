@@ -4,16 +4,14 @@ class Widget
     constructor: (@config, @templates) ->
         @service = new intermine.Service 'root': 'http://beta.flymine.org/beta'
 
-    render: (@target) ->
-        # Render the template.
-        target = $(@target).html @templates.table()
-
-        # Add the organisms into faux head.
-        for organism in @config.organisms
-            target.find('.faux thead tr').append $ '<th/>', 'text': organism
-
+    render: (@el) ->
         # Init the `Grid`.
-        grid = new Grid target.find('.wrapper'), @config.organisms
+        grid = new Grid
+            'el': @el
+            'attributes':
+                'head':     @config.organisms
+                'title':    @config.symbol
+                'template': @templates.grid
 
         # Get homologues in this mine.
         @getHomologues @config.symbol, (homologues) =>
@@ -26,10 +24,6 @@ class Widget
                             'text':  'Yes'
                             'class': if isCurated then 'label success' else 'label secondary'
                             'title': mine
-
-                        # Fix the faux elements width.
-                        target.find('.wrapper thead th').each (i, th) ->
-                            $(target).find(".faux th:eq(#{i})").width $(th).outerWidth()
 
     # For a given symbol callback with a list of homologues.
     getHomologues: (symbol, cb) ->
@@ -62,20 +56,38 @@ class Widget
 ### Our data.###
 class Row extends Backbone.Model
 
+    # By default all rows are visible and unfiltered.
+    defaults:
+        'show': true
+
 class Rows extends Backbone.Collection
     
     model: Row
 
+    filter: (re) ->
+        @each (model) ->
+            if model.get('text').match re
+                model.set('show': true) unless model.get('show')
+            else
+                model.set('show': false) if model.get('show')
+
+
 ### The table used to render the paginated view.###
 class GridRow extends Backbone.View
 
+    # A table row.
     tagName: 'tr'
 
+    # Slug is our class.
+    className: => @model.get 'slug'
+
     initialize: ->
-        $(@el)
-            .addClass(@model.get('slug'))
-            .append($('<td/>', 'text': @model.get('text')))
+        # Append a column with the name of our row.
+        $(@el).append($('<td/>', 'text': @model.get('text')))
         
+        # Toggle visibility.
+        @model.bind 'change', => $(@el).toggle()
+
         @
 
 
@@ -91,25 +103,46 @@ class Grid extends Backbone.View
     # Actual storage of data.
     grid: {}
 
-    constructor: (el, head) ->
+    # Events on the whole grid.
+    events:
+        'keyup input.filter': 'filterAction'
+
+    # Init the wrapper for the grid table.
+    initialize: ->
+        # jQueryize.
+        @el = $(@el)
+
+        # Render the template.
+        target = $(@el).html @attributes.template
+            'title': @attributes.title
+
         # Create a collection for rows.
         @collection = new Rows()
 
         # Create `table` element.
-        $(el).append el = $ '<table/>'
+        @el.find('.wrapper').append table = $ '<table/>'
 
         # Add target for body of the grid.
-        $(el).append @body = $ '<tbody/>'
+        table.append @body = $ '<tbody/>'
 
         # Generate the `<thead>`.
         row = $ '<tr/>'
         row.append $ '<th/>'
-        for column in head
+        for column in @attributes.head
             # Add the slug.
             @columns.push columnS = @slugify column
             # Add the el.
             row.append $ '<th/>', { 'text': column, 'class': columnS }
-        row.appendTo $('<thead/>').appendTo $(el)
+            # Add to the faux head.
+            @el.find('.faux thead tr').append $ '<th/>', 'text': column
+        
+        row.appendTo $('<thead/>').appendTo table
+
+        # Adjust faux header width whenever the underlying collection changes.
+        @collection.bind 'change', @adjustFauxHeader
+        @collection.bind 'add',    @adjustFauxHeader
+
+        @
 
     # Add an element to the grid.
     add: (row, column, data) ->
@@ -162,3 +195,31 @@ class Grid extends Backbone.View
 
     # Slugify a string.
     slugify: (text) -> text.replace(/[^-a-zA-Z0-9,&\s]+/ig, '').replace(/-/gi, "_").replace(/\s/gi, "-").toLowerCase()
+
+    # Fix the faux elements width.
+    # Does not work immediately, waits a while for new elements to come.
+    adjustFauxHeader: =>
+        # Delay any further processing by a few.
+        if @fauxTimeout? then clearTimeout @fauxTimeout
+
+        @fauxTimeout = setTimeout (=>
+            @el.find('.wrapper thead th').each (i, th) =>
+                @el.find(".faux th:eq(#{i})").width $(th).outerWidth()
+        ), 0
+
+    # Filter the list of entries.
+    filterAction: (e) =>
+        # Delay any further processing by a few.
+        if @filterTimeout? then clearTimeout @filterTimeout
+
+        @filterTimeout = setTimeout (=>
+            # Fetch the query value.
+            query = $(e.target).val()
+            if query isnt @query
+                # Do the actual filtering.
+                @query = query
+                # Regex.
+                re = new RegExp "#{query}.*", 'i'
+                # Filter and re-render.
+                @collection.filter re
+        ), 500

@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Thu, 25 Oct 2012 13:56:53 GMT
+ *  Generated: Thu, 25 Oct 2012 16:08:19 GMT
  */
 
 (function() {
@@ -24,6 +24,7 @@ var root = this;
   var Grid, GridRow, Row, Rows, Widget,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
   
   Widget = (function() {
@@ -36,39 +37,35 @@ var root = this;
       });
     }
   
-    Widget.prototype.render = function(target) {
-      var grid, organism, _i, _len, _ref,
+    Widget.prototype.render = function(el) {
+      var grid,
         _this = this;
-      this.target = target;
-      target = $(this.target).html(this.templates.table());
-      _ref = this.config.organisms;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        organism = _ref[_i];
-        target.find('.faux thead tr').append($('<th/>', {
-          'text': organism
-        }));
-      }
-      grid = new Grid(target.find('.wrapper'), this.config.organisms);
+      this.el = el;
+      grid = new Grid({
+        'el': this.el,
+        'attributes': {
+          'head': this.config.organisms,
+          'title': this.config.symbol,
+          'template': this.templates.grid
+        }
+      });
       return this.getHomologues(this.config.symbol, function(homologues) {
-        var mine, url, _ref1, _results;
-        _ref1 = _this.config.mines;
+        var mine, url, _ref, _results;
+        _ref = _this.config.mines;
         _results = [];
-        for (mine in _ref1) {
-          url = _ref1[mine];
+        for (mine in _ref) {
+          url = _ref[mine];
           _results.push((function(mine, url) {
             return _this.getPathways(homologues, url, function(pathways) {
-              var isCurated, pathway, _j, _len1, _ref2, _results1;
+              var isCurated, organism, pathway, _i, _len, _ref1, _results1;
               _results1 = [];
-              for (_j = 0, _len1 = pathways.length; _j < _len1; _j++) {
-                _ref2 = pathways[_j], pathway = _ref2[0], isCurated = _ref2[1], organism = _ref2[2];
-                grid.add(pathway, organism, $('<span/>', {
+              for (_i = 0, _len = pathways.length; _i < _len; _i++) {
+                _ref1 = pathways[_i], pathway = _ref1[0], isCurated = _ref1[1], organism = _ref1[2];
+                _results1.push(grid.add(pathway, organism, $('<span/>', {
                   'text': 'Yes',
                   'class': isCurated ? 'label success' : 'label secondary',
                   'title': mine
-                }));
-                _results1.push(target.find('.wrapper thead th').each(function(i, th) {
-                  return $(target).find(".faux th:eq(" + i + ")").width($(th).outerWidth());
-                }));
+                })));
               }
               return _results1;
             });
@@ -142,6 +139,10 @@ var root = this;
       return Row.__super__.constructor.apply(this, arguments);
     }
   
+    Row.prototype.defaults = {
+      'show': true
+    };
+  
     return Row;
   
   })(Backbone.Model);
@@ -156,6 +157,24 @@ var root = this;
   
     Rows.prototype.model = Row;
   
+    Rows.prototype.filter = function(re) {
+      return this.each(function(model) {
+        if (model.get('text').match(re)) {
+          if (!model.get('show')) {
+            return model.set({
+              'show': true
+            });
+          }
+        } else {
+          if (model.get('show')) {
+            return model.set({
+              'show': false
+            });
+          }
+        }
+      });
+    };
+  
     return Rows;
   
   })(Backbone.Collection);
@@ -169,15 +188,24 @@ var root = this;
     __extends(GridRow, _super);
   
     function GridRow() {
+      this.className = __bind(this.className, this);
       return GridRow.__super__.constructor.apply(this, arguments);
     }
   
     GridRow.prototype.tagName = 'tr';
   
+    GridRow.prototype.className = function() {
+      return this.model.get('slug');
+    };
+  
     GridRow.prototype.initialize = function() {
-      $(this.el).addClass(this.model.get('slug')).append($('<td/>', {
+      var _this = this;
+      $(this.el).append($('<td/>', {
         'text': this.model.get('text')
       }));
+      this.model.bind('change', function() {
+        return $(_this.el).toggle();
+      });
       return this;
     };
   
@@ -193,29 +221,51 @@ var root = this;
   
     __extends(Grid, _super);
   
+    function Grid() {
+      this.filterAction = __bind(this.filterAction, this);
+  
+      this.adjustFauxHeader = __bind(this.adjustFauxHeader, this);
+      return Grid.__super__.constructor.apply(this, arguments);
+    }
+  
     Grid.prototype.columns = [];
   
     Grid.prototype.rows = [];
   
     Grid.prototype.grid = {};
   
-    function Grid(el, head) {
-      var column, columnS, row, _i, _len;
+    Grid.prototype.events = {
+      'keyup input.filter': 'filterAction'
+    };
+  
+    Grid.prototype.initialize = function() {
+      var column, columnS, row, table, target, _i, _len, _ref;
+      this.el = $(this.el);
+      target = $(this.el).html(this.attributes.template({
+        'title': this.attributes.title
+      }));
       this.collection = new Rows();
-      $(el).append(el = $('<table/>'));
-      $(el).append(this.body = $('<tbody/>'));
+      this.el.find('.wrapper').append(table = $('<table/>'));
+      table.append(this.body = $('<tbody/>'));
       row = $('<tr/>');
       row.append($('<th/>'));
-      for (_i = 0, _len = head.length; _i < _len; _i++) {
-        column = head[_i];
+      _ref = this.attributes.head;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        column = _ref[_i];
         this.columns.push(columnS = this.slugify(column));
         row.append($('<th/>', {
           'text': column,
           'class': columnS
         }));
+        this.el.find('.faux thead tr').append($('<th/>', {
+          'text': column
+        }));
       }
-      row.appendTo($('<thead/>').appendTo($(el)));
-    }
+      row.appendTo($('<thead/>').appendTo(table));
+      this.collection.bind('change', this.adjustFauxHeader);
+      this.collection.bind('add', this.adjustFauxHeader);
+      return this;
+    };
   
     Grid.prototype.add = function(row, column, data) {
       var columnS, model, rowS, view,
@@ -278,6 +328,34 @@ var root = this;
       return text.replace(/[^-a-zA-Z0-9,&\s]+/ig, '').replace(/-/gi, "_").replace(/\s/gi, "-").toLowerCase();
     };
   
+    Grid.prototype.adjustFauxHeader = function() {
+      var _this = this;
+      if (this.fauxTimeout != null) {
+        clearTimeout(this.fauxTimeout);
+      }
+      return this.fauxTimeout = setTimeout((function() {
+        return _this.el.find('.wrapper thead th').each(function(i, th) {
+          return _this.el.find(".faux th:eq(" + i + ")").width($(th).outerWidth());
+        });
+      }), 0);
+    };
+  
+    Grid.prototype.filterAction = function(e) {
+      var _this = this;
+      if (this.filterTimeout != null) {
+        clearTimeout(this.filterTimeout);
+      }
+      return this.filterTimeout = setTimeout((function() {
+        var query, re;
+        query = $(e.target).val();
+        if (query !== _this.query) {
+          _this.query = query;
+          re = new RegExp("" + query + ".*", 'i');
+          return _this.collection.filter(re);
+        }
+      }), 500);
+    };
+  
     return Grid;
   
   })(Backbone.View);
@@ -287,12 +365,12 @@ var root = this;
 
   /**#@+ the templates */
   var templates = {};
-  templates.table=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<h4>G-ialpha65A</h4>\n<table class="faux">\n    <thead>\n        <tr>\n            <th></th>\n        </tr>\n    </thead>\n</table>\n<div class="wrapper"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.grid=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<h4>"),t.push(r(this.title)),t.push('</h4>\n<table class="faux">\n    <thead>\n        <tr>\n            <th><input type="text" placeholder="Filter..." class="filter" /></th>\n        </tr>\n    </thead>\n</table>\n<div class="wrapper"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   
   /**#@+ css */
   var style = document.createElement('style');
   style.type = 'text/css';
-  style.innerHTML = 'div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}';
+  style.innerHTML = 'div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .faux input.filter{margin:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}';
   document.head.appendChild(style);
   
   /**#@+ callback */
