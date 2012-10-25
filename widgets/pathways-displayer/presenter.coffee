@@ -88,11 +88,20 @@ class GridRow extends Backbone.View
     className: => @model.get 'slug'
 
     initialize: ->
+        # On us.
+        @mediator = @attributes.mediator
+
         # Append a column with the name of our row.
-        $(@el).append($('<td/>', 'text': @model.get('text')))
+        $(@el).append td = $('<td/>', 'html': @model.get('text'))
         
         # Toggle visibility.
         @model.bind 'change', => $(@el).toggle()
+
+        # Listen for filtering so we can adjust the text we see.
+        @mediator.on 'filter', (re) =>
+            # Can we be seen?
+            if @model.get('show')
+                $(@el).find('td:first-child').html @model.get('text').replace re, '<span class="label">$1</span>'
 
         @
 
@@ -118,6 +127,9 @@ class Grid extends Backbone.View
     initialize: ->
         # jQueryize.
         @el = $(@el)
+
+        # Mediator of events.
+        _.extend @mediator = {}, Backbone.Events
 
         # Render the template.
         target = $(@el).html @attributes.template
@@ -165,7 +177,10 @@ class Grid extends Backbone.View
             @collection.add model
 
             # Create a new View representation.
-            view = new GridRow 'model': model
+            view = new GridRow
+                'model': model
+                'attributes':
+                    'mediator': @mediator
 
             # Is this the first row in the grid?
             if not @rows.length
@@ -217,17 +232,19 @@ class Grid extends Backbone.View
         if @filterTimeout? then clearTimeout @filterTimeout
 
         @filterTimeout = setTimeout (=>
-            # Fetch the query value.
-            query = $(e.target).val()
+            # Fetch the query value and strip whitespace on either end.
+            query = $.trim $(e.target).val()
             if query isnt @query
                 # Do the actual filtering.
                 @query = query
                 # Regex.
-                re = new RegExp "#{query}.*", 'i'
+                re = new RegExp "(#{query})", 'ig'
                 # Filter and re-render.
                 [ shown, hidden ] = @collection.filter re
                 # What about filter clearing message?
                 @filterMessage shown, hidden
+                # Trigger message.
+                @mediator.trigger 'filter', re
         ), 500
 
     clearFilterAction: ->

@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Thu, 25 Oct 2012 16:52:26 GMT
+ *  Generated: Thu, 25 Oct 2012 18:27:18 GMT
  */
 
 (function() {
@@ -205,12 +205,19 @@ var root = this;
     };
   
     GridRow.prototype.initialize = function() {
-      var _this = this;
-      $(this.el).append($('<td/>', {
-        'text': this.model.get('text')
+      var td,
+        _this = this;
+      this.mediator = this.attributes.mediator;
+      $(this.el).append(td = $('<td/>', {
+        'html': this.model.get('text')
       }));
       this.model.bind('change', function() {
         return $(_this.el).toggle();
+      });
+      this.mediator.on('filter', function(re) {
+        if (_this.model.get('show')) {
+          return $(_this.el).find('td:first-child').html(_this.model.get('text').replace(re, '<span class="label">$1</span>'));
+        }
       });
       return this;
     };
@@ -248,6 +255,7 @@ var root = this;
     Grid.prototype.initialize = function() {
       var column, columnS, row, target, _i, _len, _ref;
       this.el = $(this.el);
+      _.extend(this.mediator = {}, Backbone.Events);
       target = $(this.el).html(this.attributes.template({
         'title': this.attributes.title
       }));
@@ -285,7 +293,10 @@ var root = this;
         });
         this.collection.add(model);
         view = new GridRow({
-          'model': model
+          'model': model,
+          'attributes': {
+            'mediator': this.mediator
+          }
         });
         if (!this.rows.length) {
           this.body.append(view.el);
@@ -353,12 +364,13 @@ var root = this;
       }
       return this.filterTimeout = setTimeout((function() {
         var hidden, query, re, shown, _ref;
-        query = $(e.target).val();
+        query = $.trim($(e.target).val());
         if (query !== _this.query) {
           _this.query = query;
-          re = new RegExp("" + query + ".*", 'i');
+          re = new RegExp("(" + query + ")", 'ig');
           _ref = _this.collection.filter(re), shown = _ref[0], hidden = _ref[1];
-          return _this.filterMessage(shown, hidden);
+          _this.filterMessage(shown, hidden);
+          return _this.mediator.trigger('filter', re);
         }
       }), 500);
     };
