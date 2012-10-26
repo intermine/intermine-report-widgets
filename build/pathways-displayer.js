@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Fri, 26 Oct 2012 13:24:27 GMT
+ *  Generated: Fri, 26 Oct 2012 13:31:26 GMT
  */
 
 (function() {
@@ -393,10 +393,11 @@ var root = this;
     };
   
     Grid.prototype.clearFilterAction = function() {
-      var hidden, shown, _ref;
+      var hidden, re, shown, _ref;
       this.el.find('input.filter').val('');
       _ref = this.collection.filter(), shown = _ref[0], hidden = _ref[1];
-      return this.filterMessage(shown, hidden);
+      this.filterMessage(shown, hidden);
+      return this.mediator.trigger('filter', re = new RegExp('()', 'ig'));
     };
   
     Grid.prototype.filterMessage = function(shown, hidden) {
