@@ -279,6 +279,8 @@ class Grid extends Backbone.View
         [ shown, hidden ] = @collection.filter()
         # What about filter clearing message?
         @filterMessage shown, hidden
+        # Trigger the mediator as well.
+        @mediator.trigger 'filter', re = new RegExp '()', 'ig'
 
     # A message saying how many rows are hidden.
     filterMessage: (shown, hidden) ->
