@@ -19,6 +19,10 @@ class Widget
         @getHomologues @config.symbol, (homologues) =>
             grid.messages.clear 'homologues'
             
+            # Adjust the message in the title.
+            $(@el).find('p').html 'Using <strong>homologues</strong>: ' + homologues.join(', ')
+
+            # Go through the different mines.
             for mine, url of @config.mines then do (mine, url) =>
                 grid.messages.new "Loading #{mine} &hellip;", mine
 
@@ -30,8 +34,11 @@ class Widget
                         # Add the element to the row.
                         grid.add pathway, organism, $ '<span/>',
                             'text':  'Yes'
-                            'class': if isCurated then 'label success' else 'label secondary'
+                            'class': if isCurated then 'label success has-tip' else 'label secondary has-tip'
                             'title': mine
+
+                        # Init tooltips (again).
+                        $(document).foundationTooltips()
 
     # For a given symbol callback with a list of homologues.
     getHomologues: (symbol, cb) ->

@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Fri, 26 Oct 2012 12:22:43 GMT
+ *  Generated: Fri, 26 Oct 2012 12:59:51 GMT
  */
 
 (function() {
@@ -53,6 +53,7 @@ var root = this;
       return this.getHomologues(this.config.symbol, function(homologues) {
         var mine, url, _ref, _results;
         grid.messages.clear('homologues');
+        $(_this.el).find('p').html('Using <strong>homologues</strong>: ' + homologues.join(', '));
         _ref = _this.config.mines;
         _results = [];
         for (mine in _ref) {
@@ -65,11 +66,12 @@ var root = this;
               _results1 = [];
               for (_i = 0, _len = pathways.length; _i < _len; _i++) {
                 _ref1 = pathways[_i], pathway = _ref1[0], isCurated = _ref1[1], organism = _ref1[2];
-                _results1.push(grid.add(pathway, organism, $('<span/>', {
+                grid.add(pathway, organism, $('<span/>', {
                   'text': 'Yes',
-                  'class': isCurated ? 'label success' : 'label secondary',
+                  'class': isCurated ? 'label success has-tip' : 'label secondary has-tip',
                   'title': mine
-                })));
+                }));
+                _results1.push($(document).foundationTooltips());
               }
               return _results1;
             });
@@ -464,12 +466,12 @@ var root = this;
 
   /**#@+ the templates */
   var templates = {};
-  templates.grid=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<h4>"),t.push(r(this.title)),t.push('</h4> <div class="messages"></div>\n<table class="faux">\n    <thead>\n        <tr>\n            <th><input type="text" placeholder="Filter..." class="filter" /></th>\n        </tr>\n    </thead>\n</table>\n<div class="wrapper">\n    <table>\n        <thead></thead>\n        <tbody>\n            <!-- so we start with a white row... -->\n            <tr></tr>\n            <tr class="filterMessage">\n                <td colspan="99">\n                    <div class="alert-box secondary"><span class="text"></span> <a class="clear">Show all</a></div>\n                </td>\n            </tr>\n        </tbody>\n    </table>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.grid=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<h4>"),t.push(r(this.title)),t.push('</h4> <div class="messages"></div>\n<p></p>\n<table class="faux">\n    <thead>\n        <tr>\n            <th><input type="text" placeholder="Filter..." class="filter" /></th>\n        </tr>\n    </thead>\n</table>\n<div class="wrapper">\n    <table>\n        <thead></thead>\n        <tbody>\n            <!-- so we start with a white row... -->\n            <tr></tr>\n            <tr class="filterMessage">\n                <td colspan="99">\n                    <div class="alert-box secondary"><span class="text"></span> <a class="clear">Show all</a></div>\n                </td>\n            </tr>\n        </tbody>\n    </table>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   
   /**#@+ css */
   var style = document.createElement('style');
   style.type = 'text/css';
-  style.innerHTML = 'div#w#@+CALLBACK .label{bottom:0}div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .faux input.filter{display:none;margin:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}div#w#@+CALLBACK .wrapper table tbody .filterMessage{display:none;background:#fff}';
+  style.innerHTML = 'div#w#@+CALLBACK .label{bottom:0}div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .faux input.filter{display:none;margin:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}div#w#@+CALLBACK .wrapper table tbody .filterMessage{display:none;background:#fff}div#w#@+CALLBACK .wrapper table tbody td:first-child .label{padding-left:0;padding-right:0}';
   document.head.appendChild(style);
   
   /**#@+ callback */
