@@ -97,11 +97,13 @@ class GridRow extends Backbone.View
         # Toggle visibility.
         @model.bind 'change', => $(@el).toggle()
 
-        # Listen for filtering so we can adjust the text we see.
+        # Listen for filtering so we can highlight the filter the text we see.
         @mediator.on 'filter', (re) =>
             # Can we be seen?
             if @model.get('show')
-                $(@el).find('td:first-child').html @model.get('text').replace re, '<span class="label">$1</span>'
+                $(@el).find('td:first-child').html @model.get('text').replace re, (str, g1, g2) ->
+                    # Are we matching for empty brackets? Not.
+                    if g1.length isnt 0 then "<span class='label'>#{g1}</span>" else g1
 
         @
 
@@ -211,6 +213,9 @@ class Grid extends Backbone.View
 
         # We have the grid in place, add the element.
         @grid[rowS]['columns'][columnS].html data
+
+        # Do we have at least 8 rows to show the filter?
+        if @collection.length >= 8 then @el.find('input.filter').show()
 
     # Slugify a string.
     slugify: (text) -> text.replace(/[^-a-zA-Z0-9,&\s]+/ig, '').replace(/-/gi, "_").replace(/\s/gi, "-").toLowerCase()
