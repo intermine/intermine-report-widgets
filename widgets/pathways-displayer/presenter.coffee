@@ -22,6 +22,8 @@ class Widget
             # Adjust the message in the title.
             $(@el).find('p').html 'Using <strong>homologues</strong>: ' + homologues.join(', ')
 
+            grid.legend '<span class="label success"></span> Is curated <span class="label secondary"></span> Is not curated '
+
             # Go through the different mines.
             for mine, url of @config.mines then do (mine, url) =>
                 grid.messages.new "Loading #{mine} &hellip;", mine
@@ -291,6 +293,12 @@ class Grid extends Backbone.View
                 msg.text 'All rows are hidden.'
         else
             box.hide()
+
+    legend: (html) ->
+        # Inject.
+        (l = @el.find('.legend')).html html
+        # Based on the height of the element, shift it above the grid.
+        l.css 'top': - l.outerHeight() + 1
 
 
 ### Letting the user know as to what happens.###

@@ -1,23 +1,28 @@
 <h4><%= @title %></h4> <div class="messages"></div>
 <p></p>
-<table class="faux">
-    <thead>
-        <tr>
-            <th><input type="text" placeholder="Filter..." class="filter" /></th>
-        </tr>
-    </thead>
-</table>
-<div class="wrapper">
-    <table>
-        <thead></thead>
-        <tbody>
-            <!-- so we start with a white row... -->
-            <tr></tr>
-            <tr class="filterMessage">
-                <td colspan="99">
-                    <div class="alert-box secondary"><span class="text"></span> <a class="clear">Show all</a></div>
-                </td>
+<div class="grid">
+    <div class="legend"></div>
+    
+    <table class="faux">
+        <thead>
+            <tr>
+                <th><input type="text" placeholder="Filter..." class="filter" /></th>
             </tr>
-        </tbody>
+        </thead>
     </table>
+    
+    <div class="wrapper">
+        <table>
+            <thead></thead>
+            <tbody>
+                <!-- so we start with a white row... -->
+                <tr></tr>
+                <tr class="filterMessage">
+                    <td colspan="99">
+                        <div class="alert-box secondary"><span class="text"></span> <a class="clear">Show all</a></div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
