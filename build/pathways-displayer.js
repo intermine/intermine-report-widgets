@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Thu, 25 Oct 2012 18:27:18 GMT
+ *  Generated: Fri, 26 Oct 2012 12:22:43 GMT
  */
 
 (function() {
@@ -21,7 +21,7 @@ var root = this;
   /* Behavior of the widget.
   */
   
-  var Grid, GridRow, Row, Rows, Widget,
+  var Grid, GridMessages, GridRow, Row, Rows, Widget,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
@@ -49,15 +49,19 @@ var root = this;
           'template': this.templates.grid
         }
       });
+      grid.messages["new"]('Loading homologues &hellip;', 'homologues');
       return this.getHomologues(this.config.symbol, function(homologues) {
         var mine, url, _ref, _results;
+        grid.messages.clear('homologues');
         _ref = _this.config.mines;
         _results = [];
         for (mine in _ref) {
           url = _ref[mine];
           _results.push((function(mine, url) {
+            grid.messages["new"]("Loading " + mine + " &hellip;", mine);
             return _this.getPathways(homologues, url, function(pathways) {
               var isCurated, organism, pathway, _i, _len, _ref1, _results1;
+              grid.messages.clear(mine);
               _results1 = [];
               for (_i = 0, _len = pathways.length; _i < _len; _i++) {
                 _ref1 = pathways[_i], pathway = _ref1[0], isCurated = _ref1[1], organism = _ref1[2];
@@ -216,7 +220,13 @@ var root = this;
       });
       this.mediator.on('filter', function(re) {
         if (_this.model.get('show')) {
-          return $(_this.el).find('td:first-child').html(_this.model.get('text').replace(re, '<span class="label">$1</span>'));
+          return $(_this.el).find('td:first-child').html(_this.model.get('text').replace(re, function(str, g1, g2) {
+            if (g1.length !== 0) {
+              return "<span class='label'>" + g1 + "</span>";
+            } else {
+              return g1;
+            }
+          }));
         }
       });
       return this;
@@ -259,6 +269,7 @@ var root = this;
       target = $(this.el).html(this.attributes.template({
         'title': this.attributes.title
       }));
+      this.messages = new GridMessages(this.el);
       this.collection = new Rows();
       this.body = this.el.find('.wrapper table tbody');
       row = $('<tr/>');
@@ -338,7 +349,10 @@ var root = this;
           return _results;
         })(rowS, columnS);
       }
-      return this.grid[rowS]['columns'][columnS].html(data);
+      this.grid[rowS]['columns'][columnS].html(data);
+      if (this.collection.length >= 8) {
+        return this.el.find('input.filter').show();
+      }
     };
   
     Grid.prototype.slugify = function(text) {
@@ -402,17 +416,60 @@ var root = this;
   
   })(Backbone.View);
   
+  /* Letting the user know as to what happens.
+  */
+  
+  
+  GridMessages = (function() {
+  
+    GridMessages.prototype.i = 0;
+  
+    GridMessages.prototype.msgs = {};
+  
+    function GridMessages(el) {
+      this.el = $(el).find('.messages');
+    }
+  
+    GridMessages.prototype["new"] = function(text, key) {
+      var m;
+      this.el.append(m = $('<div/>', {
+        'class': 'alert-box',
+        'html': text
+      }));
+      key = key || i++;
+      return this.msgs[key] = m;
+    };
+  
+    GridMessages.prototype.clear = function(key) {
+      var value, _ref, _ref1, _results;
+      if (key != null) {
+        return (_ref = this.msgs[key]) != null ? _ref.remove() : void 0;
+      } else {
+        _ref1 = this.msgs;
+        _results = [];
+        for (key in _ref1) {
+          value = _ref1[key];
+          _results.push(value.remove());
+        }
+        return _results;
+      }
+    };
+  
+    return GridMessages;
+  
+  })();
+  
   /**#@+ the config */
   var config = #@+CONFIG;
 
   /**#@+ the templates */
   var templates = {};
-  templates.grid=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<h4>"),t.push(r(this.title)),t.push('</h4>\n<table class="faux">\n    <thead>\n        <tr>\n            <th><input type="text" placeholder="Filter..." class="filter" /></th>\n        </tr>\n    </thead>\n</table>\n<div class="wrapper">\n    <table>\n        <thead></thead>\n        <tbody>\n            <!-- so we start with a white row... -->\n            <tr></tr>\n            <tr class="filterMessage">\n                <td colspan="99">\n                    <div class="alert-box secondary"><span class="text"></span> <a class="clear">Show all</a></div>\n                </td>\n            </tr>\n        </tbody>\n    </table>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.grid=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<h4>"),t.push(r(this.title)),t.push('</h4> <div class="messages"></div>\n<table class="faux">\n    <thead>\n        <tr>\n            <th><input type="text" placeholder="Filter..." class="filter" /></th>\n        </tr>\n    </thead>\n</table>\n<div class="wrapper">\n    <table>\n        <thead></thead>\n        <tbody>\n            <!-- so we start with a white row... -->\n            <tr></tr>\n            <tr class="filterMessage">\n                <td colspan="99">\n                    <div class="alert-box secondary"><span class="text"></span> <a class="clear">Show all</a></div>\n                </td>\n            </tr>\n        </tbody>\n    </table>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   
   /**#@+ css */
   var style = document.createElement('style');
   style.type = 'text/css';
-  style.innerHTML = 'div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .faux input.filter{margin:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}div#w#@+CALLBACK .wrapper table tbody .filterMessage{display:none;background:#fff}';
+  style.innerHTML = 'div#w#@+CALLBACK .label{bottom:0}div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .faux input.filter{display:none;margin:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}div#w#@+CALLBACK .wrapper table tbody .filterMessage{display:none;background:#fff}';
   document.head.appendChild(style);
   
   /**#@+ callback */

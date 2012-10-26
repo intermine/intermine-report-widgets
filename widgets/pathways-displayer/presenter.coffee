@@ -13,11 +13,19 @@ class Widget
                 'title':    @config.symbol
                 'template': @templates.grid
 
+        grid.messages.new 'Loading homologues &hellip;', 'homologues'
+
         # Get homologues in this mine.
         @getHomologues @config.symbol, (homologues) =>
+            grid.messages.clear 'homologues'
+            
             for mine, url of @config.mines then do (mine, url) =>
+                grid.messages.new "Loading #{mine} &hellip;", mine
+
                 # Now get pathways in all the mines.
                 @getPathways homologues, url, (pathways) ->
+                    grid.messages.clear mine
+
                     for [ pathway, isCurated, organism ] in pathways
                         # Add the element to the row.
                         grid.add pathway, organism, $ '<span/>',
@@ -136,6 +144,9 @@ class Grid extends Backbone.View
         # Render the template.
         target = $(@el).html @attributes.template
             'title': @attributes.title
+
+        # Messaging for the user in the context of `this` object.
+        @messages = new GridMessages @el
 
         # Create a collection for rows.
         @collection = new Rows()
@@ -273,3 +284,38 @@ class Grid extends Backbone.View
                 msg.text 'All rows are hidden.'
         else
             box.hide()
+
+
+### Letting the user know as to what happens.###
+class GridMessages
+
+    # Unkeyed messages stored under index number.
+    i: 0
+    
+    # Stores all current messages under keys here.
+    msgs: {}
+
+    constructor: (el) ->
+        # Sit on this el.
+        @el = $(el).find '.messages'
+
+    # Add a new message.
+    new: (text, key) ->
+        # Append the new message.
+        @el.append m = $ '<div/>',
+            'class': 'alert-box'
+            'html':  text
+
+        # Was the key provided?
+        key = key or i++
+
+        # Save the el.
+        @msgs[key] = m
+
+    # Remove one or all messages.
+    clear: (key) ->
+        # Clear a specific message or all?
+        if key?
+            @msgs[key]?.remove()
+        else
+            ( value.remove() for key, value of @msgs )
