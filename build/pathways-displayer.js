@@ -11,21 +11,51 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Fri, 26 Oct 2012 13:31:26 GMT
+ *  Generated: Mon, 29 Oct 2012 13:11:49 GMT
  */
 
 (function() {
 var root = this;
 
   /**#@+ the presenter */
-  /* Behavior of the widget.
-  */
-  
-  var Grid, GridMessages, GridRow, Row, Rows, Widget,
+  var $, AssertException, Grid, GridMessages, GridRow, Row, Rows, Widget,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+  
+  AssertException = (function() {
+  
+    function AssertException(message) {
+      this.message = message;
+    }
+  
+    AssertException.prototype.toString = function() {
+      return "PathwaysDisplayerAssertException: " + this.message;
+    };
+  
+    return AssertException;
+  
+  })();
+  
+  /*
+  Set the assertion on the window object.
+  @param {boolean} exp Expression to be truthy
+  @param {string} message Exception text to show if `exp` is not truthy fruthy
+  */
+  
+  
+  this.assert = function(exp, message) {
+    if (!exp) {
+      throw new AssertException(message);
+    }
+  };
+  
+  $ = jQuery || Zepto;
+  
+  /* Behavior of the widget.
+  */
+  
   
   Widget = (function() {
   
@@ -84,6 +114,7 @@ var root = this;
   
     Widget.prototype.getHomologues = function(symbol, cb) {
       var pq, _ref;
+      assert((symbol != null) && symbol !== '', 'Need to provide a symbol to constrain gene on');
       pq = JSON.parse(JSON.stringify(this.config.pathQueries.homologues));
       if ((_ref = pq.constraints) == null) {
         pq.constraints = [];
@@ -113,6 +144,7 @@ var root = this;
   
     Widget.prototype.getPathways = function(identifiers, url, cb) {
       var pq, service, _ref;
+      assert((identifiers != null) && identifiers instanceof Array, 'Need to provide an Array of gene identifiers to constrain pathways on');
       pq = JSON.parse(JSON.stringify(this.config.pathQueries.pathways));
       if ((_ref = pq.constraints) == null) {
         pq.constraints = [];
@@ -262,7 +294,7 @@ var root = this;
   
     Grid.prototype.events = {
       'keyup input.filter': 'filterAction',
-      'click .filterMessage a.clear': 'clearFilterAction'
+      'click .filterMessage a.show-all': 'clearFilterAction'
     };
   
     Grid.prototype.initialize = function() {
@@ -439,7 +471,7 @@ var root = this;
     GridMessages.prototype.msgs = {};
   
     function GridMessages(el) {
-      this.el = $(el).find('.messages');
+      this.el = $(el).find('.notifications');
     }
   
     GridMessages.prototype["new"] = function(text, key) {
@@ -476,12 +508,12 @@ var root = this;
 
   /**#@+ the templates */
   var templates = {};
-  templates.grid=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<h4>"),t.push(r(this.title)),t.push('</h4> <div class="messages"></div>\n<p></p>\n<div class="grid">\n    <div class="legend"></div>\n    \n    <table class="faux">\n        <thead>\n            <tr>\n                <th><input type="text" placeholder="Filter..." class="filter" /></th>\n            </tr>\n        </thead>\n    </table>\n    \n    <div class="wrapper">\n        <table>\n            <thead></thead>\n            <tbody>\n                <!-- so we start with a white row... -->\n                <tr></tr>\n                <tr class="filterMessage">\n                    <td colspan="99">\n                        <div class="alert-box secondary"><span class="text"></span> <a class="clear">Show all</a></div>\n                    </td>\n                </tr>\n            </tbody>\n        </table>\n    </div>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.grid=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<div class="foundation">\n    <h4>Pathways for '),t.push(r(this.title)),t.push('</h4> <div class="notifications"></div>\n    <p></p>\n    <div class="grid">\n        <div class="legend"></div>\n        \n        <table class="faux">\n            <thead>\n                <tr>\n                    <th><input type="text" placeholder="Filter..." class="filter" /></th>\n                </tr>\n            </thead>\n        </table>\n        \n        <div class="wrapper">\n            <table>\n                <thead></thead>\n                <tbody>\n                    <!-- so we start with a white row... -->\n                    <tr></tr>\n                    <tr class="filterMessage">\n                        <td colspan="99">\n                            <div class="alert-box secondary"><span class="text"></span> <a class="show-all">Show all</a></div>\n                        </td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   
   /**#@+ css */
   var style = document.createElement('style');
   style.type = 'text/css';
-  style.innerHTML = 'div#w#@+CALLBACK .label{bottom:0}div#w#@+CALLBACK .grid{position:relative}div#w#@+CALLBACK .grid .legend{background:#fff;position:absolute;top:0;right:15px;padding:4px 8px;border:1px solid #ddd;border-bottom:0;border-radius:3px 3px 0 0;z-index:2}div#w#@+CALLBACK .grid .legend .label{display:inline-block;width:10px;height:10px}div#w#@+CALLBACK .grid .legend .label:not(:first-child){margin-left:6px}div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .faux input.filter{display:none;margin:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}div#w#@+CALLBACK .wrapper table tbody .filterMessage{display:none;background:#fff}div#w#@+CALLBACK .wrapper table tbody td:first-child .label{padding-left:0;padding-right:0}';
+  style.innerHTML = 'div#w#@+CALLBACK .label{bottom:0}div#w#@+CALLBACK .grid{position:relative}div#w#@+CALLBACK .grid .legend{background:#fff;position:absolute;top:0;right:15px;padding:4px 8px;border:1px solid #ddd;border-bottom:0;border-radius:3px 3px 0 0;z-index:2}div#w#@+CALLBACK .grid .legend .label{display:inline-block;width:10px;height:10px}div#w#@+CALLBACK .grid .legend .label:not(:first-child){margin-left:6px}div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .faux input.filter{display:none;margin:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}div#w#@+CALLBACK .wrapper table tbody .filterMessage{display:none;background:#fff}div#w#@+CALLBACK .wrapper table tbody td:first-child .label{padding-left:0;padding-right:0}div#w#@+CALLBACK .wrapper table tbody td:first-child a.show-all{cursor:pointer}';
   document.head.appendChild(style);
   
   /**#@+ callback */

@@ -127,7 +127,7 @@
             "author": "Radek",
             "title": "Pathways from other mines",
             "description": "Shows for each pathway which mines carry it",
-            "version": "0.4.2",
+            "version": "0.4.4",
             "dependencies": [
                 {
                     "name": "jQuery",
@@ -151,7 +151,7 @@
                     "type": "js"
                 },
                 {
-                    "path": "http://cdn.intermine.org/css/foundation/3.1.1/javascripts/jquery.foundation.tooltips.js",
+                    "path": "http://cdn.intermine.org/css/foundation/3.1.1-prefixed/javascripts/jquery.foundation.tooltips.js",
                     "type": "js"
                 },
                 {

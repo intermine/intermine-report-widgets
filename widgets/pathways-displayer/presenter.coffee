@@ -1,3 +1,23 @@
+#!/usr/bin/env coffee
+
+# Simple assertion class.
+class AssertException
+
+    constructor: (@message) ->
+
+    toString: -> "PathwaysDisplayerAssertException: #{@message}"
+
+###
+Set the assertion on the window object.
+@param {boolean} exp Expression to be truthy
+@param {string} message Exception text to show if `exp` is not truthy fruthy
+###
+@.assert = (exp, message) -> throw new AssertException(message) unless exp
+
+
+$ = jQuery or Zepto
+
+
 ### Behavior of the widget.###
 class Widget
 
@@ -44,6 +64,8 @@ class Widget
 
     # For a given symbol callback with a list of homologues.
     getHomologues: (symbol, cb) ->
+        assert symbol? and symbol isnt '', 'Need to provide a symbol to constrain gene on'
+
         # Constrain on 'this' gene.
         pq = JSON.parse JSON.stringify @config.pathQueries.homologues
         pq.constraints ?= []
@@ -51,12 +73,14 @@ class Widget
             'path':  'Gene'
             'op':    'LOOKUP'
             'value': symbol
-        
+
         # Run the query giving us homologues.
         @service.query pq, (q) -> q.rows (rows) -> cb ( g[0] for g in rows when g[0] )
 
     # For a set of identifiers and mine URL callback with pathway names.
     getPathways: (identifiers, url, cb) ->
+        assert identifiers? and identifiers instanceof Array, 'Need to provide an Array of gene identifiers to constrain pathways on'
+
         # Constrain on a set of identifiers.
         pq = JSON.parse JSON.stringify @config.pathQueries.pathways
         pq.constraints ?= []
@@ -140,7 +164,7 @@ class Grid extends Backbone.View
     # Events on the whole grid.
     events:
         'keyup input.filter':           'filterAction'
-        'click .filterMessage a.clear': 'clearFilterAction'
+        'click .filterMessage a.show-all': 'clearFilterAction'
 
     # Init the wrapper for the grid table.
     initialize: ->
@@ -314,7 +338,7 @@ class GridMessages
 
     constructor: (el) ->
         # Sit on this el.
-        @el = $(el).find '.messages'
+        @el = $(el).find '.notifications'
 
     # Add a new message.
     new: (text, key) ->
