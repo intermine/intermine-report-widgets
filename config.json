@@ -7,13 +7,12 @@
             "author": "Radek",
             "title": "Publications for Gene",
             "description": "Shows a list of publications for a specific gene",
-            "version": "0.2.1",
+            "version": "0.3.0",
             "dependencies": [
                 {
                     "name": "jQuery",
-                    "path": "http://cdn.intermine.org/js/jquery/1.7.2/jquery-min.js",
-                    "type": "js",
-                    "wait": true
+                    "path": "http://cdn.intermine.org/js/jquery/1.8.2/jquery.min.js",
+                    "type": "js"
                 },
                 {
                     "name": "_",
@@ -57,10 +56,19 @@
             "version": "0.1.1",
             "dependencies": [
                 {
+                    "name": "google",
+                    "path": "https://www.google.com/jsapi",
+                    "type": "js"
+                },
+                {
+                    "name": "d3",
+                    "path": "http://d3js.org/d3.v2.min.js",
+                    "type": "js"
+                },
+                {
                     "name": "jQuery",
-                    "path": "http://cdn.intermine.org/js/jquery/1.7.2/jquery-min.js",
-                    "type": "js",
-                    "wait": true
+                    "path": "http://cdn.intermine.org/js/jquery/1.8.2/jquery.min.js",
+                    "type": "js"
                 },
                 {
                     "name": "_",
@@ -70,16 +78,6 @@
                 },
                 {
                     "path": "http://cdn.intermine.org/js/intermine/imjs/latest/imjs.js",
-                    "type": "js"
-                },
-                {
-                    "name": "google",
-                    "path": "https://www.google.com/jsapi",
-                    "type": "js"
-                },
-                {
-                    "name": "d3",
-                    "path": "http://d3js.org/d3.v2.min.js",
                     "type": "js"
                 }
             ],
@@ -101,10 +99,14 @@
             "version": "0.3.4",
             "dependencies": [
                 {
+                    "name": "d3",
+                    "path": "http://d3js.org/d3.v2.min.js",
+                    "type": "js"
+                },
+                {
                     "name": "jQuery",
-                    "path": "http://cdn.intermine.org/js/jquery/1.7.2/jquery-min.js",
-                    "type": "js",
-                    "wait": true
+                    "path": "http://cdn.intermine.org/js/jquery/1.8.2/jquery.min.js",
+                    "type": "js"
                 },
                 {
                     "name": "_",
@@ -114,11 +116,6 @@
                 },
                 {
                     "path": "http://cdn.intermine.org/js/intermine/imjs/latest/imjs.js",
-                    "type": "js"
-                },
-                {
-                    "name": "d3",
-                    "path": "http://d3js.org/d3.v2.min.js",
                     "type": "js"
                 }
             ]
@@ -130,10 +127,14 @@
             "version": "0.4.4",
             "dependencies": [
                 {
+                    "name": "Modernizr",
+                    "path": "http://cdn.intermine.org/js/modernizr/2.5.3/modernizr.min.js",
+                    "type": "js"
+                },
+                {
                     "name": "jQuery",
-                    "path": "http://cdn.intermine.org/js/jquery/1.7.2/jquery-min.js",
-                    "type": "js",
-                    "wait": true
+                    "path": "http://cdn.intermine.org/js/jquery/1.8.2/jquery.min.js",
+                    "type": "js"
                 },
                 {
                     "name": "_",
@@ -152,11 +153,6 @@
                 },
                 {
                     "path": "http://cdn.intermine.org/css/foundation/3.1.1-prefixed/javascripts/jquery.foundation.tooltips.js",
-                    "type": "js"
-                },
-                {
-                    "name": "Modernizr",
-                    "path": "http://cdn.intermine.org/js/modernizr/2.5.3/modernizr.min.js",
                     "type": "js"
                 }
             ],

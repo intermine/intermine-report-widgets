@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 29 Oct 2012 13:11:49 GMT
+ *  Generated: Fri, 09 Nov 2012 16:51:04 GMT
  */
 
 (function() {
@@ -99,7 +99,7 @@ var root = this;
         var symbol;
         symbol = $(e.target).val();
         if (symbol !== '' && symbol !== _this.symbol) {
-          return _this.data(symbol, function(records) {
+          return $.when(_this.data(symbol)).then(function(records) {
             _this.symbol = symbol;
             _this.collection = new Publications(records);
             return _this.render();
@@ -128,10 +128,8 @@ var root = this;
       });
     }
   
-    Widget.prototype.data = function(symbol, done) {
-      var loading, pq, _ref,
-        _this = this;
-      $((_ref = this.view) != null ? _ref.el : void 0).hide();
+    Widget.prototype.data = function(symbol) {
+      var error, loading, pq, printP, recordsP, serviceP;
       $(this.target).prepend(loading = $('<div class="alert-box">Loading &hellip;</div>'));
       pq = this.config.pathQueries.pubsForGene;
       pq.where = {
@@ -139,24 +137,31 @@ var root = this;
           '=': symbol
         }
       };
-      return this.service.query(pq, function(q) {
-        return q.records(function(records) {
-          var _ref1;
-          $((_ref1 = _this.view) != null ? _ref1.el : void 0).show();
-          loading.remove();
-          if (records.length === 1 && (records[0].publications != null)) {
-            return done(records.pop().publications);
-          } else {
-            return done([]);
-          }
-        });
-      });
+      serviceP = function(service, pq) {
+        return service.query(pq);
+      };
+      recordsP = function(q) {
+        return q.records();
+      };
+      printP = function(records) {
+        var _ref;
+        loading.remove();
+        return ((_ref = records.pop()) != null ? _ref.publications : void 0) || [];
+      };
+      error = function(err) {
+        return loading.text(err.error).addClass('alert');
+      };
+      return $.when(serviceP(this.service, pq)).then(recordsP).then(printP).fail(error);
     };
   
     Widget.prototype.render = function(target) {
-      var _this = this;
+      var _ref,
+        _this = this;
       this.target = target;
-      return this.data(this.config.symbol, function(records) {
+      $((_ref = this.view) != null ? _ref.el : void 0).hide();
+      return $.when(this.data(this.config.symbol)).then(function(records) {
+        var _ref1;
+        $((_ref1 = _this.view) != null ? _ref1.el : void 0).show();
         _this.view = new Table({
           'collection': new Publications(records),
           'template': _this.templates.table,
