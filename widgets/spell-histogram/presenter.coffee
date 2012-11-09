@@ -89,7 +89,7 @@ class Widget
     # Make a clone of the PathQuery, bin data and display them.
     histogram: =>
         # Add a loading sign.
-        $(@target).find('.chart').html '<div class="alert-box">Loading &hellip;</div>'
+        $(@target).prepend loading = $ '<div class="alert-box">Loading &hellip;</div>'
 
         # Replace all occurences of 'TYPE' with the actual object type.
         pq = (replaceType = (obj, type) ->
@@ -108,30 +108,37 @@ class Widget
             'op':    'LOOKUP'
             'value': @config.symbol
 
-        # Call the service...
-        @service.query pq, (q) =>
-            # ...fetching the data in rows.
-            q.rows (rows) =>
-                # Flatten.
-                rows = ( x.pop() for x in rows )
+        # Make a service...
+        serviceP = (service, pq) -> service.query(pq)
+        # ... turn q into rows...
+        rowsP = (q) -> q.rows()
+        # ... handle problems...
+        error    = (err) -> loading.text(err.error).addClass('alert')
+        # ... display the results...
+        finP     = (rows) =>
+            # Flatten.
+            rows = ( x.pop() for x in rows )
 
-                # 1. Construct a linear quantitative scale.
-                # 2. Set the scale's input domain to -20, 20.
-                # 3. Set the scale's output range to -20, 20.
-                x = d3.scale.linear().domain([-20, 20]).range([-20, 20])
+            # 1. Construct a linear quantitative scale.
+            # 2. Set the scale's input domain to -20, 20.
+            # 3. Set the scale's output range to -20, 20.
+            x = d3.scale.linear().domain([-20, 20]).range([-20, 20])
 
-                # 1. Construct a new histogram layout.
-                # 2. Organize into bins of 20 representative values from the linear scale.
-                data = d3.layout.histogram().bins(x.ticks(20))(rows)
+            # 1. Construct a new histogram layout.
+            # 2. Organize into bins of 20 representative values from the linear scale.
+            data = d3.layout.histogram().bins(x.ticks(20))(rows)
 
-                # Coerce the data into the Google Visualization format.
-                twoDArray = _(data).map (bin) -> from = Math.round(x(bin.x)) ; [ "#{from} to #{from + 2}", bin.y ]
+            # Coerce the data into the Google Visualization format.
+            twoDArray = _(data).map (bin) -> from = Math.round(x(bin.x)) ; [ "#{from} to #{from + 2}", bin.y ]
 
-                # Remove loading sign.
-                (t = $(@target).find('.chart')).empty()
+            # Remove loading sign.
+            loading.remove()
 
-                # Point the chart to render to the `target` element's specified `chart` div.
-                chart = new google.visualization.ColumnChart t[0]
-                # 1. Take the 2-dimensional array and turn it into a DataTable, first row is header labels.
-                # 2. Draw the visualization on the page passing in options that we specified higher up.
-                chart.draw(google.visualization.arrayToDataTable(twoDArray, false), @chartOptions)
+            # Point the chart to render to the `target` element's specified `chart` div.
+            chart = new google.visualization.ColumnChart $(@target).find('.chart')[0]
+            
+            # 1. Take the 2-dimensional array and turn it into a DataTable, first row is header labels.
+            # 2. Draw the visualization on the page passing in options that we specified higher up.
+            chart.draw(google.visualization.arrayToDataTable(twoDArray, false), @chartOptions)
+
+        $.when(serviceP(@service, pq)).then(rowsP).then(finP).fail(error)

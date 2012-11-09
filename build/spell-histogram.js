@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Fri, 09 Nov 2012 16:51:03 GMT
+ *  Generated: Fri, 09 Nov 2012 17:00:23 GMT
  */
 
 (function() {
@@ -124,9 +124,9 @@ var root = this;
     };
   
     Widget.prototype.histogram = function() {
-      var pq, replaceType, _ref,
+      var error, finP, loading, pq, replaceType, rowsP, serviceP, _ref,
         _this = this;
-      $(this.target).find('.chart').html('<div class="alert-box">Loading &hellip;</div>');
+      $(this.target).prepend(loading = $('<div class="alert-box">Loading &hellip;</div>'));
       pq = (replaceType = function(obj, type) {
         var item, key, o, value, _i, _len, _results;
         if (typeof obj === 'object') {
@@ -155,30 +155,38 @@ var root = this;
         'op': 'LOOKUP',
         'value': this.config.symbol
       });
-      return this.service.query(pq, function(q) {
-        return q.rows(function(rows) {
-          var chart, data, t, twoDArray, x;
-          rows = (function() {
-            var _i, _len, _results;
-            _results = [];
-            for (_i = 0, _len = rows.length; _i < _len; _i++) {
-              x = rows[_i];
-              _results.push(x.pop());
-            }
-            return _results;
-          })();
-          x = d3.scale.linear().domain([-20, 20]).range([-20, 20]);
-          data = d3.layout.histogram().bins(x.ticks(20))(rows);
-          twoDArray = _(data).map(function(bin) {
-            var from;
-            from = Math.round(x(bin.x));
-            return ["" + from + " to " + (from + 2), bin.y];
-          });
-          (t = $(_this.target).find('.chart')).empty();
-          chart = new google.visualization.ColumnChart(t[0]);
-          return chart.draw(google.visualization.arrayToDataTable(twoDArray, false), _this.chartOptions);
+      serviceP = function(service, pq) {
+        return service.query(pq);
+      };
+      rowsP = function(q) {
+        return q.rows();
+      };
+      error = function(err) {
+        return loading.text(err.error).addClass('alert');
+      };
+      finP = function(rows) {
+        var chart, data, twoDArray, x;
+        rows = (function() {
+          var _i, _len, _results;
+          _results = [];
+          for (_i = 0, _len = rows.length; _i < _len; _i++) {
+            x = rows[_i];
+            _results.push(x.pop());
+          }
+          return _results;
+        })();
+        x = d3.scale.linear().domain([-20, 20]).range([-20, 20]);
+        data = d3.layout.histogram().bins(x.ticks(20))(rows);
+        twoDArray = _(data).map(function(bin) {
+          var from;
+          from = Math.round(x(bin.x));
+          return ["" + from + " to " + (from + 2), bin.y];
         });
-      });
+        loading.remove();
+        chart = new google.visualization.ColumnChart($(_this.target).find('.chart')[0]);
+        return chart.draw(google.visualization.arrayToDataTable(twoDArray, false), _this.chartOptions);
+      };
+      return $.when(serviceP(this.service, pq)).then(rowsP).then(finP).fail(error);
     };
   
     return Widget;
