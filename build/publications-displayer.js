@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Fri, 09 Nov 2012 17:00:24 GMT
+ *  Generated: Fri, 09 Nov 2012 18:20:07 GMT
  */
 
 (function() {
@@ -129,7 +129,7 @@ var root = this;
     }
   
     Widget.prototype.data = function(symbol) {
-      var error, loading, pq, printP, recordsP, serviceP;
+      var error, fin, loading, pq, recordsP, serviceP;
       $(this.target).prepend(loading = $('<div class="alert-box">Loading &hellip;</div>'));
       pq = this.config.pathQueries.pubsForGene;
       pq.where = {
@@ -143,7 +143,7 @@ var root = this;
       recordsP = function(q) {
         return q.records();
       };
-      printP = function(records) {
+      fin = function(records) {
         var _ref;
         loading.remove();
         return ((_ref = records.pop()) != null ? _ref.publications : void 0) || [];
@@ -151,7 +151,7 @@ var root = this;
       error = function(err) {
         return loading.text(err.error).addClass('alert');
       };
-      return $.when(serviceP(this.service, pq)).then(recordsP).then(printP).fail(error);
+      return $.when(serviceP(this.service, pq)).then(recordsP).then(fin).fail(error);
     };
   
     Widget.prototype.render = function(target) {

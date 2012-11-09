@@ -35,8 +35,37 @@ class Widget
 
         grid.messages.new 'Loading homologues &hellip;', 'homologues'
 
-        # Get homologues in this mine.
-        @getHomologues @config.symbol, (homologues) =>
+        # Get pathways for a single mine.
+        launchOneP = (mine, url, homologues) =>
+            # Show a loading message.
+            grid.messages.new "Loading #{mine} &hellip;", mine
+
+            # Promise to, after we get the data, to add them to the grid.
+            $.when(@getPathways(homologues, url)).then( (pathways) ->
+                grid.messages.clear mine
+
+                for [ pathway, isCurated, organism ] in pathways
+                    # Add the element to the row.
+                    grid.add pathway, organism, $ '<span/>',
+                        'text':  'Yes'
+                        'class': if isCurated then 'label success has-tip' else 'label secondary has-tip'
+                        'title': mine
+
+                    # Init tooltips (again).
+                    $(document).foundationTooltips()
+            )
+        
+        # Launch an array of pathway fetching functions and that is it.
+        launchAllP = (homologues) =>
+            # A list of functions.
+            all = []
+            ( for mine, url of @config.mines then do (mine, url) -> all.push launchOneP(mine, url, homologues) )
+
+            $.when(all).done()
+
+        # Start here by getting all homologues and then going forward with the mines.
+        $.when(@getHomologues(@config.symbol)).then( (homologues) =>
+            # Done loading homologues, clear the message.
             grid.messages.clear 'homologues'
             
             # Adjust the message in the title.
@@ -44,26 +73,15 @@ class Widget
 
             grid.legend '<span class="label success"></span> Is curated <span class="label secondary"></span> Is not curated '
 
-            # Go through the different mines.
-            for mine, url of @config.mines then do (mine, url) =>
-                grid.messages.new "Loading #{mine} &hellip;", mine
+            homologues
+        ).then(
+            launchAllP
+        ).fail( (err) ->
+            console.log err
+        )
 
-                # Now get pathways in all the mines.
-                @getPathways homologues, url, (pathways) ->
-                    grid.messages.clear mine
-
-                    for [ pathway, isCurated, organism ] in pathways
-                        # Add the element to the row.
-                        grid.add pathway, organism, $ '<span/>',
-                            'text':  'Yes'
-                            'class': if isCurated then 'label success has-tip' else 'label secondary has-tip'
-                            'title': mine
-
-                        # Init tooltips (again).
-                        $(document).foundationTooltips()
-
-    # For a given symbol callback with a list of homologues.
-    getHomologues: (symbol, cb) ->
+    # For a given symbol return a promise to a list of homologues.
+    getHomologues: (symbol) =>
         assert symbol? and symbol isnt '', 'Need to provide a symbol to constrain gene on'
 
         # Constrain on 'this' gene.
@@ -74,11 +92,20 @@ class Widget
             'op':    'LOOKUP'
             'value': symbol
 
-        # Run the query giving us homologues.
-        @service.query pq, (q) -> q.rows (rows) -> cb ( g[0] for g in rows when g[0] )
+        # Make a service...
+        serviceP = (service, pq) -> service.query(pq)
+        # ... turn q into rows...
+        rowsP    = (q) -> q.rows()
+        # ... finish off
+        fin      = (rows) -> ( g[0] for g in rows when g[0] )
+
+        error = (err) -> console.log err
+
+        # Promise to query the service getting rows and then reformatting them for us.
+        $.when(serviceP(@service, pq)).then(rowsP).then(fin).fail(error)
 
     # For a set of identifiers and mine URL callback with pathway names.
-    getPathways: (identifiers, url, cb) ->
+    getPathways: (identifiers, url) ->
         assert identifiers? and identifiers instanceof Array, 'Need to provide an Array of gene identifiers to constrain pathways on'
 
         # Constrain on a set of identifiers.
@@ -89,9 +116,15 @@ class Widget
             'op':     'ONE OF'
             'values': identifiers
 
-        # Run the query giving us homologues.
-        service = new intermine.Service 'root': url
-        service.query pq, (q) -> q.rows cb
+        # Make a service...
+        serviceP = (url, pq) -> (new intermine.Service('root': url)).query pq
+        # ... turn q into rows...
+        rowsP    = (q) -> q.rows()
+
+        error = (err) -> console.log err
+
+        # Promise to construct query, make a Query and rowify().
+        $.when(serviceP(url, pq)).then(rowsP).fail(error)
 
 
 ### Our data.###

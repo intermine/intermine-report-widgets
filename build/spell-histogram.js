@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Fri, 09 Nov 2012 17:00:23 GMT
+ *  Generated: Fri, 09 Nov 2012 18:20:07 GMT
  */
 
 (function() {
@@ -124,7 +124,7 @@ var root = this;
     };
   
     Widget.prototype.histogram = function() {
-      var error, finP, loading, pq, replaceType, rowsP, serviceP, _ref,
+      var error, loading, pq, replaceType, rowsP, serviceP, _ref,
         _this = this;
       $(this.target).prepend(loading = $('<div class="alert-box">Loading &hellip;</div>'));
       pq = (replaceType = function(obj, type) {
@@ -164,7 +164,7 @@ var root = this;
       error = function(err) {
         return loading.text(err.error).addClass('alert');
       };
-      finP = function(rows) {
+      return $.when(serviceP(this.service, pq)).then(rowsP).fail(error).then(function(rows) {
         var chart, data, twoDArray, x;
         rows = (function() {
           var _i, _len, _results;
@@ -185,8 +185,7 @@ var root = this;
         loading.remove();
         chart = new google.visualization.ColumnChart($(_this.target).find('.chart')[0]);
         return chart.draw(google.visualization.arrayToDataTable(twoDArray, false), _this.chartOptions);
-      };
-      return $.when(serviceP(this.service, pq)).then(rowsP).then(finP).fail(error);
+      });
     };
   
     return Widget;

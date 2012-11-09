@@ -80,11 +80,11 @@ class Widget
         # ... turn q into records...
         recordsP = (q) -> q.records()
         # ... return back the results...
-        printP   = (records) -> loading.remove() ; records.pop()?.publications or []
+        fin      = (records) -> loading.remove() ; records.pop()?.publications or []
         # ... handle problems...
         error    = (err) -> loading.text(err.error).addClass('alert')
 
-        $.when(serviceP(@service, pq)).then(recordsP).then(printP).fail(error)
+        $.when(serviceP(@service, pq)).then(recordsP).then(fin).fail(error)
 
     # Render accepts a target to draw results into.
     render: (@target) ->

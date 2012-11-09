@@ -124,7 +124,7 @@
             "author": "Radek",
             "title": "Pathways from other mines",
             "description": "Shows for each pathway which mines carry it",
-            "version": "0.4.4",
+            "version": "0.5.0",
             "dependencies": [
                 {
                     "name": "Modernizr",

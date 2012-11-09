@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Fri, 09 Nov 2012 17:00:23 GMT
+ *  Generated: Fri, 09 Nov 2012 18:20:07 GMT
  */
 
 (function() {
@@ -19,9 +19,9 @@ var root = this;
 
   /**#@+ the presenter */
   var $, AssertException, Grid, GridMessages, GridRow, Row, Rows, Widget,
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
   
   AssertException = (function() {
@@ -62,13 +62,15 @@ var root = this;
     function Widget(config, templates) {
       this.config = config;
       this.templates = templates;
+      this.getHomologues = __bind(this.getHomologues, this);
+  
       this.service = new intermine.Service({
         'root': 'http://beta.flymine.org/beta'
       });
     }
   
     Widget.prototype.render = function(el) {
-      var grid,
+      var grid, launchAllP, launchOneP,
         _this = this;
       this.el = el;
       grid = new Grid({
@@ -80,40 +82,49 @@ var root = this;
         }
       });
       grid.messages["new"]('Loading homologues &hellip;', 'homologues');
-      return this.getHomologues(this.config.symbol, function(homologues) {
-        var mine, url, _ref, _results;
+      launchOneP = function(mine, url, homologues) {
+        grid.messages["new"]("Loading " + mine + " &hellip;", mine);
+        return $.when(_this.getPathways(homologues, url)).then(function(pathways) {
+          var isCurated, organism, pathway, _i, _len, _ref, _results;
+          grid.messages.clear(mine);
+          _results = [];
+          for (_i = 0, _len = pathways.length; _i < _len; _i++) {
+            _ref = pathways[_i], pathway = _ref[0], isCurated = _ref[1], organism = _ref[2];
+            grid.add(pathway, organism, $('<span/>', {
+              'text': 'Yes',
+              'class': isCurated ? 'label success has-tip' : 'label secondary has-tip',
+              'title': mine
+            }));
+            _results.push($(document).foundationTooltips());
+          }
+          return _results;
+        });
+      };
+      launchAllP = function(homologues) {
+        var all, mine, url, _fn, _ref;
+        all = [];
+        _ref = _this.config.mines;
+        _fn = function(mine, url) {
+          return all.push(launchOneP(mine, url, homologues));
+        };
+        for (mine in _ref) {
+          url = _ref[mine];
+          _fn(mine, url);
+        }
+        return $.when(all).done();
+      };
+      return $.when(this.getHomologues(this.config.symbol)).then(function(homologues) {
         grid.messages.clear('homologues');
         $(_this.el).find('p').html('Using <strong>homologues</strong>: ' + homologues.join(', '));
         grid.legend('<span class="label success"></span> Is curated <span class="label secondary"></span> Is not curated ');
-        _ref = _this.config.mines;
-        _results = [];
-        for (mine in _ref) {
-          url = _ref[mine];
-          _results.push((function(mine, url) {
-            grid.messages["new"]("Loading " + mine + " &hellip;", mine);
-            return _this.getPathways(homologues, url, function(pathways) {
-              var isCurated, organism, pathway, _i, _len, _ref1, _results1;
-              grid.messages.clear(mine);
-              _results1 = [];
-              for (_i = 0, _len = pathways.length; _i < _len; _i++) {
-                _ref1 = pathways[_i], pathway = _ref1[0], isCurated = _ref1[1], organism = _ref1[2];
-                grid.add(pathway, organism, $('<span/>', {
-                  'text': 'Yes',
-                  'class': isCurated ? 'label success has-tip' : 'label secondary has-tip',
-                  'title': mine
-                }));
-                _results1.push($(document).foundationTooltips());
-              }
-              return _results1;
-            });
-          })(mine, url));
-        }
-        return _results;
+        return homologues;
+      }).then(launchAllP).fail(function(err) {
+        return console.log(err);
       });
     };
   
-    Widget.prototype.getHomologues = function(symbol, cb) {
-      var pq, _ref;
+    Widget.prototype.getHomologues = function(symbol) {
+      var error, fin, pq, rowsP, serviceP, _ref;
       assert((symbol != null) && symbol !== '', 'Need to provide a symbol to constrain gene on');
       pq = JSON.parse(JSON.stringify(this.config.pathQueries.homologues));
       if ((_ref = pq.constraints) == null) {
@@ -124,26 +135,31 @@ var root = this;
         'op': 'LOOKUP',
         'value': symbol
       });
-      return this.service.query(pq, function(q) {
-        return q.rows(function(rows) {
-          var g;
-          return cb((function() {
-            var _i, _len, _results;
-            _results = [];
-            for (_i = 0, _len = rows.length; _i < _len; _i++) {
-              g = rows[_i];
-              if (g[0]) {
-                _results.push(g[0]);
-              }
-            }
-            return _results;
-          })());
-        });
-      });
+      serviceP = function(service, pq) {
+        return service.query(pq);
+      };
+      rowsP = function(q) {
+        return q.rows();
+      };
+      fin = function(rows) {
+        var g, _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = rows.length; _i < _len; _i++) {
+          g = rows[_i];
+          if (g[0]) {
+            _results.push(g[0]);
+          }
+        }
+        return _results;
+      };
+      error = function(err) {
+        return console.log(err);
+      };
+      return $.when(serviceP(this.service, pq)).then(rowsP).then(fin).fail(error);
     };
   
-    Widget.prototype.getPathways = function(identifiers, url, cb) {
-      var pq, service, _ref;
+    Widget.prototype.getPathways = function(identifiers, url) {
+      var error, pq, rowsP, serviceP, _ref;
       assert((identifiers != null) && identifiers instanceof Array, 'Need to provide an Array of gene identifiers to constrain pathways on');
       pq = JSON.parse(JSON.stringify(this.config.pathQueries.pathways));
       if ((_ref = pq.constraints) == null) {
@@ -154,12 +170,18 @@ var root = this;
         'op': 'ONE OF',
         'values': identifiers
       });
-      service = new intermine.Service({
-        'root': url
-      });
-      return service.query(pq, function(q) {
-        return q.rows(cb);
-      });
+      serviceP = function(url, pq) {
+        return (new intermine.Service({
+          'root': url
+        })).query(pq);
+      };
+      rowsP = function(q) {
+        return q.rows();
+      };
+      error = function(err) {
+        return console.log(err);
+      };
+      return $.when(serviceP(url, pq)).then(rowsP).fail(error);
     };
   
     return Widget;

@@ -111,11 +111,11 @@ class Widget
         # Make a service...
         serviceP = (service, pq) -> service.query(pq)
         # ... turn q into rows...
-        rowsP = (q) -> q.rows()
+        rowsP    = (q) -> q.rows()
         # ... handle problems...
         error    = (err) -> loading.text(err.error).addClass('alert')
-        # ... display the results...
-        finP     = (rows) =>
+
+        $.when(serviceP(@service, pq)).then(rowsP).fail(error).then (rows) =>
             # Flatten.
             rows = ( x.pop() for x in rows )
 
@@ -140,5 +140,3 @@ class Widget
             # 1. Take the 2-dimensional array and turn it into a DataTable, first row is header labels.
             # 2. Draw the visualization on the page passing in options that we specified higher up.
             chart.draw(google.visualization.arrayToDataTable(twoDArray, false), @chartOptions)
-
-        $.when(serviceP(@service, pq)).then(rowsP).then(finP).fail(error)
