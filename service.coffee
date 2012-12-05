@@ -12,10 +12,6 @@ precompile = require './precompile.coffee'
 
 # Read the config file.
 config = JSON.parse fs.readFileSync './config.json'
-if not config.service? or
-    not config.service.port? or
-        typeof config.service.port isnt 'number'
-            return winston.info 'You need to specify the `port` to use by the server in the `service` portion of the config file'.red
 
 # Validate that the config has widgets that are accessible by us.
 for id, _ of config.widgets
@@ -29,7 +25,7 @@ app.use flatiron.plugins.http,
     ]
     'after':  []
 
-app.start process.env.OPENSHIFT_INTERNAL_PORT or config.service.port, process.env.OPENSHIFT_INTERNAL_IP, (err) ->
+app.start process.env.PORT, (err) ->
     throw err if err
     winston.info "Listening on port #{app.server.address().port}".green
 

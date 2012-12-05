@@ -1,7 +1,4 @@
 {
-    "service": {
-        "port": 1119
-    },
     "widgets": {
         "publications-displayer": {
             "author": "Radek",
