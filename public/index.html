@@ -41,44 +41,6 @@
 
     <div class="row">
         <div class="twelve columns">
-        <h3>Publications Displayer</h3>
-        <pre><code data-language="javascript">
-// give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
-    // now load a specific widget and place it in a target element passing it extra config.
-    widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
-});
-        </code></pre>
-        <script>
-            (function() {
-                this.widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
-            })();
-        </script>
-        <div id="publications"></div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="twelve columns">
-        <h3>Histogram</h3>
-        <pre><code data-language="javascript">
-// give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
-    // now load a specific widget and place it in a target element.
-    widgets.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
-});
-        </code></pre>
-        <script>
-            (function() {
-                this.widgets.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
-            })();
-        </script>
-        <div id="spell"></div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="twelve columns">
         <h3>Dendrogram Clustering</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
@@ -112,6 +74,44 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
             })();
         </script>
         <div id="pathways"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="twelve columns">
+        <h3>Histogram</h3>
+        <pre><code data-language="javascript">
+// give us report widgets from a specific service in a callback `widgets`
+intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+    // now load a specific widget and place it in a target element.
+    widgets.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
+});
+        </code></pre>
+        <script>
+            (function() {
+                this.widgets.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
+            })();
+        </script>
+        <div id="spell"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="twelve columns">
+        <h3>Publications Displayer</h3>
+        <pre><code data-language="javascript">
+// give us report widgets from a specific service in a callback `widgets`
+intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+    // now load a specific widget and place it in a target element passing it extra config.
+    widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
+});
+        </code></pre>
+        <script>
+            (function() {
+                this.widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
+            })();
+        </script>
+        <div id="publications"></div>
         </div>
     </div>
 </body>
