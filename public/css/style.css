@@ -5,3 +5,14 @@ h1,h2,h3 { font-weight:normal; }
 code { background:inherit; font-weight:normal; font-size:12px; }
 .row { background:url('../img/divider.png') repeat-x bottom left; padding-bottom:20px; }
 a, a:hover { color:#8E0022; cursor:pointer; }
+
+#docs a {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: block;
+    background: #8E0022;
+    color: #FFF;
+    padding: 6px 10px;
+    font-weight: bold;
+}

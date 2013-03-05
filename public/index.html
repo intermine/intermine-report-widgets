@@ -31,10 +31,16 @@
 </head>
 <body>
     <div class="row">
-        <h2>InterMine Report Widgets Service Demo</h2>
+        <div class="ten columns">
+            <h2>InterMine Report Widgets Service Demo</h2>
+        </div>
+        <div id="docs" class="two columns">
+            <a target="_blank" href="http://intermine.readthedocs.org/en/latest/embedding/report-widgets/">Read the Docs</a>
+        </div>
     </div>
 
     <div class="row">
+        <div class="twelve columns">
         <h3>Publications Displayer</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
@@ -49,9 +55,11 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
             })();
         </script>
         <div id="publications"></div>
+        </div>
     </div>
 
     <div class="row">
+        <div class="twelve columns">
         <h3>Histogram</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
@@ -66,9 +74,11 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
             })();
         </script>
         <div id="spell"></div>
+        </div>
     </div>
 
     <div class="row">
+        <div class="twelve columns">
         <h3>Dendrogram Clustering</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
@@ -83,9 +93,11 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
             })();
         </script>
         <div id="dendrogram"></div>
+        </div>
     </div>
 
     <div class="row">
+        <div class="twelve columns">
         <h3>Gene Mine Pathways</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
@@ -100,6 +112,7 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
             })();
         </script>
         <div id="pathways"></div>
+        </div>
     </div>
 </body>
 </html>
