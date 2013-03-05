@@ -60,25 +60,6 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
 
     <div class="row">
         <div class="twelve columns">
-        <h3>Gene Mine Pathways</h3>
-        <pre><code data-language="javascript">
-// give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
-    // now load a specific widget and place it in a target element passing it extra config.
-    widgets.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
-});
-        </code></pre>
-        <script>
-            (function() {
-                this.widgets.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
-            })();
-        </script>
-        <div id="pathways"></div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="twelve columns">
         <h3>Histogram</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
@@ -93,6 +74,25 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
             })();
         </script>
         <div id="spell"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="twelve columns">
+        <h3>Gene Mine Pathways</h3>
+        <pre><code data-language="javascript">
+// give us report widgets from a specific service in a callback `widgets`
+intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+    // now load a specific widget and place it in a target element passing it extra config.
+    widgets.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
+});
+        </code></pre>
+        <script>
+            (function() {
+                this.widgets.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
+            })();
+        </script>
+        <div id="pathways"></div>
         </div>
     </div>
 

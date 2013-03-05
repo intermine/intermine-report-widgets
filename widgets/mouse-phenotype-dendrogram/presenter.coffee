@@ -345,7 +345,7 @@ class RadialDendrogram extends Dendrogram
             0
 
         # Create a dendrogram layout going all the way round with the width of ry - 50.
-        cluster = d3.layout.cluster().size([360, ry - 50]).sort(sort)
+        cluster = d3.layout.cluster().size([360, ry - 100]).sort(sort)
         
         # Diagonal generator producing smooth fan.
         diagonal = d3.svg.diagonal.radial().projection (d) -> [d.y, d.x / 180 * Math.PI]
@@ -361,7 +361,7 @@ class RadialDendrogram extends Dendrogram
         # Draw the white arc where the end nodes lie.
         arc = vis.append("svg:path")
             .attr("class", "arc")
-                .attr("d", d3.svg.arc().innerRadius(ry - 50).outerRadius(ry - 20).startAngle(0).endAngle(2 * Math.PI))
+                .attr("d", d3.svg.arc().innerRadius(ry - 100).outerRadius(ry - 80).startAngle(0).endAngle(2 * Math.PI))
 
         # Create cluster nodes from data.
         nodes = cluster.nodes(@data)

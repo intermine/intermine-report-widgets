@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Fri, 09 Nov 2012 18:20:07 GMT
+ *  Generated: Tue, 05 Mar 2013 11:50:54 GMT
  */
 
 (function() {
@@ -439,12 +439,12 @@ var root = this;
         }
         return 0;
       };
-      cluster = d3.layout.cluster().size([360, ry - 50]).sort(sort);
+      cluster = d3.layout.cluster().size([360, ry - 100]).sort(sort);
       diagonal = d3.svg.diagonal.radial().projection(function(d) {
         return [d.y, d.x / 180 * Math.PI];
       });
       vis = d3.select(this.el).append("svg:svg").attr("width", this.width).attr("height", this.height).append("svg:g").attr("transform", "translate(" + rx + "," + ry + ")");
-      arc = vis.append("svg:path").attr("class", "arc").attr("d", d3.svg.arc().innerRadius(ry - 50).outerRadius(ry - 20).startAngle(0).endAngle(2 * Math.PI));
+      arc = vis.append("svg:path").attr("class", "arc").attr("d", d3.svg.arc().innerRadius(ry - 100).outerRadius(ry - 80).startAngle(0).endAngle(2 * Math.PI));
       nodes = cluster.nodes(this.data);
       links = vis.append("svg:g").attr("class", "links");
       _ref = cluster.links(nodes);
@@ -585,8 +585,8 @@ var root = this;
   /**#@+ the templates */
   var templates = {};
   templates.config=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<div class="hideTermsBand">\n    Term cutoff\n    <input type="range" min="1" max="5" step="1" value="'),t.push(r(this.hideTermsBand)),t.push('" />\n</div>\n\n<div class="termTextBand">\n    Term text cutoff\n    <input type="range" min="1" max="5" step="1" value="'),t.push(r(this.termTextBand)),t.push('" />\n</div>\n\n<div class="type">\n    Use a radial\n    <input type="radio" name="type" value="radial" checked="checked">\n    or a tree\n    <input type="radio" name="type" value="tree">\n    dendrogram\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
-  templates.widget=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<h4>Alleles phenotype terms for</h4> <input type="text" placeholder="MGI:97747" class="symbol three columns" value="'),t.push(r(this.symbol)),t.push('" />\n<div style="clear:both"></div>\n<div class="config">Loading &hellip;</div>\n<div class="graph"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   templates.popover=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){var e,n,i,s,o,u,a,f,l,c,h;t.push('<div class="popover">\n    <a class="close">close</a>\n    <div class="inner">\n        <table>\n            <thead>\n                <tr>\n                    '),c=this.columns;for(s=0,a=c.length;s<a;s++)e=c[s],t.push('\n                        <th title="'),t.push(r(e)),t.push('">'),t.push(r(this.titleize(e))),t.push("</th>\n                    ");t.push("\n                </tr>\n            </thead>\n            <tbody>\n                "),h=this.rows;for(o=0,f=h.length;o<f;o++){n=h[o],t.push("\n                    <tr>\n                        ");for(u=0,l=n.length;u<l;u++)i=n[u],t.push("\n                            <td>"),t.push(r(i)),t.push("</td>\n                        ");t.push("\n                    </tr>\n                ")}t.push("\n            </tbody>\n        </table>\n    </div>\n</div>")}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.widget=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<h4>Alleles phenotype terms for</h4> <input type="text" placeholder="MGI:97747" class="symbol three columns" value="'),t.push(r(this.symbol)),t.push('" />\n<div style="clear:both"></div>\n<div class="config">Loading &hellip;</div>\n<div class="graph"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   
   /**#@+ css */
   var style = document.createElement('style');
