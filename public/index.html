@@ -44,7 +44,7 @@
         <h3>Dendrogram Clustering</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.intermine.org', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
     widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 600, 'symbol': 'MGI:97747' });
 });
@@ -63,7 +63,7 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
         <h3>Histogram</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.intermine.org', function(widgets) {
     // now load a specific widget and place it in a target element.
     widgets.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
 });
@@ -82,7 +82,7 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
         <h3>Gene Mine Pathways</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.intermine.org', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
     widgets.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
 });
@@ -101,7 +101,7 @@ intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', fu
         <h3>Publications Displayer</h3>
         <pre><code data-language="javascript">
 // give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://reportwidgets-intermine.rhcloud.com', function(widgets) {
+intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.intermine.org', function(widgets) {
     // now load a specific widget and place it in a target element passing it extra config.
     widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
 });
