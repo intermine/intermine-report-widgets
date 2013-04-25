@@ -1,7 +1,7 @@
 #!./node_modules/.bin/cake
-
-fs = require 'fs'
-cs = require 'coffee-script'
+winston = require 'winston'
+fs      = require 'fs'
+cs      = require 'coffee-script'
 
 """
 @sh ./node_modules/.bin/coffee -o public/js -c client.coffee ; ./node_modules/.bin/coffee -c service.coffee
@@ -17,8 +17,8 @@ task 'client', 'compile client', (options) ->
     write './public/js/client.js', cs.compile fs.readFileSync 'client.coffee', 'utf-8'
 
 task 'precompile', 'precompile widgets', (options) ->
-    pre = require './precompile.coffee'
-    pre.all()
+    winston.cli()
+    (require('./precompile.coffee')(winston)).all()
 
 # Append to existing file.
 write = (path, text, mode = "w") ->

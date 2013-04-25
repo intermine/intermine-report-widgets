@@ -3,7 +3,7 @@ new Error('This widget cannot be called directly');
 /**
  *      _/_/_/  _/      _/   
  *       _/    _/_/  _/_/     InterMine Report Widget
- *      _/    _/  _/  _/      (C) 2012 InterMine, University of Cambridge.
+ *      _/    _/  _/  _/      (C) 2013 InterMine, University of Cambridge.
  *     _/    _/      _/       http://intermine.org
  *  _/_/_/  _/      _/
  *
@@ -11,13 +11,13 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Tue, 05 Mar 2013 11:50:54 GMT
+ *  Generated: Thu, 25 Apr 2013 17:15:54 GMT
  */
-
 (function() {
-var root = this;
+  var root = this;
 
   /**#@+ the presenter */
+
   var AssertException, Widget,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
   
@@ -198,13 +198,13 @@ var root = this;
   /**#@+ the templates */
   var templates = {};
   templates.chart=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<header>    \n    <h4>SPELL Expression Summary for</h4> <input type="text" placeholder="S000001855" class="symbol three columns" value="'),t.push(r(this.symbol)),t.push('" />\n</header>\n\n<div class="chart"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
-  
+
   /**#@+ css */
   var style = document.createElement('style');
   style.type = 'text/css';
   style.innerHTML = 'div#w#@+CALLBACK h4{float:left}div#w#@+CALLBACK header:after{content:" ";display:block;clear:both}div#w#@+CALLBACK input.symbol{color:#8E0022;background:0;border:0;-webkit-box-shadow:none;-moz-box-shadow:none;box-shadow:none;font-family:\'Droid Serif\',serif;font-size:23px;font-weight:700;padding:0;margin:10px 0;margin-left:4px}';
   document.head.appendChild(style);
-  
+
   /**#@+ callback */
   (function() {
     var parent, part, _i, _len, _ref;

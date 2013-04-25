@@ -25,14 +25,16 @@
                 <tr>
                     <td><%= row.title %></td>
                     <td>
-                        <% if row.authors.length > 5: %>
-                            <% for i in [0...5]: %>
-                                <span class="author"><%= row.authors[i].name %></span>
-                            <% end %>
-                            &hellip;
-                        <% else: %>
-                            <% for author in row.authors: %>
-                                <span class="author"><%= author.name %></span>
+                        <% if row.authors: %>
+                            <% if row.authors.length > 5: %>
+                                <% for i in [0...5]: %>
+                                    <span class="author"><%= row.authors[i].name %></span>
+                                <% end %>
+                                &hellip;
+                            <% else: %>
+                                <% for author in row.authors: %>
+                                    <span class="author"><%= author.name %></span>
+                                <% end %>
                             <% end %>
                         <% end %>
                     </td>
