@@ -82,7 +82,7 @@ class Widget
         # ... return back the results...
         fin      = (records) -> loading.remove() ; records.pop()?.publications or []
         # ... handle problems...
-        error    = (err) -> loading.text(err.error).addClass('alert')
+        error    = (err) -> loading.text(err.statusText).addClass('alert')
 
         $.when(serviceP(@service, pq)).then(recordsP).then(fin).fail(error)
 

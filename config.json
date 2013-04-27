@@ -4,7 +4,7 @@
             "author": "Radek",
             "title": "Publications for Gene",
             "description": "Shows a list of publications for a specific gene",
-            "version": "0.3.0",
+            "version": "0.3.1",
             "dependencies": [
                 {
                     "name": "jQuery",
@@ -23,7 +23,7 @@
                     "type": "js"
                 },
                 {
-                    "path": "http://cdn.intermine.org/js/intermine/imjs/latest/imjs.js",
+                    "path": "http://cdn.intermine.org/js/intermine/imjs/2.6.0/im.min.js",
                     "type": "js"
                 }
             ],

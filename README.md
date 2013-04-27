@@ -2,29 +2,14 @@
 
 A [node.js](http://nodejs.org/) reference implementation of a **service** and a **client** for loading and rendering Report Widgets (previously called Displayers).
 
-The service does not cache the packaged widgets so that changes can be propagated in real time. There are two URLs that the router responds to:
-
-* [/widgets](/widgets) returns a JSON representation of all widgets configured in `config.json`
-* [/widget/[CALLBACK_ID]/[WIDGET_ID]](/widget/[CALLBACK_ID]/[WIDGET_ID) returns a packaged representation of the widget
-* `client.coffee` contains the client part
-
-## Example
-
-```javascript
-// give us report widgets from a specific service in a callback `widgets`
-intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
-    // now load a specific widget and place it in a target element passing it extra config.
-    widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
-});
-```
 ![image](https://github.com/intermine/intermine-report-widgets/raw/master/example.png)
 
-## Run
+## Quickstart
 
-Make sure [node.js](https://github.com/joyent/node/wiki/Installation) is installed.
+Make sure [node](https://github.com/joyent/node/wiki/Installation) is installed.
 
 ```bash
-$ npm install -d
+$ npm install
 $ ./node_modules/.bin/cake [task]
 ```
 
@@ -34,148 +19,37 @@ Where `[task]` is one of:
 1. `client`: compile client code to `./public/js/client.js`
 1. `precompile`: precompile widgets so that they can be served by InterMine into `./build` directory
 
-## Requirements
-
-### Service
-
-1. Compile *templates* into their JS form and make them accessible within the context of the widget only.
-2. Make *CSS* available only in the context of the widget, perhaps by prefixing each declaration with a dynamic *widget id* using [prefix-css-node](https://github.com/radekstepan/prefix-css-node) or [css-prefix](https://github.com/substack/css-prefix).
-3. Respond to the client with a list of *resources* that need to be loaded beforing rendering the widget.
-4. Each widget consists of:
-  1. One [CoffeeScript](http://coffeescript.org/) *presenter* containing the logic getting data from the *model* using [imjs](https://github.com/alexkalderimis/imjs).
-  2. A number of [eco](https://github.com/sstephenson/eco/) *templates* precompiled.
-  3. One *CSS* file specifically for the widget.
-  4. Any extra *config* dynamically populated for the widget to consume. This could be the mine the Widget is to take data from or extra flags that specialize an otherwise generic Widget.
-  5. Optional number of requirements (CSS, JS), loaded from the [CDN](https://github.com/intermine/CDN).
-5. All of the previous are configured by the user and the service validates that all widgets are executable.
-6. *Data* requests are done from within the widget to speed up their initial loading.
-7. Files are served as UTF-8.
-8. Provide nice URL for fetching the widgets so it is easier to debug them in Network view, `/widget/24517/publications-displayer`.
-9. Provide info messages on each step of the compilation process so we can determine where problems lie. These then be returned as `message` to the user when requesting widgets as HTTP 500 JSON errors.
-
-#### Optional
-
-* Cache resources by, for example, not packaging resources on the fly but doing so on service startup. Then, say the latest modification date. Add `ETag` and return 304 not modified then.
-* Allow the use of [LESS](http://lesscss.org/) instead of CSS.
-* Allow the use of other templating languages.
-* Check for the presence of `Displayer.prototype.render` and `Displayer.prototype.initialize` in the compiled *presenter*.
-* Validate that callbacks are valid JavaScript identifiers. Should not be needed as we will use API loader and generate these automagically.
-* Provide a signature in the generated output describing the title, author etc for the widget in question.
-* Each block in the compiled result have a comment header so it is easier to find where things lie when debugging.
-* Provide connection to [imjs](https://github.com/alexkalderimis/imjs) by default.
-
-#### Issues
-
-* If we want to split presenter across multiple CoffeScript files, how to maintain their order in the resulting JS version? Go alphabetically?
-
-### Client
-
-1. Make use of [intermine-api-loader](https://github.com/radekstepan/intermine-api-loader) to efficiently load resources and libs only when needed.
-2. Generate *callbacks* that are unique for the page taking into account other clients that could exist on the page. As the service URL is unique per client, make use of that.
-3. Dump error messages from the server into the target element where widget was supposed to have been.
-4. Cache all of the widgets listing as we need to be resolving widget dependencies first.
-5. Provide a wrapping `article` element with a predictable `im-report-widget` class so we can use it in our CSS.
-
-#### Optional
-
-* Provide a callback where all widgets can dump error messages.
-
-## Creating a new Report Widget
-
-First config needs to be provided.
-
-* Entries in the `dependencies` list are resolved before the widget package itself is fetched.
-* Any properties in the `config` object are passed into the widget.
-
-```json
-{
-    "publications-displayer": {
-        "author": "Radek",
-        "title": "Publications for Gene",
-        "description": "Shows a list of publications for a specific gene",
-        "version": "0.1.1",
-        "dependencies": [
-            {
-                "name": "jQuery",
-                "path": "http://127.0.0.1:1119/js/jquery-min.js",
-                "type": "js",
-                "wait": true
-            },
-            {
-                "name": "_",
-                "path": "http://127.0.0.1:1119/js/underscore-min.js",
-                "type": "js",
-                "wait": true
-            },
-            {
-                "name": "Backbone",
-                "path": "http://127.0.0.1:1119/js/backbone-min.js",
-                "type": "js"
-            },
-            {
-                "path": "http://127.0.0.1:1119/js/imjs.js",
-                "type": "js"
-            }
-        ],
-        "config": {
-            "mine": "http://beta.flymine.org/beta",
-            "pathQuery": {
-                "select": [
-                    "publications.title",
-                    "publications.year",
-                    "publications.journal",
-                    "publications.pubMedId",
-                    "publications.authors.name"
-                ],
-                "from": "Gene",
-                "joins": [
-                    "publications.authors"
-                ]
-            }
-        }
-    }
-}
-```
-
-The next step is writing a *presenter* which is a component that knows how to get data for itself and then render them in a particular way, thus it encapsulates the behavior of the widget.
-
-The file needs to be called `presenter.coffee` and be placed in a directory with the name of the widget, in our case `/widgets/publications-displayer/`. The file needs to contain a class `Widget` with the following signature:
-
-```coffee-script
-class Widget
-
-    # Have access to config and templates compiled in.
-    constructor: (config, templates) ->
-
-    # Render accepts a target to draw results into.
-    render: (target) ->
-```
-
-In JavaScript terms this corresponds to:
+Remember that by default the service demo is connecting to whatever page you are looking at as seen here:
 
 ```javascript
-var Widget;
-
-Widget = (function() {
-
-    function Widget(config, templates) {}
-
-    Widget.prototype.render = function(target) {};
-
-    return Widget;
-
-})();
+var widgets = new intermine.reportWidgets(document.location.href);
 ```
 
-Other files are optional. For example, one can have as many templates as they want, all saved with `.eco` suffix and these will be available as functions in the above mentioned `templates` object passed to the constructor of the widget.
+If you want to see Growl-like notifications in your OS on specific events, install [node-growl](https://github.com/visionmedia/node-growl).
 
-Also, a CSS file called `style.css` can be present in which case each selector will be prefixed with a unique id of the widget so the style is only applied to the widget itself and not other elements on the page.
+### On the client
 
-## Java Systems
+The following snippet shows how one loads a specific widget on a page:
 
-On Java systems the following packages can be used as a replacement for their node.js counterparts.
+```javascript
+// give us report widgets from a specific service in a callback `widgets`
+intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
+    // now load a specific widget and place it in a target element passing it extra config.
+    widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
+});
+```
 
-1. [JCoffeeScript](https://github.com/yeungda/jcoffeescript) compiles CoffeeScript 1.1
-2. [Mustache.java](https://github.com/spullara/mustache.java/) does [mustache](http://mustache.github.com/mustache.5.html) templating as an alternative to eco templates.
-3. [YUI Compressor](http://developer.yahoo.com/yui/compressor/) that compresses CSS and JavaScript both.
-4. A tool for prefixing CSS selectors would need to be written based on say [CSS Parser](http://cssparser.sourceforge.net/).
+The service does not cache the packaged widgets so that changes can be propagated in real time. There are two URLs that the service responds to:
+
+<dl>
+    <dt>/widgets</dt>
+    <dd>returns a JSON representation of all widgets configured in <code>config.json</code></dd>
+    <dt>/widget/[CALLBACK_ID]/[WIDGET_ID]</dt>
+    <dd>returns the widget in a JavaScript package with a callback</dd>
+</dl>
+
+## [Files](https://github.com/intermine/intermine-report-widgets/blob/master/docs/FILES.md)
+
+## [Requirements](https://github.com/intermine/intermine-report-widgets/blob/master/docs/REQUIREMENTS.md)
+
+## [Java Systems](https://github.com/intermine/intermine-report-widgets/blob/master/docs/JAVA.md)

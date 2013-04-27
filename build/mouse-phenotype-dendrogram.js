@@ -3,7 +3,7 @@ new Error('This widget cannot be called directly');
 /**
  *      _/_/_/  _/      _/   
  *       _/    _/_/  _/_/     InterMine Report Widget
- *      _/    _/  _/  _/      (C) 2012 InterMine, University of Cambridge.
+ *      _/    _/  _/  _/      (C) 2013 InterMine, University of Cambridge.
  *     _/    _/      _/       http://intermine.org
  *  _/_/_/  _/      _/
  *
@@ -11,13 +11,13 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Tue, 05 Mar 2013 11:50:54 GMT
+ *  Generated: Thu, 25 Apr 2013 17:15:55 GMT
  */
-
 (function() {
-var root = this;
+  var root = this;
 
   /**#@+ the presenter */
+
   var AssertException, Config, Dendrogram, PopoverTable, RadialDendrogram, TreeDendrogram, Widget,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
@@ -587,13 +587,13 @@ var root = this;
   templates.config=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<div class="hideTermsBand">\n    Term cutoff\n    <input type="range" min="1" max="5" step="1" value="'),t.push(r(this.hideTermsBand)),t.push('" />\n</div>\n\n<div class="termTextBand">\n    Term text cutoff\n    <input type="range" min="1" max="5" step="1" value="'),t.push(r(this.termTextBand)),t.push('" />\n</div>\n\n<div class="type">\n    Use a radial\n    <input type="radio" name="type" value="radial" checked="checked">\n    or a tree\n    <input type="radio" name="type" value="tree">\n    dendrogram\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   templates.popover=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){var e,n,i,s,o,u,a,f,l,c,h;t.push('<div class="popover">\n    <a class="close">close</a>\n    <div class="inner">\n        <table>\n            <thead>\n                <tr>\n                    '),c=this.columns;for(s=0,a=c.length;s<a;s++)e=c[s],t.push('\n                        <th title="'),t.push(r(e)),t.push('">'),t.push(r(this.titleize(e))),t.push("</th>\n                    ");t.push("\n                </tr>\n            </thead>\n            <tbody>\n                "),h=this.rows;for(o=0,f=h.length;o<f;o++){n=h[o],t.push("\n                    <tr>\n                        ");for(u=0,l=n.length;u<l;u++)i=n[u],t.push("\n                            <td>"),t.push(r(i)),t.push("</td>\n                        ");t.push("\n                    </tr>\n                ")}t.push("\n            </tbody>\n        </table>\n    </div>\n</div>")}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
   templates.widget=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<h4>Alleles phenotype terms for</h4> <input type="text" placeholder="MGI:97747" class="symbol three columns" value="'),t.push(r(this.symbol)),t.push('" />\n<div style="clear:both"></div>\n<div class="config">Loading &hellip;</div>\n<div class="graph"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
-  
+
   /**#@+ css */
   var style = document.createElement('style');
   style.type = 'text/css';
   style.innerHTML = 'div#w#@+CALLBACK h4{float:left}div#w#@+CALLBACK input.symbol{color:#8e0022;background:0;border:0;font-family:\'Droid Serif\',serif;font-size:23px;font-weight:700;padding:0;margin:10px 0;margin-left:4px;-webkit-box-shadow:none;-moz-box-shadow:none;box-shadow:none}div#w#@+CALLBACK article{position:relative}div#w#@+CALLBACK .graph{float:left}div#w#@+CALLBACK path.arc{fill:#fff}div#w#@+CALLBACK .node.depth-0{font-size:18px}div#w#@+CALLBACK .node.depth-1{font-size:14px}div#w#@+CALLBACK .node.depth-2{font-size:10px}div#w#@+CALLBACK circle.hlt,div#w#@+CALLBACK circle.leaf{cursor:pointer}div#w#@+CALLBACK .node circle{fill:#fff;stroke:#ccc;stroke-width:1.5px}div#w#@+CALLBACK .node.depth-2 circle{stroke:#fee5d9;fill:#fee5d9}div#w#@+CALLBACK .node circle.band-1{stroke:#fcae91;fill:#fcae91}div#w#@+CALLBACK .node circle.band-2{stroke:#fb6a4a;fill:#fb6a4a}div#w#@+CALLBACK .node circle.band-3{stroke:#de2d26;fill:#de2d26}div#w#@+CALLBACK .node circle.band-4{stroke:#a50f15;fill:#a50f15}div#w#@+CALLBACK .link{fill:none;stroke:#ccc;stroke-width:1px}div#w#@+CALLBACK .link.band-0{stroke:#fee5d9}div#w#@+CALLBACK .link.band-1{stroke:#fcae91}div#w#@+CALLBACK .link.band-2{stroke:#fb6a4a}div#w#@+CALLBACK .link.band-3{stroke:#de2d26}div#w#@+CALLBACK .link.band-4{stroke:#a50f15}div#w#@+CALLBACK .config{background:#fff;padding:20px;box-shadow:0 0 10px #ccc;width:170px;float:left}div#w#@+CALLBACK .config>div{margin:0}div#w#@+CALLBACK .config>div:not(:last-child){margin-bottom:10px}div#w#@+CALLBACK .alert-box{margin-top:10px}div#w#@+CALLBACK .popover{position:absolute;top:0;left:0;z-index:1;width:100%}div#w#@+CALLBACK .popover .inner{max-height:300px;overflow-y:auto;clear:both;box-shadow:0 0 10px #ccc}div#w#@+CALLBACK .popover a.close{float:right;font-weight:700}div#w#@+CALLBACK .popover table{margin:0}div#w#@+CALLBACK .popover table th{text-transform:capitalize}';
   document.head.appendChild(style);
-  
+
   /**#@+ callback */
   (function() {
     var parent, part, _i, _len, _ref;

@@ -3,7 +3,7 @@ new Error('This widget cannot be called directly');
 /**
  *      _/_/_/  _/      _/   
  *       _/    _/_/  _/_/     InterMine Report Widget
- *      _/    _/  _/  _/      (C) 2012 InterMine, University of Cambridge.
+ *      _/    _/  _/  _/      (C) 2013 InterMine, University of Cambridge.
  *     _/    _/      _/       http://intermine.org
  *  _/_/_/  _/      _/
  *
@@ -11,13 +11,13 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Tue, 05 Mar 2013 11:50:54 GMT
+ *  Generated: Thu, 25 Apr 2013 17:15:54 GMT
  */
-
 (function() {
-var root = this;
+  var root = this;
 
   /**#@+ the presenter */
+
   var $, AssertException, Grid, GridMessages, GridRow, Row, Rows, Widget,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
@@ -531,13 +531,13 @@ var root = this;
   /**#@+ the templates */
   var templates = {};
   templates.grid=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<div class="foundation">\n    <h4>Pathways for '),t.push(r(this.title)),t.push('</h4> <div class="notifications"></div>\n    <p></p>\n    <div class="grid">\n        <div class="legend"></div>\n        \n        <table class="faux">\n            <thead>\n                <tr>\n                    <th><input type="text" placeholder="Filter..." class="filter" /></th>\n                </tr>\n            </thead>\n        </table>\n        \n        <div class="wrapper">\n            <table>\n                <thead></thead>\n                <tbody>\n                    <!-- so we start with a white row... -->\n                    <tr></tr>\n                    <tr class="filterMessage">\n                        <td colspan="99">\n                            <div class="alert-box secondary"><span class="text"></span> <a class="show-all">Show all</a></div>\n                        </td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
-  
+
   /**#@+ css */
   var style = document.createElement('style');
   style.type = 'text/css';
-  style.innerHTML = 'div#w#@+CALLBACK .label{bottom:0}div#w#@+CALLBACK .grid{position:relative}div#w#@+CALLBACK .grid .legend{background:#fff;position:absolute;top:0;right:15px;padding:4px 8px;border:1px solid #ddd;border-bottom:0;border-radius:3px 3px 0 0;z-index:2}div#w#@+CALLBACK .grid .legend .label{display:inline-block;width:10px;height:10px}div#w#@+CALLBACK .grid .legend .label:not(:first-child){margin-left:6px}div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .faux input.filter{display:none;margin:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}div#w#@+CALLBACK .wrapper table tbody .filterMessage{display:none;background:#fff}div#w#@+CALLBACK .wrapper table tbody td:first-child .label{padding-left:0;padding-right:0}div#w#@+CALLBACK .wrapper table tbody td:first-child a.show-all{cursor:pointer}';
+  style.innerHTML = 'div#w#@+CALLBACK h4{width:100%}div#w#@+CALLBACK p{text-align:justify}div#w#@+CALLBACK .label{bottom:0}div#w#@+CALLBACK .grid{position:relative}div#w#@+CALLBACK .grid .legend{background:#fff;position:absolute;top:0;right:15px;padding:4px 8px;border:1px solid #ddd;border-bottom:0;border-radius:3px 3px 0 0;z-index:2}div#w#@+CALLBACK .grid .legend .label{display:inline-block;width:10px;height:10px}div#w#@+CALLBACK .grid .legend .label:not(:first-child){margin-left:6px}div#w#@+CALLBACK .faux{margin:0;border-bottom:0}div#w#@+CALLBACK .faux input.filter{display:none;margin:0}div#w#@+CALLBACK .wrapper{overflow:auto;overflow-x:hidden;height:305px}div#w#@+CALLBACK .wrapper table{width:100%;margin-top:-39px}div#w#@+CALLBACK .wrapper table thead{visibility:hidden}div#w#@+CALLBACK .wrapper table tbody .filterMessage{display:none;background:#fff}div#w#@+CALLBACK .wrapper table tbody td:first-child .label{padding-left:0;padding-right:0}div#w#@+CALLBACK .wrapper table tbody td:first-child a.show-all{cursor:pointer}';
   document.head.appendChild(style);
-  
+
   /**#@+ callback */
   (function() {
     var parent, part, _i, _len, _ref;

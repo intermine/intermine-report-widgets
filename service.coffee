@@ -1,23 +1,60 @@
 #!/usr/bin/env coffee
+flatiron = require 'flatiron'
+union    = require 'union'
+connect  = require 'connect'
+urlib    = require 'url'
+winston  = require 'winston'
+growl    = require 'growl'
+fs       = require 'fs'
 
-flatiron   = require 'flatiron'
-union      = require 'union'
-connect    = require 'connect'
-urlib      = require 'url'
-winston    = require 'winston'
+# A Winston and Growl logger?
+log = {} ; winston.cli()
+for lvl in [ 'info', 'warn', 'debug', 'data', 'error' ] then do (lvl) ->
+    log[lvl] = (text) ->
+        # Show using Winston.
+        winston[lvl](text)
 
-fs         = require 'fs'
+        # Strip colors and show in Growl.
+        if lvl in [ 'info', 'warn', 'error' ]
+            try
+                growl text.replace(/\033\[[0-9;]*m/g, ''), 'title': 'InterMine Report Widgets'
+            catch err
+                # Silence!
 
-precompile = require './precompile.coffee'
+# Require precompiler with out logger.
+precompile = require('./precompile.coffee') log
 
 # Read the config file.
-config = JSON.parse fs.readFileSync './config.json'
+config = do ->
+    cache = null
 
-# Validate that the config has widgets that are accessible by us.
-for id, _ of config.widgets
-    if encodeURIComponent(id) isnt id
-        return winston.info "Widget id `{id}` is not a valid name and cannot be used, use encodeURIComponent() to check".red
+    # Invalidate the cache on config update.
+    fs.watch './config.json', ->
+        log.warn 'Config file got updated'
+        cache = null
 
+    # Return this config getter.
+    (cb) ->
+        return cb null, cache if cache
+
+        # Read & parse the file.
+        fs.readFile './config.json', 'utf-8', (err, data) ->
+            return cb err if err
+            
+            try
+                data = JSON.parse data
+            catch err
+                return cb err
+
+            # Validate that the config has widgets that are accessible by us.
+            for id in Object.keys data.widgets
+                if encodeURIComponent(id) isnt id
+                    return cb "Widget id `#{id}` is not a valid name and cannot be used, use encodeURIComponent() to check"
+
+            # Cache & return.
+            cb null, cache = data
+
+# Init the app.
 app = flatiron.app
 app.use flatiron.plugins.http,
     'before': [
@@ -27,25 +64,31 @@ app.use flatiron.plugins.http,
 
 app.start process.env.PORT, (err) ->
     throw err if err
-    winston.info "Listening on port #{app.server.address().port}".green
+    log.info "Listening on port #{String(app.server.address().port).bold}".green
 
 # -------------------------------------------------------------------
 # List all available widgets.
 app.router.path "/widget/report", ->
     @get ->
-        winston.info "Get a listing of available widgets"
+        log.debug "Get a listing of available widgets"
 
         # Do we have a callback?
         callback = @req.query?.callback
         if callback?
             # Only provide deps for each widget much like InterMine.
-            out = {}
-            for widget, stuff of config.widgets
-                out[widget] = stuff.dependencies
+            config (err, data) =>
+                if err
+                    @res.writeHead 500, "content-type": "application/json"
+                    @res.write JSON.stringify 'message': err
+                    @res.end()
+                else
+                    out = {}
+                    for widget, stuff of data.widgets
+                        out[widget] = stuff.dependencies
 
-            @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
-            @res.write "#{callback}(#{JSON.stringify(out)});"
-            @res.end()
+                    @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
+                    @res.write "#{callback}(#{JSON.stringify(out)});"
+                    @res.end()
         else
             @res.writeHead 500, "content-type": "application/json"
             @res.write JSON.stringify 'message': 'Provide a `callback` parameter so we can respond with JSONP'
@@ -53,33 +96,38 @@ app.router.path "/widget/report", ->
 
 app.router.path "/widget/report/:widgetId", ->
     @get (widgetId) ->
-        winston.info "Get widget " + widgetId.bold
+        log.debug "Get widget " + widgetId.bold
 
         # Do we have a callback?
         callback = @req.query?.callback
         if callback?
-            # Do we know this one?
-            widget = config.widgets[widgetId]
-            if widget?
-                # Run the precompile.
-                precompile.single widgetId, callback, widget, (err, js) =>
-                    if err
-                        # Catch all errors into logs and JSON messages.
-                        winston.info err.red
+            config (err, data) =>
+                if err
+                    @res.writeHead 500, "content-type": "application/json"
+                    @res.write JSON.stringify 'message': err
+                    @res.end()
+                else
+                    # Do we know this one?
+                    widget = data.widgets[widgetId]
+                    if widget?
+                        # Run the precompile.
+                        precompile.single widgetId, callback, widget, (err, js) =>
+                            if err
+                                # Catch all errors into logs and JSON messages.
+                                log.error err.red
 
-                        @res.writeHead 500, 'content-type': 'application/json'
-                        @res.write JSON.stringify 'message': err
-                        @res.end()
+                                @res.writeHead 500, 'content-type': 'application/json'
+                                @res.write JSON.stringify 'message': err
+                                @res.end()
+                            else
+                                # Write the output.
+                                @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
+                                @res.write js
+                                @res.end()
                     else
-                        # Write the output.
-                        winston.info "Returning .js package".green
-                        @res.writeHead 200, "content-type": "application/javascript;charset=utf-8"
-                        @res.write js
+                        @res.writeHead 400, "content-type": "application/json"
+                        @res.write JSON.stringify 'message': "Unknown widget `#{widgetId}`"
                         @res.end()
-            else
-                @res.writeHead 400, "content-type": "application/json"
-                @res.write JSON.stringify 'message': "Unknown widget `#{widgetId}`"
-                @res.end()
         else
             @res.writeHead 400, "content-type": "application/json"
             @res.write JSON.stringify 'message': 'Callback not provided'

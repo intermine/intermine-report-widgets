@@ -11,7 +11,7 @@
 
     function ReportWidgets(server) {
       var _this = this;
-      this.server = server;
+      this.server = server.replace(/\/+$/, '');
       console.log("Initialize ReportWidgets for " + this.server);
       $.ajax({
         'url': "" + this.server + "/widget/report",

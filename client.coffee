@@ -8,7 +8,10 @@ class ReportWidgets
     selectorPrefix: 'w'
 
     # Save the root URL of the widgets config
-    constructor: (@server) ->
+    constructor: (server) ->
+        # Strip trailing slash?
+        @server = server.replace /\/+$/, ''
+
         console.log "Initialize ReportWidgets for #{@server}"
         
         # Fetch the config for this server.
