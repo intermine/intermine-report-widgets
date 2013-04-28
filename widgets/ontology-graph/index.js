@@ -469,7 +469,7 @@ if (typeof window == 'undefined' || window === null) {
     return hideLinks;
   };
   drawForce = function(directNodes, edges, nodeForIdent){
-    var graph, i$, ref$, len$, n, isRoot, isLeaf, getR, force, svg, svgGroup, zoom, color, relationships, link, getLabelId, node, nG, legend, lg, timer, basisLine, linkSpline, drawCurve, mvTowards, stratify, centrify;
+    var graph, i$, ref$, len$, n, isRoot, isLeaf, getR, force, svg, svgGroup, zoom, color, relationships, link, getLabelId, node, nG, legend, lg, timer, basisLine, linkSpline, drawCurve, mvTowards, byX, widthRange, stratify, centrify;
     $('#jiggle').show().val(queryParams.jiggle).on('change', function(){
       queryParams.jiggle = $(this).val();
       force.start();
@@ -859,41 +859,34 @@ if (typeof window == 'undefined' || window === null) {
       n.x += dx;
       n.y += dy;
     };
-    stratify = function(){
-      var i$, ref$, len$, n, goal, leaves;
-      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
-        n = ref$[i$];
-        goal = (fn$());
-        if (goal) {
-          mvTowards(0.02, goal, n);
-        }
+    byX = compose$([
+      compare, function(it){
+        return it.x;
       }
-      leaves = sortBy(compose$([
-        compare, function(it){
-          return it.x;
-        }
-      ]), filter(function(it){
-        return isLeaf(it) && 950 <= it.y;
-      }, graph.nodes));
-      leaves.forEach(function(n, i){
-        return n.y = 1000 + 30 * i;
+    ]);
+    widthRange = d3.scale.linear().range([0, 1400]);
+    stratify = function(){
+      var roots, leaves;
+      roots = sortBy(byX, filter(isRoot, graph.nodes));
+      leaves = sortBy(byX, filter(isLeaf, graph.nodes));
+      widthRange.domain([0, roots.length - 1]);
+      roots.forEach(function(root, i){
+        return mvTowards(0.02, {
+          y: 0,
+          x: widthRange(i)
+        }, root);
       });
-      function fn$(){
-        switch (false) {
-        case !isRoot(n):
-          return {
-            x: n.x,
-            y: 0
-          };
-        case !(isLeaf(n) && n.y < 1000):
-          return {
+      leaves.forEach(function(n, i){
+        if (n.y < 1000) {
+          mvTowards(0.02, {
             x: n.x,
             y: 1000
-          };
-        default:
-          return null;
+          }, n);
         }
-      }
+        if (n.y >= 970) {
+          return n.y = 1000 + 30 * i;
+        }
+      });
     };
     centrify = function(){
       var roots, res$, i$, ref$, len$, n, meanD;
@@ -920,7 +913,7 @@ if (typeof window == 'undefined' || window === null) {
       });
     };
     function tick(){
-      var jiggle, circles, texts, displayedTexts;
+      var jiggle, circles, meanX, texts, displayedTexts;
       jiggle = (function(){
         switch (queryParams.jiggle) {
         case 'strata':
@@ -933,6 +926,9 @@ if (typeof window == 'undefined' || window === null) {
         jiggle();
       }
       circles = node.selectAll('circle');
+      meanX = mean(map(function(it){
+        return it.x;
+      }, graph.nodes));
       texts = node.selectAll('text.force-label');
       displayedTexts = texts.filter(function(){
         return 'block' === d3.select(this).attr('display');
@@ -957,9 +953,21 @@ if (typeof window == 'undefined' || window === null) {
       });
       texts.attr('x', function(it){
         return it.x;
+      }).attr('text-anchor', function(it){
+        if (it.x < meanX) {
+          return 'end';
+        } else {
+          return 'start';
+        }
       }).attr('y', function(it){
         return it.y;
-      }).attr('dx', getR);
+      }).attr('dx', function(it){
+        if (it.x < meanX) {
+          return 1 - getR(it);
+        } else {
+          return getR(it);
+        }
+      });
       node.selectAll('text.count-label').attr('x', function(it){
         return it.x;
       }).attr('y', function(it){

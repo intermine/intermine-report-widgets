@@ -557,18 +557,24 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         n.x += dx
         n.y += dy
 
-    stratify = !->
-        for n in graph.nodes
-            goal =
-                | is-root n => {x: n.x, y: 0}
-                | is-leaf n and n.y < 1000 => {x: n.x, y: 1000}
-                | otherwise => null
-            if goal
-                mv-towards 0.02, goal, n
+    by-x = compare << (.x)
+    width-range = d3.scale.linear!
+        .range [0, 1400]
 
-        leaves = sort-by (compare << (.x)), filter (-> is-leaf it and 950 <= it.y), graph.nodes
+    stratify = !->
+        roots = sort-by by-x, filter is-root, graph.nodes
+        leaves = sort-by by-x, filter is-leaf, graph.nodes
+
+        width-range.domain [0, roots.length - 1]
+
+        roots.for-each (root, i) ->
+            mv-towards 0.02, {y: 0, x: width-range i}, root
+
         leaves.for-each (n, i) ->
-            n.y = 1000 + (30 * i)
+            if n.y < 1000
+                mv-towards 0.02, {n.x, y: 1000}, n
+            if n.y >= 970
+                n.y = 1000 + (30 * i)
 
     centrify = !->
         roots = [n for n in graph.nodes when is-root n]
@@ -588,6 +594,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         do jiggle if jiggle
 
         circles = node.select-all \circle
+        mean-x = mean map (.x), graph.nodes
 
         # find overlapping labels
         texts = node.select-all \text.force-label
@@ -600,8 +607,9 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
                 d1.y = op d1.y, 22 # Jiggle them out of the way of each other.
 
         texts.attr \x, (.x)
+            .attr \text-anchor, -> if it.x < mean-x then \end else \start
             .attr \y, (.y)
-            .attr \dx, get-r
+            .attr \dx, -> if it.x < mean-x then 1 - get-r it else get-r it
 
         node.select-all \text.count-label
             .attr \x, (.x)
