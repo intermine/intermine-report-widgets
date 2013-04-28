@@ -277,6 +277,14 @@ draw-chord = (direct-nodes, edges, node-for-ident) ->
             n.seen = false
         set-timeout (-> svg-group.select-all \path.chord .attr \stroke, \#555), 0
 
+function mark-subtree root, prop, val
+    queue = [root]
+    moar = ({edges}) -> map (.target), edges |> reject (is val) << (.[prop])
+    while n = queue.shift!
+        n[prop] = val
+        each queue~push, moar n
+    root
+
 draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     $ \#jiggle
@@ -303,8 +311,8 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     for n in graph.nodes
         n.count = 1
 
-    is-root = (n) -> all (is n), map (.source), n.edges
-    is-leaf = (n) -> all (is n), map (.target), n.edges
+    is-root = (.is-root)
+    is-leaf = (.is-leaf)
     get-r = (5 +) << (1.5 *) << ln << (.count)
 
     force = d3.layout.force!
@@ -313,6 +321,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             root-bump = if is-root d then 150 else 0
             edge-bump = 10 * d.edges.length
             marked-bump = if d.marked then 150 else 0
+            jiggle-bump = if query-params.jiggle is \strata then 100 else 0
             k = 100
             1 - (k + radius + root-bump + edge-bump + marked-bump)
         .gravity 0.04
@@ -453,14 +462,6 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     function toggle-subtree root
         mark-subtree root, \muted, not root.muted
-
-    function mark-subtree root, prop, val
-        queue = [root]
-        moar = ({edges}) -> map (.target), edges |> reject (is val) << (.[prop])
-        while n = queue.shift!
-            n[prop] = val
-            each queue~push, moar n
-
         update-marked!
 
     function unmark
@@ -562,7 +563,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         n.x += dx
         n.y += dy
 
-    by-x = compare << (.x)
+    by-x = compare (.x)
     width-range = d3.scale.linear!
         .range [0, 1400]
 
@@ -574,6 +575,14 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
         roots.for-each (root, i) ->
             mv-towards 0.02, {y: 0, x: width-range i}, root
+
+        quantile = d3.scale.quantile!
+            .domain [0, 1400]
+            .range [0 til roots.length]
+
+        for n in graph.nodes when quantile(n.x) isnt quantile(n.root.x)
+            unless all (-> it.root is n.root), filter (-> quantile it.x is quantile n.root.x), graph.nodes
+                mv-towards 0.05, {n.y, x: n.root.x}, n
 
         leaves.for-each (n, i) ->
             if n.y < 1000
@@ -758,6 +767,7 @@ draw-dag = (direct-nodes, edges, node-for-ident) ->
 
 make-graph = (direct-nodes, edges, node-for-ident) ->
 
+    # Add edges to nodes. Edges belong to both the source and the target.
     for e in edges
         for prop in <[ source target ]>
             node-for-ident[e[prop]].edges.push e
@@ -767,11 +777,19 @@ make-graph = (direct-nodes, edges, node-for-ident) ->
         e.source = node-for-ident[e.source]
         e.target = node-for-ident[e.target]
 
-    for ident, node of node-for-ident
-        if ident in direct-nodes
-            node.is-direct = true
-
     nodes = values node-for-ident
+
+    is-root = (n) -> all (is n), map (.source), n.edges
+    is-leaf = (n) -> all (is n), map (.target), n.edges
+
+    # Precompute all these useful properties.
+    for n in nodes
+        n.is-direct = n.id in direct-nodes
+        n.is-leaf = is-leaf n
+        n.is-root = is-root n
+        n.marked = n.muted = false
+        if n.is-root
+            mark-subtree n, \root, n
 
     {nodes, edges}
 

@@ -468,6 +468,29 @@ if (typeof window == 'undefined' || window === null) {
     }
     return hideLinks;
   };
+  function markSubtree(root, prop, val){
+    var queue, moar, n;
+    queue = [root];
+    moar = function(arg$){
+      var edges;
+      edges = arg$.edges;
+      return reject(compose$([
+        (function(it){
+          return it === val;
+        }), function(it){
+          return it[prop];
+        }
+      ]))(
+      map(function(it){
+        return it.target;
+      }, edges));
+    };
+    while (n = queue.shift()) {
+      n[prop] = val;
+      each(bind$(queue, 'push'), moar(n));
+    }
+    return root;
+  }
   drawForce = function(directNodes, edges, nodeForIdent){
     var graph, i$, ref$, len$, n, isRoot, isLeaf, getR, force, svg, svgGroup, zoom, color, relationships, link, getLabelId, node, nG, legend, lg, timer, basisLine, linkSpline, drawCurve, mvTowards, byX, widthRange, stratify, centrify;
     $('#jiggle').show().val(queryParams.jiggle).on('change', function(){
@@ -487,19 +510,11 @@ if (typeof window == 'undefined' || window === null) {
       n = ref$[i$];
       n.count = 1;
     }
-    isRoot = function(n){
-      return all((function(it){
-        return it === n;
-      }), map(function(it){
-        return it.source;
-      }, n.edges));
+    isRoot = function(it){
+      return it.isRoot;
     };
-    isLeaf = function(n){
-      return all((function(it){
-        return it === n;
-      }), map(function(it){
-        return it.target;
-      }, n.edges));
+    isLeaf = function(it){
+      return it.isLeaf;
     };
     getR = compose$([
       (function(it){
@@ -511,11 +526,12 @@ if (typeof window == 'undefined' || window === null) {
       }
     ]);
     force = d3.layout.force().charge(function(d){
-      var radius, rootBump, edgeBump, markedBump, k;
+      var radius, rootBump, edgeBump, markedBump, jiggleBump, k;
       radius = getR(d);
       rootBump = isRoot(d) ? 150 : 0;
       edgeBump = 10 * d.edges.length;
       markedBump = d.marked ? 150 : 0;
+      jiggleBump = queryParams.jiggle === 'strata' ? 100 : 0;
       k = 100;
       return 1 - (k + radius + rootBump + edgeBump + markedBump);
     }).gravity(0.04).linkStrength(0.5).linkDistance(function(arg$){
@@ -662,29 +678,7 @@ if (typeof window == 'undefined' || window === null) {
       }
     }
     function toggleSubtree(root){
-      return markSubtree(root, 'muted', !root.muted);
-    }
-    function markSubtree(root, prop, val){
-      var queue, moar, n;
-      queue = [root];
-      moar = function(arg$){
-        var edges;
-        edges = arg$.edges;
-        return reject(compose$([
-          (function(it){
-            return it === val;
-          }), function(it){
-            return it[prop];
-          }
-        ]))(
-        map(function(it){
-          return it.target;
-        }, edges));
-      };
-      while (n = queue.shift()) {
-        n[prop] = val;
-        each(bind$(queue, 'push'), moar(n));
-      }
+      markSubtree(root, 'muted', !root.muted);
       return updateMarked();
     }
     function unmark(){
@@ -865,14 +859,12 @@ if (typeof window == 'undefined' || window === null) {
       n.x += dx;
       n.y += dy;
     };
-    byX = compose$([
-      compare, function(it){
-        return it.x;
-      }
-    ]);
+    byX = compare(function(it){
+      return it.x;
+    });
     widthRange = d3.scale.linear().range([0, 1400]);
     stratify = function(){
-      var roots, leaves;
+      var roots, leaves, quantile, i$, ref$, len$, n;
       roots = sortBy(byX, filter(isRoot, graph.nodes));
       leaves = sortBy(byX, filter(isLeaf, graph.nodes));
       widthRange.domain([0, roots.length - 1]);
@@ -882,6 +874,24 @@ if (typeof window == 'undefined' || window === null) {
           x: widthRange(i)
         }, root);
       });
+      quantile = d3.scale.quantile().domain([0, 1400]).range((function(){
+        var i$, to$, results$ = [];
+        for (i$ = 0, to$ = roots.length; i$ < to$; ++i$) {
+          results$.push(i$);
+        }
+        return results$;
+      }()));
+      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+        n = ref$[i$];
+        if (quantile(n.x) !== quantile(n.root.x)) {
+          if (!all(fn$, filter(fn1$, graph.nodes))) {
+            mvTowards(0.05, {
+              y: n.y,
+              x: n.root.x
+            }, n);
+          }
+        }
+      }
       leaves.forEach(function(n, i){
         if (n.y < 1000) {
           mvTowards(0.02, {
@@ -893,6 +903,12 @@ if (typeof window == 'undefined' || window === null) {
           return n.y = 1000 + 30 * i;
         }
       });
+      function fn$(it){
+        return it.root === n.root;
+      }
+      function fn1$(it){
+        return quantile(it.x === quantile(n.root.x));
+      }
     };
     centrify = function(){
       var roots, res$, i$, ref$, len$, n, meanD;
@@ -1205,7 +1221,7 @@ if (typeof window == 'undefined' || window === null) {
     return render(svg, svgGroup, graph);
   };
   makeGraph = function(directNodes, edges, nodeForIdent){
-    var i$, len$, e, j$, ref$, len1$, prop, ident, node, nodes;
+    var i$, len$, e, j$, ref$, len1$, prop, nodes, isRoot, isLeaf, n;
     for (i$ = 0, len$ = edges.length; i$ < len$; ++i$) {
       e = edges[i$];
       for (j$ = 0, len1$ = (ref$ = ['source', 'target']).length; j$ < len1$; ++j$) {
@@ -1218,13 +1234,31 @@ if (typeof window == 'undefined' || window === null) {
       e.source = nodeForIdent[e.source];
       e.target = nodeForIdent[e.target];
     }
-    for (ident in nodeForIdent) {
-      node = nodeForIdent[ident];
-      if (in$(ident, directNodes)) {
-        node.isDirect = true;
+    nodes = values(nodeForIdent);
+    isRoot = function(n){
+      return all((function(it){
+        return it === n;
+      }), map(function(it){
+        return it.source;
+      }, n.edges));
+    };
+    isLeaf = function(n){
+      return all((function(it){
+        return it === n;
+      }), map(function(it){
+        return it.target;
+      }, n.edges));
+    };
+    for (i$ = 0, len$ = nodes.length; i$ < len$; ++i$) {
+      n = nodes[i$];
+      n.isDirect = in$(n.id, directNodes);
+      n.isLeaf = isLeaf(n);
+      n.isRoot = isRoot(n);
+      n.marked = n.muted = false;
+      if (n.isRoot) {
+        markSubtree(n, 'root', n);
       }
     }
-    nodes = values(nodeForIdent);
     return {
       nodes: nodes,
       edges: edges
