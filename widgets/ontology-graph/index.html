@@ -33,8 +33,29 @@
                 </defs>
             </svg>
         </div>
+        <select id="jiggle">
+            <option value="none">Force Directed Layout</option>
+            <option value="strata">Move Roots to Top</option>
+            <option value="centre">Move Roots to Centre</option>
+        </select>
+        <select id="spline">
+            <option value="curved">Curved Links</option>
+            <option value="straight">Straight Links</option>
+        </select>
     </body>
     <style>
+
+        #jiggle, #spline {
+            display: none;
+            position: absolute;
+            right: 150px;
+        }
+        #jiggle {
+            top: 25px;
+        }
+        #spline {
+            top: 50px;
+        }
 
         svg {
             background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAdCAMAAACKeiw+AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAAZQTFRF////9fb3h/JDwQAAABtJREFUeNpiYMQLGBgZ8IJR6VHpUWnKpAECDACcGgA72QxfPgAAAABJRU5ErkJggg==);

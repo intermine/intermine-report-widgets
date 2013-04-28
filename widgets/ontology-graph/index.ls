@@ -3,7 +3,7 @@
 {Service} = intermine
 
 # The Service#rows function
-{rows} = new Service root: 'www.flymine.org/query'
+{rows, query} = new Service root: 'www.flymine.org/query'
 
 node-padding = 10
 
@@ -24,6 +24,12 @@ whole-graph-q = (terms) ->
     where:
         'childTerm.identifier': terms
         direct: \true
+
+count-query = (terms) ->
+    select: <[ symbol ]>
+    from: \Gene
+    where:
+        'goAnnotation.ontologyTerm.parents.identifier': terms
 
 #'relations.relationship': \is_a
 
@@ -272,17 +278,53 @@ draw-chord = (direct-nodes, edges, node-for-ident) ->
         set-timeout (-> svg-group.select-all \path.chord .attr \stroke, \#555), 0
 
 draw-force =  (direct-nodes, edges, node-for-ident) ->
+
+    $ \#jiggle
+        .show!
+        .val query-params.jiggle
+        .on \change, !->
+            query-params.jiggle = $(@).val!
+            force.start!
+    $ \#spline
+        .show!
+        .val query-params.spline
+        .on \change, !->
+            query-params.spline = $(@).val!
+            tick!
+
     graph = make-graph ...
 
+    for n in graph.nodes
+        n.count = 1
+
+    is-root = (n) -> all (is n), map (.source), n.edges
+    is-leaf = (n) -> all (is n), map (.target), n.edges
+    get-r = (5 +) << (1.5 *) << ln << (.count)
+
     force = d3.layout.force!
-        .charge (d) -> -100 - (10 * d.edges.length)
-        .friction 0.8
+        .charge (d) ->
+            -100 - (10 * d.edges.length) - (get-r d) - (if is-root d then 150 else 0)
         .gravity 0.04
         .link-strength 0.5
         .link-distance ({source, target}) ->
             ns = [source, target]
-            (10 * sum map (-> it.edges?.length or 0) ns) + 50 + if (any (.marked), ns) then 150 else 0
+            edges = sum map (-> it.edges?.length or 0), ns
+            marked-bump = if (any (.marked), ns) then 150 else 0
+            muted-penalty = if (any (.muted), ns) then 100 else 0
+            radii = sum map get-r, ns
+            (10 * edges) + radii + 50 + marked-bump - muted-penalty
         .size [1400, 1000]
+
+    (node-for-ident |> keys |> count-query |> query)
+        .then (.summarise \goAnnotation.ontologyTerm.parents.identifier)
+        .then list-to-obj << map ({count, item}) -> [item, count]
+        .then (summary) ->
+            for n in graph.nodes
+                n.count = summary[n.id]
+            n-g.select-all \circle
+                .attr \r, get-r
+            force.start!
+
 
     svg = d3.select \svg
     svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
@@ -322,8 +364,6 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         .call force.drag
         .on \click, draw-path-to-root
 
-    get-r = (5 +) << (length) << (.edges)
-
     n-g.append \circle
         .attr \class, \force-term
         .classed \root, (n) -> all (is n), map (.source), n.edges
@@ -352,6 +392,12 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         .attr \height, 50
         .attr \x, 25
         .attr \y, (d, i) -> 25 + 50 * i
+        .on \click, (rel) ->
+            for e in graph.edges when e.label is rel
+                for n in [e.source, e.target]
+                    n.marked = true
+            update-marked true
+            set-timeout unmark, 10_000ms
 
     lg.append \rect
         .attr \opacity, 0.6
@@ -373,21 +419,36 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     var timer
 
     function draw-path-to-root d, i
-        clear-timeout timer
-        queue = [d]
-        moar = -> it.edges |> map (.source) |> reject (.marked) |> unique
-        count = 0
-        max = 15 # don't overwhelm things
-        while (count++ < max) and n = queue.shift!
-            n.marked = true
-            for sn in moar n
-                queue.push sn
-        update-marked true
-        timer := set-timeout unmark , 15000ms
+        if is-root d
+            toggle-subtree d
+        else
+            clear-timeout timer
+            queue = [d]
+            moar = -> it.edges |> map (.source) |> reject (.marked) |> unique
+            count = 0
+            max = 15 # don't overwhelm things
+            while (count++ < max) and n = queue.shift!
+                n.marked = true
+                for sn in moar n
+                    queue.push sn
+            update-marked true
+            timer := set-timeout unmark , 25000ms
+
+    function toggle-subtree root
+        mark-subtree root, \muted, not root.muted
+
+    function mark-subtree root, prop, val
+        queue = [root]
+        moar = ({edges}) -> map (.target), edges |> reject (is val) << (.[prop])
+        while n = queue.shift!
+            n[prop] = val
+            each queue~push, moar n
+
+        update-marked!
 
     function unmark
         for n in graph.nodes
-            n.marked = false
+            n.marked = n.muted = false
         update-marked!
 
     function update-marked marked
@@ -413,11 +474,11 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
                 .attr \opacity, -> if it.marked then 1 else 0.3
 
         else
+            link.attr \opacity, ({source: {muted}}) -> if muted then 0.3 else 0.6
             node.select-all \circle
-                .attr \opacity, 1
-            link.attr \opacity, 0.6
+                .attr \opacity, -> if it.muted then 0.3 else 1
             node.select-all \text
-                .attr \opacity, 1
+                .attr \opacity, -> if it.muted then 0.3 else 1
 
     function show-label d, i
         for n in concat-map (-> [it.source, it.target]), d.edges
@@ -432,7 +493,29 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     /* http://bl.ocks.org/sboak/2942556 */
     basis-line = d3.svg.line!
             .interpolate \basis
-    offset-scale = 0.1
+
+    link-spline = (offset-scale, args) -->
+        [source, target, line-length, end-point, width, cos90, sin90] = args
+        mean-x = mean map (.x), [source, target]
+        mean-y = mean map (.y), [source, target]
+
+
+        offset = (offset-scale * line-length) - (width / 2)
+
+        mp1-x = mean-x + offset * cos90
+        mp1-y = mean-y + offset * sin90
+        mp2-x = mean-x + offset * cos90
+        mp2-y = mean-y + offset * sin90
+
+        [
+            [(source.x - width * cos90), (source.y - width * sin90)],
+            [mp2-x, mp2-y],
+            end-point,
+            end-point,
+            [mp1-x, mp1-y],
+            [(source.x + width * cos90), (source.y + width * sin90)]
+        ]
+
 
     draw-curve = ({target, source}) ->
         [source, target] = [target, source]
@@ -445,43 +528,71 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         [radius-t, radius-s] = map get-r, [target, source]
         width = radius-s / 3
 
-        mean-x = mean map (.x), [source, target]
-        mean-y = mean map (.y), [source, target]
-
         line-length = sqrt pow(target.x - source.x, 2) + pow(target.y - source.y, 2)
+        end-point = [(target.x + radius-t * cos-s), (target.y + radius-t * sin-s)]
 
-        mp1-x = mean-x + (offset-scale * line-length + (width / 2)) * cos90
-        mp1-y = mean-y + (offset-scale * line-length + (width / 2)) * sin90
-        mp2-x = mean-x + (offset-scale * line-length - (width / 2)) * cos90
-        mp2-y = mean-y + (offset-scale * line-length - (width / 2)) * sin90
+        args = [source, target, line-length, end-point, width, cos90, sin90]
 
-        points = [
-            [(source.x - width * cos90), (source.y - width * sin90)],
-            [mp2-x, mp2-y],
-            [(target.x + radius-t * cos-s), (target.y + radius-t * sin-s)],
-            [(target.x + radius-t * cos-s), (target.y + radius-t * sin-s)],
-            [mp1-x, mp1-y],
-            [(source.x + width * cos90), (source.y + width * sin90)]
-        ]
-        points |> basis-line |> (+ \Z)
+        points = switch query-params.spline
+            | \straight => link-spline 0.0
+            | otherwise => link-spline 0.1
 
+        args |> points |> basis-line |> (+ \Z)
+
+    mv-towards = !(how-much, goal, n) ->
+        dx = (how-much *) goal.x - n.x
+        dy = (how-much *) goal.y - n.y
+        n.x += dx
+        n.y += dy
+
+    stratify = !->
+        for n in graph.nodes
+            goal =
+                | is-root n => {x: n.x, y: 0}
+                | is-leaf n and n.y < 1000 => {x: n.x, y: 1000}
+                | otherwise => null
+            if goal
+                mv-towards 0.02, goal, n
+
+        leaves = sort-by (compare << (.x)), filter (-> is-leaf it and 950 <= it.y), graph.nodes
+        leaves.for-each (n, i) ->
+            n.y = 1000 + (30 * i)
+
+    centrify = !->
+        roots = [n for n in graph.nodes when is-root n]
+        mean-d = mean map (* 2) << get-r, roots
+        roots.for-each !(n, i) ->
+            goal =
+                x: 700
+                y: 500 - (mean-d * roots.length / 2) + (mean-d * i)
+            mv-towards 0.05, goal, n
 
     function tick
+
+        jiggle = switch query-params.jiggle
+            | \strata => stratify
+            | \centre => centrify
+
+        do jiggle if jiggle
+
+        circles = node.select-all \circle
+
         # find overlapping labels
         texts = node.select-all \text
         displayed-texts = texts.filter -> \block is d3.select(@).attr \display
-        displayed-texts.each (d1) ->
+        displayed-texts.each (d1, i) ->
             overlapped = false
             displayed-texts.each (d2) -> overlapped or= abs(d1.y - d2.y) < 20
             if overlapped
-                op = if Math.random! > 0.5 then (+) else (-)
+                op = if even i then (+) else (-)
                 d1.y = op d1.y, 22 # Jiggle them out of the way of each other.
 
         texts.attr \x, (.x)
             .attr \y, (.y)
-        node.select-all \circle
-            .attr \cx, (.x)
+
+        circles.attr \cx, (.x)
             .attr \cy, (.y)
+
         if query-params.spline
             link.attr \d, draw-curve
         else
@@ -845,7 +956,7 @@ query-params =
     |> (.substring 1)
     |> (.split \&)
     |> map (map decodeURIComponent) << (.split \=)
-    |> listToObj
+    |> list-to-obj
 
 current-symbol = -> query-params.symbol or \bsk
 

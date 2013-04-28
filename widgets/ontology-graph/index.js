@@ -5,11 +5,11 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, rows, nodePadding, directTerms, allGoTerms, wholeGraphQ, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, drawChord, drawForce, drawRadial, drawDag, makeGraph, doUpdate, render, flatten, rowToNode, queryParams, currentSymbol, main;
+  var Service, ref$, rows, query, nodePadding, directTerms, allGoTerms, wholeGraphQ, countQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, drawChord, drawForce, drawRadial, drawDag, makeGraph, doUpdate, render, flatten, rowToNode, queryParams, currentSymbol, main;
   Service = intermine.Service;
-  rows = new Service({
+  ref$ = new Service({
     root: 'www.flymine.org/query'
-  }).rows;
+  }), rows = ref$.rows, query = ref$.query;
   nodePadding = 10;
   directTerms = function(it){
     return {
@@ -36,6 +36,15 @@ if (typeof window == 'undefined' || window === null) {
       where: {
         'childTerm.identifier': terms,
         direct: 'true'
+      }
+    };
+  };
+  countQuery = function(terms){
+    return {
+      select: ['symbol'],
+      from: 'Gene',
+      where: {
+        'goAnnotation.ontologyTerm.parents.identifier': terms
       }
     };
   };
@@ -460,21 +469,82 @@ if (typeof window == 'undefined' || window === null) {
     return hideLinks;
   };
   drawForce = function(directNodes, edges, nodeForIdent){
-    var graph, force, svg, svgGroup, zoom, color, relationships, link, getLabelId, node, nG, getR, legend, lg, timer, basisLine, offsetScale, drawCurve;
+    var graph, i$, ref$, len$, n, isRoot, isLeaf, getR, force, svg, svgGroup, zoom, color, relationships, link, getLabelId, node, nG, legend, lg, timer, basisLine, linkSpline, drawCurve, mvTowards, stratify, centrify;
+    $('#jiggle').show().val(queryParams.jiggle).on('change', function(){
+      queryParams.jiggle = $(this).val();
+      force.start();
+    });
+    $('#spline').show().val(queryParams.spline).on('change', function(){
+      queryParams.spline = $(this).val();
+      tick();
+    });
     graph = makeGraph.apply(this, arguments);
+    for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+      n = ref$[i$];
+      n.count = 1;
+    }
+    isRoot = function(n){
+      return all((function(it){
+        return it === n;
+      }), map(function(it){
+        return it.source;
+      }, n.edges));
+    };
+    isLeaf = function(n){
+      return all((function(it){
+        return it === n;
+      }), map(function(it){
+        return it.target;
+      }, n.edges));
+    };
+    getR = compose$([
+      (function(it){
+        return 5 + it;
+      }), (function(it){
+        return 1.5 * it;
+      }), ln, function(it){
+        return it.count;
+      }
+    ]);
     force = d3.layout.force().charge(function(d){
-      return -100 - 10 * d.edges.length;
-    }).friction(0.8).gravity(0.04).linkStrength(0.5).linkDistance(function(arg$){
-      var source, target, ns;
+      return -100 - 10 * d.edges.length - getR(d) - (isRoot(d) ? 150 : 0);
+    }).gravity(0.04).linkStrength(0.5).linkDistance(function(arg$){
+      var source, target, ns, edges, markedBump, mutedPenalty, radii;
       source = arg$.source, target = arg$.target;
       ns = [source, target];
-      return 10 * sum(map(function(it){
+      edges = sum(map(function(it){
         var ref$;
         return ((ref$ = it.edges) != null ? ref$.length : void 8) || 0;
-      }(ns))) + 50 + (any(function(it){
+      }, ns));
+      markedBump = any(function(it){
         return it.marked;
-      }, ns) ? 150 : 0);
+      }, ns) ? 150 : 0;
+      mutedPenalty = any(function(it){
+        return it.muted;
+      }, ns) ? 100 : 0;
+      radii = sum(map(getR, ns));
+      return 10 * edges + radii + 50 + markedBump - mutedPenalty;
     }).size([1400, 1000]);
+    query(
+    countQuery(
+    keys(
+    nodeForIdent))).then(function(it){
+      return it.summarise('goAnnotation.ontologyTerm.parents.identifier');
+    }).then(compose$([
+      listToObj, map(function(arg$){
+        var count, item;
+        count = arg$.count, item = arg$.item;
+        return [item, count];
+      })
+    ])).then(function(summary){
+      var i$, ref$, len$, n;
+      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+        n = ref$[i$];
+        n.count = summary[n.id];
+      }
+      nG.selectAll('circle').attr('r', getR);
+      return force.start();
+    });
     svg = d3.select('svg');
     svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
     zoom = d3.behavior.zoom().on('zoom', function(){
@@ -509,13 +579,6 @@ if (typeof window == 'undefined' || window === null) {
     ]);
     node = svgGroup.selectAll('.force-node').data(graph.nodes);
     nG = node.enter().append('g').attr('class', 'force-node').call(force.drag).on('click', drawPathToRoot);
-    getR = compose$([
-      (function(it){
-        return 5 + it;
-      }), length, function(it){
-        return it.edges;
-      }
-    ]);
     nG.append('circle').attr('class', 'force-term').classed('root', function(n){
       return all((function(it){
         return it === n;
@@ -540,6 +603,19 @@ if (typeof window == 'undefined' || window === null) {
     legend = svg.selectAll('g.legend').data(relationships);
     lg = legend.enter().append('g').attr('class', 'legend').attr('width', 200).attr('height', 50).attr('x', 25).attr('y', function(d, i){
       return 25 + 50 * i;
+    }).on('click', function(rel){
+      var i$, ref$, len$, e, j$, ref1$, len1$, n;
+      for (i$ = 0, len$ = (ref$ = graph.edges).length; i$ < len$; ++i$) {
+        e = ref$[i$];
+        if (e.label === rel) {
+          for (j$ = 0, len1$ = (ref1$ = [e.source, e.target]).length; j$ < len1$; ++j$) {
+            n = ref1$[j$];
+            n.marked = true;
+          }
+        }
+      }
+      updateMarked(true);
+      return setTimeout(unmark, 10000);
     });
     lg.append('rect').attr('opacity', 0.6).attr('width', 250).attr('height', 50).attr('x', 25).attr('y', function(d, i){
       return 50 * i;
@@ -552,35 +628,65 @@ if (typeof window == 'undefined' || window === null) {
     updateMarked();
     function drawPathToRoot(d, i){
       var queue, moar, count, max, n, i$, ref$, len$, sn;
-      clearTimeout(timer);
-      queue = [d];
-      moar = function(it){
-        return unique(
-        reject(function(it){
-          return it.marked;
-        })(
-        map(function(it){
-          return it.source;
-        })(
-        it.edges)));
-      };
-      count = 0;
-      max = 15;
-      while (count++ < max && (n = queue.shift())) {
-        n.marked = true;
-        for (i$ = 0, len$ = (ref$ = moar(n)).length; i$ < len$; ++i$) {
-          sn = ref$[i$];
-          queue.push(sn);
+      if (isRoot(d)) {
+        return toggleSubtree(d);
+      } else {
+        clearTimeout(timer);
+        queue = [d];
+        moar = function(it){
+          return unique(
+          reject(function(it){
+            return it.marked;
+          })(
+          map(function(it){
+            return it.source;
+          })(
+          it.edges)));
+        };
+        count = 0;
+        max = 15;
+        while (count++ < max && (n = queue.shift())) {
+          n.marked = true;
+          for (i$ = 0, len$ = (ref$ = moar(n)).length; i$ < len$; ++i$) {
+            sn = ref$[i$];
+            queue.push(sn);
+          }
         }
+        updateMarked(true);
+        return timer = setTimeout(unmark, 25000);
       }
-      updateMarked(true);
-      return timer = setTimeout(unmark, 15000);
+    }
+    function toggleSubtree(root){
+      return markSubtree(root, 'muted', !root.muted);
+    }
+    function markSubtree(root, prop, val){
+      var queue, moar, n;
+      queue = [root];
+      moar = function(arg$){
+        var edges;
+        edges = arg$.edges;
+        return reject(compose$([
+          (function(it){
+            return it === val;
+          }), function(it){
+            return it[prop];
+          }
+        ]))(
+        map(function(it){
+          return it.target;
+        }, edges));
+      };
+      while (n = queue.shift()) {
+        n[prop] = val;
+        each(bind$(queue, 'push'), moar(n));
+      }
+      return updateMarked();
     }
     function unmark(){
       var i$, ref$, len$, n;
       for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
         n = ref$[i$];
-        n.marked = false;
+        n.marked = n.muted = false;
       }
       return updateMarked();
     }
@@ -642,9 +748,29 @@ if (typeof window == 'undefined' || window === null) {
           }
         });
       } else {
-        node.selectAll('circle').attr('opacity', 1);
-        link.attr('opacity', 0.6);
-        return node.selectAll('text').attr('opacity', 1);
+        link.attr('opacity', function(arg$){
+          var muted;
+          muted = arg$.source.muted;
+          if (muted) {
+            return 0.3;
+          } else {
+            return 0.6;
+          }
+        });
+        node.selectAll('circle').attr('opacity', function(it){
+          if (it.muted) {
+            return 0.3;
+          } else {
+            return 1;
+          }
+        });
+        return node.selectAll('text').attr('opacity', function(it){
+          if (it.muted) {
+            return 0.3;
+          } else {
+            return 1;
+          }
+        });
       }
     }
     function showLabel(d, i){
@@ -674,9 +800,24 @@ if (typeof window == 'undefined' || window === null) {
     /* http://bl.ocks.org/sboak/2942559 */
     /* http://bl.ocks.org/sboak/2942556 */
     basisLine = d3.svg.line().interpolate('basis');
-    offsetScale = 0.1;
+    linkSpline = curry$(function(offsetScale, args){
+      var source, target, lineLength, endPoint, width, cos90, sin90, meanX, meanY, offset, mp1X, mp1Y, mp2X, mp2Y;
+      source = args[0], target = args[1], lineLength = args[2], endPoint = args[3], width = args[4], cos90 = args[5], sin90 = args[6];
+      meanX = mean(map(function(it){
+        return it.x;
+      }, [source, target]));
+      meanY = mean(map(function(it){
+        return it.y;
+      }, [source, target]));
+      offset = offsetScale * lineLength - width / 2;
+      mp1X = meanX + offset * cos90;
+      mp1Y = meanY + offset * sin90;
+      mp2X = meanX + offset * cos90;
+      mp2Y = meanY + offset * sin90;
+      return [[source.x - width * cos90, source.y - width * sin90], [mp2X, mp2Y], endPoint, endPoint, [mp1X, mp1Y], [source.x + width * cos90, source.y + width * sin90]];
+    });
     drawCurve = function(arg$){
-      var target, source, ref$, cos, sin, sqrt, atan2, pow, PI, slope, sinS, cosS, slopePlus90, sin90, cos90, radiusT, radiusS, width, meanX, meanY, lineLength, mp1X, mp1Y, mp2X, mp2Y, points;
+      var target, source, ref$, cos, sin, sqrt, atan2, pow, PI, slope, sinS, cosS, slopePlus90, sin90, cos90, radiusT, radiusS, width, lineLength, endPoint, args, points;
       target = arg$.target, source = arg$.source;
       ref$ = [target, source], source = ref$[0], target = ref$[1];
       cos = Math.cos, sin = Math.sin, sqrt = Math.sqrt, atan2 = Math.atan2, pow = Math.pow, PI = Math.PI;
@@ -690,31 +831,114 @@ if (typeof window == 'undefined' || window === null) {
       }, [sin, cos]), sin90 = ref$[0], cos90 = ref$[1];
       ref$ = map(getR, [target, source]), radiusT = ref$[0], radiusS = ref$[1];
       width = radiusS / 3;
-      meanX = mean(map(function(it){
-        return it.x;
-      }, [source, target]));
-      meanY = mean(map(function(it){
-        return it.y;
-      }, [source, target]));
       lineLength = sqrt(pow(target.x - source.x, 2) + pow(target.y - source.y, 2));
-      mp1X = meanX + (offsetScale * lineLength + width / 2) * cos90;
-      mp1Y = meanY + (offsetScale * lineLength + width / 2) * sin90;
-      mp2X = meanX + (offsetScale * lineLength - width / 2) * cos90;
-      mp2Y = meanY + (offsetScale * lineLength - width / 2) * sin90;
-      points = [[source.x - width * cos90, source.y - width * sin90], [mp2X, mp2Y], [target.x + radiusT * cosS, target.y + radiusT * sinS], [target.x + radiusT * cosS, target.y + radiusT * sinS], [mp1X, mp1Y], [source.x + width * cos90, source.y + width * sin90]];
+      endPoint = [target.x + radiusT * cosS, target.y + radiusT * sinS];
+      args = [source, target, lineLength, endPoint, width, cos90, sin90];
+      points = (function(){
+        switch (queryParams.spline) {
+        case 'straight':
+          return linkSpline(0.0);
+        default:
+          return linkSpline(0.1);
+        }
+      }());
       return (function(it){
         return it + 'Z';
       })(
       basisLine(
-      points));
+      points(
+      args)));
+    };
+    mvTowards = function(howMuch, goal, n){
+      var dx, dy;
+      dx = (function(it){
+        return howMuch * it;
+      })(goal.x - n.x);
+      dy = (function(it){
+        return howMuch * it;
+      })(goal.y - n.y);
+      n.x += dx;
+      n.y += dy;
+    };
+    stratify = function(){
+      var i$, ref$, len$, n, goal, leaves;
+      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+        n = ref$[i$];
+        goal = (fn$());
+        if (goal) {
+          mvTowards(0.02, goal, n);
+        }
+      }
+      leaves = sortBy(compose$([
+        compare, function(it){
+          return it.x;
+        }
+      ]), filter(function(it){
+        return isLeaf(it) && 950 <= it.y;
+      }, graph.nodes));
+      leaves.forEach(function(n, i){
+        return n.y = 1000 + 30 * i;
+      });
+      function fn$(){
+        switch (false) {
+        case !isRoot(n):
+          return {
+            x: n.x,
+            y: 0
+          };
+        case !(isLeaf(n) && n.y < 1000):
+          return {
+            x: n.x,
+            y: 1000
+          };
+        default:
+          return null;
+        }
+      }
+    };
+    centrify = function(){
+      var roots, res$, i$, ref$, len$, n, meanD;
+      res$ = [];
+      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+        n = ref$[i$];
+        if (isRoot(n)) {
+          res$.push(n);
+        }
+      }
+      roots = res$;
+      meanD = mean(map(compose$([
+        (function(it){
+          return it * 2;
+        }), getR
+      ]), roots));
+      roots.forEach(function(n, i){
+        var goal;
+        goal = {
+          x: 700,
+          y: 500 - meanD * roots.length / 2 + meanD * i
+        };
+        mvTowards(0.05, goal, n);
+      });
     };
     function tick(){
-      var texts, displayedTexts;
+      var jiggle, circles, texts, displayedTexts;
+      jiggle = (function(){
+        switch (queryParams.jiggle) {
+        case 'strata':
+          return stratify;
+        case 'centre':
+          return centrify;
+        }
+      }());
+      if (jiggle) {
+        jiggle();
+      }
+      circles = node.selectAll('circle');
       texts = node.selectAll('text');
       displayedTexts = texts.filter(function(){
         return 'block' === d3.select(this).attr('display');
       });
-      displayedTexts.each(function(d1){
+      displayedTexts.each(function(d1, i){
         var overlapped, op;
         overlapped = false;
         displayedTexts.each(function(d2){
@@ -722,7 +946,7 @@ if (typeof window == 'undefined' || window === null) {
           return overlapped || (overlapped = abs(d1.y - d2.y) < 20);
         });
         if (overlapped) {
-          op = Math.random() > 0.5
+          op = even(i)
             ? curry$(function(x$, y$){
               return x$ + y$;
             })
@@ -737,7 +961,7 @@ if (typeof window == 'undefined' || window === null) {
       }).attr('y', function(it){
         return it.y;
       });
-      node.selectAll('circle').attr('cx', function(it){
+      circles.attr('cx', function(it){
         return it.x;
       }).attr('cy', function(it){
         return it.y;
