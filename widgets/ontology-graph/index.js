@@ -534,7 +534,7 @@ if (typeof window == 'undefined' || window === null) {
       jiggleBump = queryParams.jiggle === 'strata' ? 100 : 0;
       k = 100;
       return 1 - (k + radius + rootBump + edgeBump + markedBump);
-    }).gravity(0.04).linkStrength(0.5).linkDistance(function(arg$){
+    }).gravity(0.04).linkStrength(0.8).linkDistance(function(arg$){
       var source, target, ns, edges, markedBump, mutedPenalty, radii;
       source = arg$.source, target = arg$.target;
       ns = [source, target];
@@ -622,7 +622,7 @@ if (typeof window == 'undefined' || window === null) {
       return it.label;
     });
     legend = svg.selectAll('g.legend').data(relationships);
-    lg = legend.enter().append('g').attr('class', 'legend').attr('width', 200).attr('height', 50).attr('x', 25).attr('y', function(d, i){
+    lg = legend.enter().append('g').attr('class', 'legend').attr('width', 140).attr('height', 50).attr('x', 25).attr('y', function(d, i){
       return 25 + 50 * i;
     }).on('click', function(rel){
       var i$, ref$, len$, e, j$, ref1$, len1$, n;
@@ -638,7 +638,7 @@ if (typeof window == 'undefined' || window === null) {
       updateMarked(true);
       return setTimeout(unmark, 10000);
     });
-    lg.append('rect').attr('opacity', 0.6).attr('width', 250).attr('height', 50).attr('x', 25).attr('y', function(d, i){
+    lg.append('rect').attr('opacity', 0.6).attr('width', 180).attr('height', 50).attr('x', 25).attr('y', function(d, i){
       return 50 * i;
     }).attr('fill', function(d, i){
       return color(i);
@@ -726,7 +726,7 @@ if (typeof window == 'undefined' || window === null) {
           if (it.marked) {
             return 1;
           } else {
-            return 0.3;
+            return 0.2;
           }
         });
         link.attr('opacity', function(arg$){
@@ -736,14 +736,14 @@ if (typeof window == 'undefined' || window === null) {
           case !target.marked:
             return 0.8;
           default:
-            return 0.3;
+            return 0.2;
           }
         });
         return node.selectAll('text').attr('opacity', function(it){
           if (it.marked) {
             return 1;
           } else {
-            return 0.3;
+            return 0.2;
           }
         });
       } else {
@@ -864,12 +864,12 @@ if (typeof window == 'undefined' || window === null) {
     });
     widthRange = d3.scale.linear().range([0, 1400]);
     stratify = function(){
-      var roots, leaves, quantile, i$, ref$, len$, n;
+      var roots, leaves, quantile, i$, ref$, len$, n, ref1$, qn, qr;
       roots = sortBy(byX, filter(isRoot, graph.nodes));
       leaves = sortBy(byX, filter(isLeaf, graph.nodes));
       widthRange.domain([0, roots.length - 1]);
       roots.forEach(function(root, i){
-        return mvTowards(0.02, {
+        return mvTowards(0.06, {
           y: 0,
           x: widthRange(i)
         }, root);
@@ -883,13 +883,12 @@ if (typeof window == 'undefined' || window === null) {
       }()));
       for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
         n = ref$[i$];
-        if (quantile(n.x) !== quantile(n.root.x)) {
-          if (!all(fn$, filter(fn1$, graph.nodes))) {
-            mvTowards(0.05, {
-              y: n.y,
-              x: n.root.x
-            }, n);
-          }
+        ref1$ = map(quantile, [n.x, n.root.x]), qn = ref1$[0], qr = ref1$[1];
+        if (qn !== qr && (abs(qn - qr) > 1 || any(fn$, filter(fn1$, graph.nodes)))) {
+          mvTowards(0.02, {
+            y: n.y,
+            x: n.root.x
+          }, n);
         }
       }
       leaves.forEach(function(n, i){
@@ -904,22 +903,17 @@ if (typeof window == 'undefined' || window === null) {
         }
       });
       function fn$(it){
-        return it.root === n.root;
+        return it.root !== n.root;
       }
       function fn1$(it){
-        return quantile(it.x === quantile(n.root.x));
+        return quantile(it.x === qr);
       }
     };
     centrify = function(){
-      var roots, res$, i$, ref$, len$, n, meanD;
-      res$ = [];
-      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
-        n = ref$[i$];
-        if (isRoot(n)) {
-          res$.push(n);
-        }
-      }
-      roots = res$;
+      var roots, meanD;
+      roots = sortBy(compare(function(it){
+        return it.y;
+      }), filter(isRoot, graph.nodes));
       meanD = mean(map(compose$([
         (function(it){
           return it * 2;
@@ -935,7 +929,7 @@ if (typeof window == 'undefined' || window === null) {
       });
     };
     function tick(){
-      var jiggle, circles, meanX, texts, displayedTexts;
+      var jiggle, circles, meanX, getHalf, texts, displayedTexts;
       jiggle = (function(){
         switch (queryParams.jiggle) {
         case 'strata':
@@ -951,16 +945,18 @@ if (typeof window == 'undefined' || window === null) {
       meanX = mean(map(function(it){
         return it.x;
       }, graph.nodes));
+      getHalf = d3.scale.quantile().domain([0, 1400]).range(['left', 'right']);
       texts = node.selectAll('text.force-label');
       displayedTexts = texts.filter(function(){
         return 'block' === d3.select(this).attr('display');
       });
       displayedTexts.each(function(d1, i){
-        var overlapped, op;
+        var overlapped, thisHalf, op;
         overlapped = false;
+        thisHalf = getHalf(d1.x);
         displayedTexts.each(function(d2){
           var overlapped;
-          return overlapped || (overlapped = abs(d1.y - d2.y) < 20);
+          return overlapped || (overlapped = getHalf(d2.x === thisHalf) && abs(d1.y - d2.y) < 20);
         });
         if (overlapped) {
           op = even(i)

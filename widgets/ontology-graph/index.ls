@@ -325,7 +325,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             k = 100
             1 - (k + radius + root-bump + edge-bump + marked-bump)
         .gravity 0.04
-        .link-strength 0.5
+        .link-strength 0.8
         .link-distance ({source, target}) ->
             ns = [source, target]
             edges = sum map (-> it.edges?.length or 0), ns
@@ -414,7 +414,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     lg = legend.enter!
         .append \g
         .attr \class, \legend
-        .attr \width, 200
+        .attr \width, 140
         .attr \height, 50
         .attr \x, 25
         .attr \y, (d, i) -> 25 + 50 * i
@@ -427,7 +427,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     lg.append \rect
         .attr \opacity, 0.6
-        .attr \width, 250
+        .attr \width, 180
         .attr \height, 50
         .attr \x, 25
         .attr \y, (d, i) -> 50 * i
@@ -484,12 +484,12 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
         if marked
             node.select-all \circle
-                .attr \opacity, -> if it.marked then 1 else 0.3
+                .attr \opacity, -> if it.marked then 1 else 0.2
             link.attr \opacity, ({target}) ->
                 | target.marked => 0.8
-                | otherwise => 0.3
+                | otherwise => 0.2
             node.select-all \text
-                .attr \opacity, -> if it.marked then 1 else 0.3
+                .attr \opacity, -> if it.marked then 1 else 0.2
 
         else
             link.attr \opacity, ({source: {muted}}) -> if muted then 0.3 else 0.6
@@ -574,15 +574,16 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         width-range.domain [0, roots.length - 1]
 
         roots.for-each (root, i) ->
-            mv-towards 0.02, {y: 0, x: width-range i}, root
+            mv-towards 0.06, {y: 0, x: width-range i}, root
 
         quantile = d3.scale.quantile!
             .domain [0, 1400]
             .range [0 til roots.length]
 
-        for n in graph.nodes when quantile(n.x) isnt quantile(n.root.x)
-            unless all (-> it.root is n.root), filter (-> quantile it.x is quantile n.root.x), graph.nodes
-                mv-towards 0.05, {n.y, x: n.root.x}, n
+        for n in graph.nodes
+            [qn, qr] = map quantile, [n.x, n.root.x]
+            if qn isnt qr and (abs(qn - qr) > 1 or any (-> it.root isnt n.root), filter (-> quantile it.x is qr), graph.nodes)
+                mv-towards 0.02, {n.y, x: n.root.x}, n
 
         leaves.for-each (n, i) ->
             if n.y < 1000
@@ -591,7 +592,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
                 n.y = 1000 + (30 * i)
 
     centrify = !->
-        roots = [n for n in graph.nodes when is-root n]
+        roots = sort-by (compare (.y)), filter is-root, graph.nodes
         mean-d = mean map (* 2) << get-r, roots
         roots.for-each !(n, i) ->
             goal =
@@ -611,11 +612,16 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         mean-x = mean map (.x), graph.nodes
 
         # find overlapping labels
+        get-half = d3.scale.quantile!
+            .domain [0, 1400]
+            .range [\left, \right]
+
         texts = node.select-all \text.force-label
         displayed-texts = texts.filter -> \block is d3.select(@).attr \display
         displayed-texts.each (d1, i) ->
             overlapped = false
-            displayed-texts.each (d2) -> overlapped or= abs(d1.y - d2.y) < 20
+            this-half = get-half d1.x
+            displayed-texts.each (d2) -> overlapped or= (get-half d2.x is this-half) and abs(d1.y - d2.y) < 20
             if overlapped
                 op = if even i then (+) else (-)
                 d1.y = op d1.y, 22 # Jiggle them out of the way of each other.
