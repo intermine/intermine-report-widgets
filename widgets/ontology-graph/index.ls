@@ -309,7 +309,12 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     force = d3.layout.force!
         .charge (d) ->
-            -100 - (10 * d.edges.length) - (get-r d) - (if is-root d then 150 else 0)
+            radius = get-r d
+            root-bump = if is-root d then 150 else 0
+            edge-bump = 10 * d.edges.length
+            marked-bump = if d.marked then 150 else 0
+            k = 100
+            1 - (k + radius + root-bump + edge-bump + marked-bump)
         .gravity 0.04
         .link-strength 0.5
         .link-distance ({source, target}) ->

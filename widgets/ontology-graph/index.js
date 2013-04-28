@@ -511,7 +511,13 @@ if (typeof window == 'undefined' || window === null) {
       }
     ]);
     force = d3.layout.force().charge(function(d){
-      return -100 - 10 * d.edges.length - getR(d) - (isRoot(d) ? 150 : 0);
+      var radius, rootBump, edgeBump, markedBump, k;
+      radius = getR(d);
+      rootBump = isRoot(d) ? 150 : 0;
+      edgeBump = 10 * d.edges.length;
+      markedBump = d.marked ? 150 : 0;
+      k = 100;
+      return 1 - (k + radius + rootBump + edgeBump + markedBump);
     }).gravity(0.04).linkStrength(0.5).linkDistance(function(arg$){
       var source, target, ns, edges, markedBump, mutedPenalty, radii;
       source = arg$.source, target = arg$.target;
