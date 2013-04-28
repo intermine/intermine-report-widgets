@@ -478,6 +478,10 @@ if (typeof window == 'undefined' || window === null) {
       queryParams.spline = $(this).val();
       tick();
     });
+    $('#force-stop').show().on('click', function(){
+      force.stop();
+      setTimeout(bind$(force, 'start'), 40000);
+    });
     graph = makeGraph.apply(this, arguments);
     for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
       n = ref$[i$];
@@ -523,7 +527,7 @@ if (typeof window == 'undefined' || window === null) {
         return it.muted;
       }, ns) ? 100 : 0;
       radii = sum(map(getR, ns));
-      return 10 * edges + radii + 50 + markedBump - mutedPenalty;
+      return 3 * edges + radii + 50 + markedBump - mutedPenalty;
     }).size([1400, 1000]);
     query(
     countQuery(
@@ -579,15 +583,10 @@ if (typeof window == 'undefined' || window === null) {
     ]);
     node = svgGroup.selectAll('.force-node').data(graph.nodes);
     nG = node.enter().append('g').attr('class', 'force-node').call(force.drag).on('click', drawPathToRoot);
-    nG.append('circle').attr('class', 'force-term').classed('root', function(n){
-      return all((function(it){
-        return it === n;
-      }), map(function(it){
-        return it.source;
-      }, n.edges));
-    }).classed('direct', function(it){
+    nG.append('circle').attr('class', 'force-term').classed('root', isRoot).classed('direct', function(it){
       return it.isDirect;
     }).attr('r', getR);
+    nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('dy', '0.3em');
     nG.append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'black').attr('stroke-width', '0.5px').attr('display', function(it){
       if (it.isDirect) {
         return 'block';
@@ -692,7 +691,7 @@ if (typeof window == 'undefined' || window === null) {
     }
     function updateMarked(marked){
       force.start();
-      node.selectAll('text').attr('display', function(arg$){
+      node.selectAll('text.force-label').attr('display', function(arg$){
         var marked, id, edges, isDirect;
         marked = arg$.marked, id = arg$.id, edges = arg$.edges, isDirect = arg$.isDirect;
         switch (false) {
@@ -934,7 +933,7 @@ if (typeof window == 'undefined' || window === null) {
         jiggle();
       }
       circles = node.selectAll('circle');
-      texts = node.selectAll('text');
+      texts = node.selectAll('text.force-label');
       displayedTexts = texts.filter(function(){
         return 'block' === d3.select(this).attr('display');
       });
@@ -960,6 +959,17 @@ if (typeof window == 'undefined' || window === null) {
         return it.x;
       }).attr('y', function(it){
         return it.y;
+      }).attr('dx', getR);
+      node.selectAll('text.count-label').attr('x', function(it){
+        return it.x;
+      }).attr('y', function(it){
+        return it.y;
+      }).attr('font-size', compose$([
+        (function(it){
+          return it / 1.5;
+        }), getR
+      ])).text(function(it){
+        return it.count;
       });
       circles.attr('cx', function(it){
         return it.x;

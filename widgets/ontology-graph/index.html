@@ -42,10 +42,11 @@
             <option value="curved">Curved Links</option>
             <option value="straight">Straight Links</option>
         </select>
+        <button id="force-stop">Pause animation</button>
     </body>
     <style>
 
-        #jiggle, #spline {
+        #jiggle, #spline, #force-stop {
             display: none;
             position: absolute;
             right: 150px;
@@ -55,6 +56,9 @@
         }
         #spline {
             top: 50px;
+        }
+        #force-stop {
+            top: 75px;
         }
 
         svg {
@@ -72,7 +76,7 @@
             fill: #7e21c7;
         }
         text {
-            font: 300 22px "Helvetica Neue", "Helvetica", "Droid Sans", "Ubuntu";
+            font-family: "Helvetica Neue", "Helvetica", "Droid Sans", "Ubuntu";
         }
         .node text {
             stroke-width: 3px;

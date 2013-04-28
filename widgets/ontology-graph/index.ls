@@ -292,6 +292,12 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             query-params.spline = $(@).val!
             tick!
 
+    $ \#force-stop
+        .show!
+        .on \click !->
+            force.stop!
+            set-timeout force~start, 40_000ms
+
     graph = make-graph ...
 
     for n in graph.nodes
@@ -312,7 +318,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             marked-bump = if (any (.marked), ns) then 150 else 0
             muted-penalty = if (any (.muted), ns) then 100 else 0
             radii = sum map get-r, ns
-            (10 * edges) + radii + 50 + marked-bump - muted-penalty
+            (3 * edges) + radii + 50 + marked-bump - muted-penalty
         .size [1400, 1000]
 
     (node-for-ident |> keys |> count-query |> query)
@@ -366,9 +372,15 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     n-g.append \circle
         .attr \class, \force-term
-        .classed \root, (n) -> all (is n), map (.source), n.edges
+        .classed \root, is-root
         .classed \direct, (.is-direct)
         .attr \r, get-r
+
+    n-g.append \text
+        .attr \class, \count-label
+        .attr \fill, \white
+        .attr \text-anchor, \middle
+        .attr \dy, \0.3em
 
     n-g.append \text
         .attr \class, \force-label
@@ -454,7 +466,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     function update-marked marked
         force.start!
 
-        node.select-all \text
+        node.select-all \text.force-label
             .attr \display ({marked, id, edges, is-direct}) ->
                 | (marked or is-direct) => \block
                 | all (is id), map (.id) << (.source), edges => \block
@@ -578,7 +590,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         circles = node.select-all \circle
 
         # find overlapping labels
-        texts = node.select-all \text
+        texts = node.select-all \text.force-label
         displayed-texts = texts.filter -> \block is d3.select(@).attr \display
         displayed-texts.each (d1, i) ->
             overlapped = false
@@ -589,6 +601,13 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
         texts.attr \x, (.x)
             .attr \y, (.y)
+            .attr \dx, get-r
+
+        node.select-all \text.count-label
+            .attr \x, (.x)
+            .attr \y, (.y)
+            .attr \font-size, (/ 1.5) << get-r
+            .text (.count)
 
         circles.attr \cx, (.x)
             .attr \cy, (.y)
