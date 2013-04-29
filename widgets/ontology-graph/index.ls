@@ -7,6 +7,8 @@
 
 node-padding = 10
 
+min-ticks = 50
+
 # Get the ontology terms for a gene.
 direct-terms = ->
     select: <[ goAnnotation.ontologyTerm.identifier ]>
@@ -388,12 +390,16 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         .attr \class, \force-term
         .classed \root, is-root
         .classed \direct, (.is-direct)
+        .attr \x, -100
+        .attr \y, -100
         .attr \r, get-r
 
     n-g.append \text
         .attr \class, \count-label
         .attr \fill, \white
         .attr \text-anchor, \middle
+        .attr \x, -100
+        .attr \y, -100
         .attr \dy, \0.3em
 
     n-g.append \text
@@ -404,6 +410,8 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         .attr \stroke-width, \0.5px
         .attr \display, -> if it.is-direct then \block else \none
         .attr \id, get-label-id
+        .attr \x, -100
+        .attr \y, -100
         .text (.label)
 
     n-g.append \title
@@ -558,8 +566,9 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         args |> points |> basis-line |> (+ \Z)
 
     mv-towards = !(how-much, goal, n) ->
-        dx = (how-much *) goal.x - n.x
-        dy = (how-much *) goal.y - n.y
+        scale = (* how-much)
+        dx = scale goal.x - n.x
+        dy = scale goal.y - n.y
         n.x += dx
         n.y += dy
 
@@ -600,7 +609,10 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
                 y: 500 - (mean-d * roots.length / 2) + (mean-d * i)
             mv-towards 0.05, goal, n
 
+    tick-count = 0
     function tick
+
+        tick-count++
 
         jiggle = switch query-params.jiggle
             | \strata => stratify
@@ -608,7 +620,8 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
         do jiggle if jiggle
 
-        circles = node.select-all \circle
+        return unless tick-count > min-ticks
+
         mean-x = mean map (.x), graph.nodes
 
         # find overlapping labels
@@ -637,7 +650,8 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             .attr \font-size, (/ 1.5) << get-r
             .text (.count)
 
-        circles.attr \cx, (.x)
+        circles = node.select-all \circle
+            .attr \cx, (.x)
             .attr \cy, (.y)
 
         if query-params.spline

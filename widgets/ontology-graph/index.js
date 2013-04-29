@@ -5,12 +5,13 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, nodePadding, directTerms, allGoTerms, wholeGraphQ, countQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, drawChord, drawForce, drawRadial, drawDag, makeGraph, doUpdate, render, flatten, rowToNode, queryParams, currentSymbol, main;
+  var Service, ref$, rows, query, nodePadding, minTicks, directTerms, allGoTerms, wholeGraphQ, countQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, drawChord, drawForce, drawRadial, drawDag, makeGraph, doUpdate, render, flatten, rowToNode, queryParams, currentSymbol, main;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
   }), rows = ref$.rows, query = ref$.query;
   nodePadding = 10;
+  minTicks = 50;
   directTerms = function(it){
     return {
       select: ['goAnnotation.ontologyTerm.identifier'],
@@ -492,7 +493,7 @@ if (typeof window == 'undefined' || window === null) {
     return root;
   }
   drawForce = function(directNodes, edges, nodeForIdent){
-    var graph, i$, ref$, len$, n, isRoot, isLeaf, getR, force, svg, svgGroup, zoom, color, relationships, link, getLabelId, node, nG, legend, lg, timer, basisLine, linkSpline, drawCurve, mvTowards, byX, widthRange, stratify, centrify;
+    var graph, i$, ref$, len$, n, isRoot, isLeaf, getR, force, svg, svgGroup, zoom, color, relationships, link, getLabelId, node, nG, legend, lg, timer, basisLine, linkSpline, drawCurve, mvTowards, byX, widthRange, stratify, centrify, tickCount;
     $('#jiggle').show().val(queryParams.jiggle).on('change', function(){
       queryParams.jiggle = $(this).val();
       force.start();
@@ -607,15 +608,15 @@ if (typeof window == 'undefined' || window === null) {
     nG = node.enter().append('g').attr('class', 'force-node').call(force.drag).on('click', drawPathToRoot);
     nG.append('circle').attr('class', 'force-term').classed('root', isRoot).classed('direct', function(it){
       return it.isDirect;
-    }).attr('r', getR);
-    nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('dy', '0.3em');
+    }).attr('x', -100).attr('y', -100).attr('r', getR);
+    nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('x', -100).attr('y', -100).attr('dy', '0.3em');
     nG.append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'black').attr('stroke-width', '0.5px').attr('display', function(it){
       if (it.isDirect) {
         return 'block';
       } else {
         return 'none';
       }
-    }).attr('id', getLabelId).text(function(it){
+    }).attr('id', getLabelId).attr('x', -100).attr('y', -100).text(function(it){
       return it.label;
     });
     nG.append('title').text(function(it){
@@ -849,13 +850,12 @@ if (typeof window == 'undefined' || window === null) {
       args)));
     };
     mvTowards = function(howMuch, goal, n){
-      var dx, dy;
-      dx = (function(it){
-        return howMuch * it;
-      })(goal.x - n.x);
-      dy = (function(it){
-        return howMuch * it;
-      })(goal.y - n.y);
+      var scale, dx, dy;
+      scale = (function(it){
+        return it * howMuch;
+      });
+      dx = scale(goal.x - n.x);
+      dy = scale(goal.y - n.y);
       n.x += dx;
       n.y += dy;
     };
@@ -928,8 +928,10 @@ if (typeof window == 'undefined' || window === null) {
         mvTowards(0.05, goal, n);
       });
     };
+    tickCount = 0;
     function tick(){
-      var jiggle, circles, meanX, getHalf, texts, displayedTexts;
+      var jiggle, meanX, getHalf, texts, displayedTexts, circles;
+      tickCount++;
       jiggle = (function(){
         switch (queryParams.jiggle) {
         case 'strata':
@@ -941,7 +943,9 @@ if (typeof window == 'undefined' || window === null) {
       if (jiggle) {
         jiggle();
       }
-      circles = node.selectAll('circle');
+      if (!(tickCount > minTicks)) {
+        return;
+      }
       meanX = mean(map(function(it){
         return it.x;
       }, graph.nodes));
@@ -997,7 +1001,7 @@ if (typeof window == 'undefined' || window === null) {
       ])).text(function(it){
         return it.count;
       });
-      circles.attr('cx', function(it){
+      circles = node.selectAll('circle').attr('cx', function(it){
         return it.x;
       }).attr('cy', function(it){
         return it.y;
