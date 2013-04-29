@@ -4,6 +4,8 @@ A [node.js](http://nodejs.org/) reference implementation of a **service** and a 
 
 ![image](https://github.com/intermine/intermine-report-widgets/raw/master/example.png)
 
+## [Develop a Widget](http://intermine.readthedocs.org/en/latest/embedding/report-widgets/?highlight=report%20widget#develop-a-widget)
+
 ## Quickstart
 
 Make sure [node](https://github.com/joyent/node/wiki/Installation) is installed.
