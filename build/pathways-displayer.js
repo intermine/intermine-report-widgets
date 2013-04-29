@@ -11,21 +11,20 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Thu, 25 Apr 2013 17:15:54 GMT
+ *  Generated: Mon, 29 Apr 2013 13:55:31 GMT
  */
 (function() {
   var root = this;
 
   /**#@+ the presenter */
 
-  var $, AssertException, Grid, GridMessages, GridRow, Row, Rows, Widget,
+  var $, AssertException, Grid, GridMessages, GridRow, Row, Rows, Widget, _ref, _ref1, _ref2, _ref3,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
   
   AssertException = (function() {
-  
     function AssertException(message) {
       this.message = message;
     }
@@ -58,12 +57,10 @@ new Error('This widget cannot be called directly');
   
   
   Widget = (function() {
-  
     function Widget(config, templates) {
       this.config = config;
       this.templates = templates;
       this.getHomologues = __bind(this.getHomologues, this);
-  
       this.service = new intermine.Service({
         'root': 'http://beta.flymine.org/beta'
       });
@@ -72,6 +69,7 @@ new Error('This widget cannot be called directly');
     Widget.prototype.render = function(el) {
       var grid, launchAllP, launchOneP,
         _this = this;
+  
       this.el = el;
       grid = new Grid({
         'el': this.el,
@@ -86,6 +84,7 @@ new Error('This widget cannot be called directly');
         grid.messages["new"]("Loading " + mine + " &hellip;", mine);
         return $.when(_this.getPathways(homologues, url)).then(function(pathways) {
           var isCurated, organism, pathway, _i, _len, _ref, _results;
+  
           grid.messages.clear(mine);
           _results = [];
           for (_i = 0, _len = pathways.length; _i < _len; _i++) {
@@ -102,6 +101,7 @@ new Error('This widget cannot be called directly');
       };
       launchAllP = function(homologues) {
         var all, mine, url, _fn, _ref;
+  
         all = [];
         _ref = _this.config.mines;
         _fn = function(mine, url) {
@@ -125,6 +125,7 @@ new Error('This widget cannot be called directly');
   
     Widget.prototype.getHomologues = function(symbol) {
       var error, fin, pq, rowsP, serviceP, _ref;
+  
       assert((symbol != null) && symbol !== '', 'Need to provide a symbol to constrain gene on');
       pq = JSON.parse(JSON.stringify(this.config.pathQueries.homologues));
       if ((_ref = pq.constraints) == null) {
@@ -143,6 +144,7 @@ new Error('This widget cannot be called directly');
       };
       fin = function(rows) {
         var g, _i, _len, _results;
+  
         _results = [];
         for (_i = 0, _len = rows.length; _i < _len; _i++) {
           g = rows[_i];
@@ -160,6 +162,7 @@ new Error('This widget cannot be called directly');
   
     Widget.prototype.getPathways = function(identifiers, url) {
       var error, pq, rowsP, serviceP, _ref;
+  
       assert((identifiers != null) && identifiers instanceof Array, 'Need to provide an Array of gene identifiers to constrain pathways on');
       pq = JSON.parse(JSON.stringify(this.config.pathQueries.pathways));
       if ((_ref = pq.constraints) == null) {
@@ -193,11 +196,11 @@ new Error('This widget cannot be called directly');
   
   
   Row = (function(_super) {
-  
     __extends(Row, _super);
   
     function Row() {
-      return Row.__super__.constructor.apply(this, arguments);
+      _ref = Row.__super__.constructor.apply(this, arguments);
+      return _ref;
     }
   
     Row.prototype.defaults = {
@@ -209,17 +212,18 @@ new Error('This widget cannot be called directly');
   })(Backbone.Model);
   
   Rows = (function(_super) {
-  
     __extends(Rows, _super);
   
     function Rows() {
-      return Rows.__super__.constructor.apply(this, arguments);
+      _ref1 = Rows.__super__.constructor.apply(this, arguments);
+      return _ref1;
     }
   
     Rows.prototype.model = Row;
   
     Rows.prototype.filter = function(re) {
       var hidden, shown;
+  
       shown = 0;
       hidden = 0;
       this.each(function(model) {
@@ -251,12 +255,11 @@ new Error('This widget cannot be called directly');
   
   
   GridRow = (function(_super) {
-  
     __extends(GridRow, _super);
   
     function GridRow() {
-      this.className = __bind(this.className, this);
-      return GridRow.__super__.constructor.apply(this, arguments);
+      this.className = __bind(this.className, this);    _ref2 = GridRow.__super__.constructor.apply(this, arguments);
+      return _ref2;
     }
   
     GridRow.prototype.tagName = 'tr';
@@ -268,6 +271,7 @@ new Error('This widget cannot be called directly');
     GridRow.prototype.initialize = function() {
       var td,
         _this = this;
+  
       this.mediator = this.attributes.mediator;
       $(this.el).append(td = $('<td/>', {
         'html': this.model.get('text')
@@ -298,14 +302,12 @@ new Error('This widget cannot be called directly');
   
   
   Grid = (function(_super) {
-  
     __extends(Grid, _super);
   
     function Grid() {
       this.filterAction = __bind(this.filterAction, this);
-  
-      this.adjustFauxHeader = __bind(this.adjustFauxHeader, this);
-      return Grid.__super__.constructor.apply(this, arguments);
+      this.adjustFauxHeader = __bind(this.adjustFauxHeader, this);    _ref3 = Grid.__super__.constructor.apply(this, arguments);
+      return _ref3;
     }
   
     Grid.prototype.columns = [];
@@ -320,7 +322,8 @@ new Error('This widget cannot be called directly');
     };
   
     Grid.prototype.initialize = function() {
-      var column, columnS, row, target, _i, _len, _ref;
+      var column, columnS, row, target, _i, _len, _ref4;
+  
       this.el = $(this.el);
       _.extend(this.mediator = {}, Backbone.Events);
       target = $(this.el).html(this.attributes.template({
@@ -331,9 +334,9 @@ new Error('This widget cannot be called directly');
       this.body = this.el.find('.wrapper table tbody');
       row = $('<tr/>');
       row.append($('<th/>'));
-      _ref = this.attributes.head;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        column = _ref[_i];
+      _ref4 = this.attributes.head;
+      for (_i = 0, _len = _ref4.length; _i < _len; _i++) {
+        column = _ref4[_i];
         this.columns.push(columnS = this.slugify(column));
         row.append($('<th/>', {
           'text': column,
@@ -352,6 +355,7 @@ new Error('This widget cannot be called directly');
     Grid.prototype.add = function(row, column, data) {
       var columnS, model, rowS, view,
         _this = this;
+  
       rowS = this.slugify(row);
       columnS = this.slugify(column);
       if (__indexOf.call(this.rows, rowS) < 0) {
@@ -371,10 +375,11 @@ new Error('This widget cannot be called directly');
           this.rows = [rowS];
         } else {
           (function() {
-            var index, _ref;
-            _ref = _this.rows;
-            for (index in _ref) {
-              row = _ref[index];
+            var index, _ref4;
+  
+            _ref4 = _this.rows;
+            for (index in _ref4) {
+              row = _ref4[index];
               if (rowS.localeCompare(row) < 0) {
                 _this.rows.splice(index, 0, rowS);
                 $(_this.grid[row]['el']).before(view.el);
@@ -386,17 +391,19 @@ new Error('This widget cannot be called directly');
           })();
         }
         (function(row, column) {
-          var _i, _len, _ref, _results;
+          var _i, _len, _ref4, _results;
+  
           _this.grid[row] = {
             'el': view.el,
             'columns': {}
           };
-          _ref = _this.columns;
+          _ref4 = _this.columns;
           _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            column = _ref[_i];
+          for (_i = 0, _len = _ref4.length; _i < _len; _i++) {
+            column = _ref4[_i];
             _results.push(_this.grid[row]['columns'][column] = (function() {
               var el;
+  
               $(view.el).append(el = $('<td/>', {
                 'class': column
               }));
@@ -418,6 +425,7 @@ new Error('This widget cannot be called directly');
   
     Grid.prototype.adjustFauxHeader = function() {
       var _this = this;
+  
       if (this.fauxTimeout != null) {
         clearTimeout(this.fauxTimeout);
       }
@@ -430,16 +438,18 @@ new Error('This widget cannot be called directly');
   
     Grid.prototype.filterAction = function(e) {
       var _this = this;
+  
       if (this.filterTimeout != null) {
         clearTimeout(this.filterTimeout);
       }
       return this.filterTimeout = setTimeout((function() {
-        var hidden, query, re, shown, _ref;
+        var hidden, query, re, shown, _ref4;
+  
         query = $.trim($(e.target).val());
         if (query !== _this.query) {
           _this.query = query;
           re = new RegExp("(" + query + ")", 'ig');
-          _ref = _this.collection.filter(re), shown = _ref[0], hidden = _ref[1];
+          _ref4 = _this.collection.filter(re), shown = _ref4[0], hidden = _ref4[1];
           _this.filterMessage(shown, hidden);
           return _this.mediator.trigger('filter', re);
         }
@@ -447,15 +457,17 @@ new Error('This widget cannot be called directly');
     };
   
     Grid.prototype.clearFilterAction = function() {
-      var hidden, re, shown, _ref;
+      var hidden, re, shown, _ref4;
+  
       this.el.find('input.filter').val('');
-      _ref = this.collection.filter(), shown = _ref[0], hidden = _ref[1];
+      _ref4 = this.collection.filter(), shown = _ref4[0], hidden = _ref4[1];
       this.filterMessage(shown, hidden);
       return this.mediator.trigger('filter', re = new RegExp('()', 'ig'));
     };
   
     Grid.prototype.filterMessage = function(shown, hidden) {
       var box, msg;
+  
       box = this.body.find('.filterMessage');
       msg = this.body.find('.filterMessage .text');
       if (hidden !== 0) {
@@ -472,6 +484,7 @@ new Error('This widget cannot be called directly');
   
     Grid.prototype.legend = function(html) {
       var l;
+  
       (l = this.el.find('.legend')).html(html);
       return l.css({
         'top': -l.outerHeight() + 1
@@ -487,7 +500,6 @@ new Error('This widget cannot be called directly');
   
   
   GridMessages = (function() {
-  
     GridMessages.prototype.i = 0;
   
     GridMessages.prototype.msgs = {};
@@ -498,6 +510,7 @@ new Error('This widget cannot be called directly');
   
     GridMessages.prototype["new"] = function(text, key) {
       var m;
+  
       this.el.append(m = $('<div/>', {
         'class': 'alert-box',
         'html': text
@@ -507,14 +520,15 @@ new Error('This widget cannot be called directly');
     };
   
     GridMessages.prototype.clear = function(key) {
-      var value, _ref, _ref1, _results;
+      var value, _ref4, _ref5, _results;
+  
       if (key != null) {
-        return (_ref = this.msgs[key]) != null ? _ref.remove() : void 0;
+        return (_ref4 = this.msgs[key]) != null ? _ref4.remove() : void 0;
       } else {
-        _ref1 = this.msgs;
+        _ref5 = this.msgs;
         _results = [];
-        for (key in _ref1) {
-          value = _ref1[key];
+        for (key in _ref5) {
+          value = _ref5[key];
           _results.push(value.remove());
         }
         return _results;

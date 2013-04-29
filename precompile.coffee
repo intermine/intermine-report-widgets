@@ -8,6 +8,7 @@ cleanCss  = require 'clean-css'
 parserlib = require 'parserlib'
 prefix    = require 'prefix-css-node'
 async     = require 'async'
+{ exec }  = require 'child_process'
 
 ###
 Precompile a single widget.
@@ -47,7 +48,7 @@ single = (widgetId, callback, config, output) ->
                 return cb err if err
 
                 # Patterns for matching types.
-                patterns = [ /^presenter\.coffee|js$/, /^style\.styl|css$/, /\.eco$/ ]
+                patterns = [ /^presenter\.(coffee|js|ls)$/, /^style\.styl|css$/, /\.eco$/ ]
 
                 # Which is it?
                 results = []
@@ -63,11 +64,11 @@ single = (widgetId, callback, config, output) ->
     (dir, [ presenter, style, templates ], cb) ->
         # Handle the presenter.
         async.parallel [ (cb) ->
-            return cb 'Presenter either not provided or provided more than once' unless presenter or presenter.length isnt 1
+            return cb 'Presenter either not provided or provided more than once' if not presenter or presenter.length isnt 1
 
             log.data 'Processing presenter'
 
-            fs.readFile dir + '/' + (file = presenter[0]), 'utf-8', (err, src) ->
+            fs.readFile dir + (file = presenter[0]), 'utf-8', (err, src) ->
                 return cb err if err
 
                 # Which filetype?
@@ -78,7 +79,18 @@ single = (widgetId, callback, config, output) ->
                     
                     # A CoffeeScript presenter needs to be bare-ly compiled first.
                     when 'coffee'
-                        cb null, [ 'presenter', cs.compile src, 'bare': 'on' ]
+                        try
+                            js = cs.compile src, 'bare': 'on'
+                            cb null, [ 'presenter', js ]
+                        catch err
+                            cb err
+
+                    # LiveScript then.
+                    when 'ls'
+                        exec './node_modules/.bin/lsc -bpc < ' + dir + file, (err, stdout, stderr) ->
+                            return cb (''+err).replace('\n', '') if err
+                            return cb stderr if stderr
+                            cb null, [ 'presenter', stdout ]
 
         # The stylesheet.
         (cb) ->
@@ -241,14 +253,15 @@ all = ->
                             # Run the precompile.
                             single widgetId, callback, config, (err, js) ->
                                 # Catch all errors into messages.
-                                return log.error err.red if err
+                                if err
+                                    log.error err.red
+                                else
+                                    # Since we are writing the result into a file, make sure that the file begins with an exception if read directly.
+                                    (js = js.split("\n")).splice 0, 0, 'new Error(\'This widget cannot be called directly\');\n'
 
-                                # Since we are writing the result into a file, make sure that the file begins with an exception if read directly.
-                                (js = js.split("\n")).splice 0, 0, 'new Error(\'This widget cannot be called directly\');\n'
-
-                                # Write the result.
-                                write "./build/#{widgetId}.js", js.join "\n"
-                                log.data "Writing .js package".green
+                                    # Write the result.
+                                    write "./build/#{widgetId}.js", js.join "\n"
+                                    log.data "Writing .js package".green
 
                                 # Run again.
                                 done()

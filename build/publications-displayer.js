@@ -11,24 +11,24 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Thu, 25 Apr 2013 17:15:54 GMT
+ *  Generated: Mon, 29 Apr 2013 13:55:31 GMT
  */
 (function() {
   var root = this;
 
   /**#@+ the presenter */
 
-  var Publication, Publications, Table, Widget,
+  var Publication, Publications, Table, Widget, _ref, _ref1, _ref2,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
   
   Publication = (function(_super) {
-  
     __extends(Publication, _super);
   
     function Publication() {
-      return Publication.__super__.constructor.apply(this, arguments);
+      _ref = Publication.__super__.constructor.apply(this, arguments);
+      return _ref;
     }
   
     return Publication;
@@ -36,11 +36,11 @@ new Error('This widget cannot be called directly');
   })(Backbone.Model);
   
   Publications = (function(_super) {
-  
     __extends(Publications, _super);
   
     function Publications() {
-      return Publications.__super__.constructor.apply(this, arguments);
+      _ref1 = Publications.__super__.constructor.apply(this, arguments);
+      return _ref1;
     }
   
     Publications.prototype.model = Publication;
@@ -50,11 +50,11 @@ new Error('This widget cannot be called directly');
   })(Backbone.Collection);
   
   Table = (function(_super) {
-  
     __extends(Table, _super);
   
     function Table() {
-      return Table.__super__.constructor.apply(this, arguments);
+      _ref2 = Table.__super__.constructor.apply(this, arguments);
+      return _ref2;
     }
   
     Table.prototype.page = 0;
@@ -68,6 +68,7 @@ new Error('This widget cannot be called directly');
   
     Table.prototype.initialize = function(opts) {
       var k, v, _results;
+  
       _results = [];
       for (k in opts) {
         v = opts[k];
@@ -95,8 +96,10 @@ new Error('This widget cannot be called directly');
     Table.prototype.changeSymbol = function(e) {
       var done,
         _this = this;
+  
       done = function() {
         var symbol;
+  
         symbol = $(e.target).val();
         if (symbol !== '' && symbol !== _this.symbol) {
           return $.when(_this.data(symbol)).then(function(records) {
@@ -117,12 +120,10 @@ new Error('This widget cannot be called directly');
   })(Backbone.View);
   
   Widget = (function() {
-  
     function Widget(config, templates) {
       this.config = config;
       this.templates = templates;
       this.data = __bind(this.data, this);
-  
       this.service = new intermine.Service({
         'root': this.config.mine
       });
@@ -130,6 +131,7 @@ new Error('This widget cannot be called directly');
   
     Widget.prototype.data = function(symbol) {
       var error, fin, loading, pq, recordsP, serviceP;
+  
       $(this.target).prepend(loading = $('<div class="alert-box">Loading &hellip;</div>'));
       pq = this.config.pathQueries.pubsForGene;
       pq.where = {
@@ -144,9 +146,10 @@ new Error('This widget cannot be called directly');
         return q.records();
       };
       fin = function(records) {
-        var _ref;
+        var _ref3;
+  
         loading.remove();
-        return ((_ref = records.pop()) != null ? _ref.publications : void 0) || [];
+        return ((_ref3 = records.pop()) != null ? _ref3.publications : void 0) || [];
       };
       error = function(err) {
         return loading.text(err.statusText).addClass('alert');
@@ -155,13 +158,15 @@ new Error('This widget cannot be called directly');
     };
   
     Widget.prototype.render = function(target) {
-      var _ref,
+      var _ref3,
         _this = this;
+  
       this.target = target;
-      $((_ref = this.view) != null ? _ref.el : void 0).hide();
+      $((_ref3 = this.view) != null ? _ref3.el : void 0).hide();
       return $.when(this.data(this.config.symbol)).then(function(records) {
-        var _ref1;
-        $((_ref1 = _this.view) != null ? _ref1.el : void 0).show();
+        var _ref4;
+  
+        $((_ref4 = _this.view) != null ? _ref4.el : void 0).show();
         _this.view = new Table({
           'collection': new Publications(records),
           'template': _this.templates.table,
@@ -186,7 +191,7 @@ new Error('This widget cannot be called directly');
   /**#@+ css */
   var style = document.createElement('style');
   style.type = 'text/css';
-  style.innerHTML = 'div#w#@+CALLBACK h4{float:left}div#w#@+CALLBACK ul.pages{display:inline;list-style-type:none;float:right;margin:15px 0;max-width;max-width:500px}div#w#@+CALLBACK ul.pages li{display:inline-block}div#w#@+CALLBACK ul.pages a.current{font-weight:700}div#w#@+CALLBACK header:after{content:" ";display:block;clear:both}div#w#@+CALLBACK table{width:100%}div#w#@+CALLBACK span.author:not(:last-child):after{content:",";display:inline-block}div#w#@+CALLBACK input.symbol{float:left;color:#8E0022;background:0;border:0;-webkit-box-shadow:none;-moz-box-shadow:none;box-shadow:none;font-family:\'Droid Serif\',serif;font-size:23px;font-weight:700;padding:0;margin:10px 0;margin-left:4px}';
+  style.innerHTML = 'div#w#@+CALLBACK h4{float:left}div#w#@+CALLBACK ul.pages{display:inline;list-style-type:none;float:right;margin:15px 0;max-width:500px}div#w#@+CALLBACK ul.pages li{display:inline-block}div#w#@+CALLBACK ul.pages a.current{font-weight:700}div#w#@+CALLBACK header:after{content:" ";display:block;clear:both}div#w#@+CALLBACK table{width:100%}div#w#@+CALLBACK span.author:not(:last-child):after{content:",";display:inline-block}div#w#@+CALLBACK input.symbol{float:left;color:#8E0022;background:0;border:0;-webkit-box-shadow:none;-moz-box-shadow:none;box-shadow:none;font-family:\'Droid Serif\',serif;font-size:23px;font-weight:700;padding:0;margin:10px 0;margin-left:4px}';
   document.head.appendChild(style);
 
   /**#@+ callback */

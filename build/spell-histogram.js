@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Thu, 25 Apr 2013 17:15:54 GMT
+ *  Generated: Mon, 29 Apr 2013 13:55:31 GMT
  */
 (function() {
   var root = this;
@@ -22,7 +22,6 @@ new Error('This widget cannot be called directly');
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
   
   AssertException = (function() {
-  
     function AssertException(message) {
       this.message = message;
     }
@@ -49,7 +48,6 @@ new Error('This widget cannot be called directly');
   };
   
   Widget = (function() {
-  
     Widget.prototype.chartOptions = {
       fontName: 'Sans-Serif',
       fontSize: 9,
@@ -72,11 +70,11 @@ new Error('This widget cannot be called directly');
     };
   
     /*
-        Have access to config and templates compiled in.
-        This function needs to always be present and will always accept the following two Objects.
-        By using the at sign I am saving the two parameters on `this` object.
-        @param {Object} config A key value dictionary of config coming from the server.
-        @param {Object} templates A key value dictionary of template functions.
+    Have access to config and templates compiled in.
+    This function needs to always be present and will always accept the following two Objects.
+    By using the at sign I am saving the two parameters on `this` object.
+    @param {Object} config A key value dictionary of config coming from the server.
+    @param {Object} templates A key value dictionary of template functions.
     */
   
   
@@ -84,7 +82,6 @@ new Error('This widget cannot be called directly');
       this.config = config;
       this.templates = templates;
       this.histogram = __bind(this.histogram, this);
-  
       assert(this.config.mine != null, '`mine` needs to point to an InterMine instance');
       this.service = new intermine.Service({
         'root': "" + this.config.mine + "service/"
@@ -92,14 +89,15 @@ new Error('This widget cannot be called directly');
     }
   
     /*
-        Render accepts a target to draw results into.
-        This function needs to always be present and will always accept the target string.
-        @param {jQuery selector} target Either a string or a jQuery selected object where to draw the output to.
+    Render accepts a target to draw results into.
+    This function needs to always be present and will always accept the target string.
+    @param {jQuery selector} target Either a string or a jQuery selected object where to draw the output to.
     */
   
   
     Widget.prototype.render = function(target) {
       var _this = this;
+  
       this.target = target;
       assert((this.config.pathQueries != null) && (this.config.pathQueries.expressionScores != null), 'PathQuery of `expressionScores` not set');
       assert(this.config.type, 'an object `type` needs to be set');
@@ -109,6 +107,7 @@ new Error('This widget cannot be called directly');
       }));
       $(this.target).find('input.symbol').keyup(function(e) {
         var symbol;
+  
         symbol = $(e.target).val();
         if (symbol !== _this.config.symbol) {
           _this.config.symbol = symbol;
@@ -126,9 +125,11 @@ new Error('This widget cannot be called directly');
     Widget.prototype.histogram = function() {
       var error, loading, pq, replaceType, rowsP, serviceP, _ref,
         _this = this;
+  
       $(this.target).prepend(loading = $('<div class="alert-box">Loading &hellip;</div>'));
       pq = (replaceType = function(obj, type) {
         var item, key, o, value, _i, _len, _results;
+  
         if (typeof obj === 'object') {
           o = {};
           for (key in obj) {
@@ -166,8 +167,10 @@ new Error('This widget cannot be called directly');
       };
       return $.when(serviceP(this.service, pq)).then(rowsP).fail(error).then(function(rows) {
         var chart, data, twoDArray, x;
+  
         rows = (function() {
           var _i, _len, _results;
+  
           _results = [];
           for (_i = 0, _len = rows.length; _i < _len; _i++) {
             x = rows[_i];
@@ -179,6 +182,7 @@ new Error('This widget cannot be called directly');
         data = d3.layout.histogram().bins(x.ticks(20))(rows);
         twoDArray = _(data).map(function(bin) {
           var from;
+  
           from = Math.round(x(bin.x));
           return ["" + from + " to " + (from + 2), bin.y];
         });

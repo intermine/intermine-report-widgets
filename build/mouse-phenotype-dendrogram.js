@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Thu, 25 Apr 2013 17:15:55 GMT
+ *  Generated: Mon, 29 Apr 2013 13:55:31 GMT
  */
 (function() {
   var root = this;
@@ -24,7 +24,6 @@ new Error('This widget cannot be called directly');
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
   
   AssertException = (function() {
-  
     function AssertException(message) {
       this.message = message;
     }
@@ -51,7 +50,6 @@ new Error('This widget cannot be called directly');
   };
   
   Widget = (function() {
-  
     Widget.prototype.pq = {
       alleleTerms: {
         "select": ["Gene.symbol", "Gene.alleles.id", "Gene.alleles.genotypes.id", "Gene.alleles.genotypes.phenotypeTerms.id", "Gene.alleles.genotypes.phenotypeTerms.name"],
@@ -70,6 +68,7 @@ new Error('This widget cannot be called directly');
     Widget.prototype.alleleTerms = function(cb) {
       var c, i, pq, _i, _ref,
         _this = this;
+  
       assert(this.config.symbol != null, '`symbol` of the gene in question not provided');
       pq = this.pq.alleleTerms;
       for (i = _i = 0, _ref = pq.constraints.length; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
@@ -86,6 +85,7 @@ new Error('This widget cannot be called directly');
       return this.service.query(pq, function(q) {
         return q.records(function(records) {
           var allele, genotype, term, terms, _j, _k, _l, _len, _len1, _len2, _ref1, _ref2, _ref3;
+  
           if (records.length === 0) {
             return _this.message('No results found');
           }
@@ -122,6 +122,7 @@ new Error('This widget cannot be called directly');
     Widget.prototype.highLevelTerms = function(children, cb) {
       var c, i, k, pq, v, _i, _ref,
         _this = this;
+  
       assert(cb != null, 'callback `cb` needs to be provided, we use async data loading');
       assert(this.config.symbol != null, '`symbol` of the gene in question not provided');
       assert(this.band != null, '`band` of allele counts not provided');
@@ -137,6 +138,7 @@ new Error('This widget cannot be called directly');
         "op": "ONE OF",
         "values": (function() {
           var _results;
+  
           _results = [];
           for (k in children) {
             v = children[k];
@@ -148,6 +150,7 @@ new Error('This widget cannot be called directly');
       return this.service.query(pq, function(q) {
         return q.rows(function(rows) {
           var child, parent, t, terms, _j, _len, _ref1;
+  
           terms = {};
           for (_j = 0, _len = rows.length; _j < _len; _j++) {
             _ref1 = rows[_j], parent = _ref1[0], child = _ref1[1];
@@ -170,6 +173,7 @@ new Error('This widget cannot be called directly');
           terms = (function() {
             var _k, _len1, _ref2, _results,
               _this = this;
+  
             _ref2 = _(terms).toArray();
             _results = [];
             for (_k = 0, _len1 = _ref2.length; _k < _len1; _k++) {
@@ -196,9 +200,7 @@ new Error('This widget cannot be called directly');
       this.config = config;
       this.templates = templates;
       this.dendrogram = __bind(this.dendrogram, this);
-  
       this.renderGraph = __bind(this.renderGraph, this);
-  
       this.service = new intermine.Service({
         'root': 'http://metabolicmine.org/beta/service/'
       });
@@ -207,6 +209,7 @@ new Error('This widget cannot be called directly');
     Widget.prototype.render = function(target) {
       var dis,
         _this = this;
+  
       this.target = target;
       $(this.target).html(this.templates.widget({
         'symbol': this.config.symbol
@@ -218,6 +221,7 @@ new Error('This widget cannot be called directly');
       })();
       return $(this.target).find('input.symbol').keyup(function(e) {
         var symbol;
+  
         symbol = $(e.target).val();
         if (symbol !== _this.config.symbol) {
           _this.config.symbol = symbol;
@@ -234,14 +238,15 @@ new Error('This widget cannot be called directly');
     };
   
     /*
-        Once data are loaded or updated, render the dendrogram and init config for it.
-        @param {object} data A root to children object to render.
+    Once data are loaded or updated, render the dendrogram and init config for it.
+    @param {object} data A root to children object to render.
     */
   
   
     Widget.prototype.renderGraph = function(data) {
       var config,
         _this = this;
+  
       assert(typeof data === 'object' && (data.children != null), '`data` needs to be an Object with `children`');
       assert(this.target != null, 'need to have a target for rendering defined');
       assert(this.band != null, '`band` of allele counts not provided');
@@ -255,17 +260,19 @@ new Error('This widget cannot be called directly');
     Widget.prototype.dendrogram = function(data, config) {
       var filterChildren, graph, params, target,
         _this = this;
+  
       assert(this.target != null, 'need to have a target for rendering defined');
       assert(this.config.width != null, 'need to provide a `width` for the chart');
       assert(this.config.height != null, 'need to provide a `height` for the chart');
       assert(typeof config === 'object', '`config` of the graph are not provided');
       data = (filterChildren = function(node, bandCutoff, category) {
         var ch, children, _i, _len, _ref;
+  
         assert(node != null, '`node` not provided');
         assert(bandCutoff != null, '`bandCutoff` not provided');
         assert(category != null, '`category` not provided');
         if (node.type === 'hlt') {
-          if (!(node.children != null) || node.children.length === 0) {
+          if ((node.children == null) || node.children.length === 0) {
             return;
           }
           if (category !== 'all' && node.name !== category) {
@@ -318,6 +325,7 @@ new Error('This widget cannot be called directly');
       }
       return graph.click(function(type, node) {
         var pq, _ref;
+  
         switch (type) {
           case 'hlt':
             if (config.opts.category === 'all') {
@@ -357,7 +365,6 @@ new Error('This widget cannot be called directly');
   })();
   
   Config = (function() {
-  
     Config.prototype.opts = {
       'termTextBand': 3,
       'hideTermsBand': 2,
@@ -368,6 +375,7 @@ new Error('This widget cannot be called directly');
     function Config(template, target) {
       var k, v, _fn, _ref,
         _this = this;
+  
       $(target).html(template(this.opts));
       _ref = this.opts;
       _fn = function(k) {
@@ -397,7 +405,6 @@ new Error('This widget cannot be called directly');
   })();
   
   Dendrogram = (function() {
-  
     function Dendrogram() {}
   
     Dendrogram.prototype.click = function(fn) {
@@ -409,12 +416,12 @@ new Error('This widget cannot be called directly');
   })();
   
   RadialDendrogram = (function(_super) {
-  
     __extends(RadialDendrogram, _super);
   
     function RadialDendrogram(opts) {
       var arc, cluster, d, depths, diagonal, key, link, links, n, nodes, rx, ry, sort, value, vis, _fn, _i, _j, _len, _len1, _ref,
         _this = this;
+  
       assert((opts.width != null) && typeof opts.width === 'number', '`width` is missing and needs to be a number');
       assert((opts.height != null) && typeof opts.height === 'number', '`height` is missing and needs to be a number');
       assert((opts.el != null) && typeof opts.el === 'object', '`el` is missing and needs to be an HTMLDivElement');
@@ -456,6 +463,7 @@ new Error('This widget cannot be called directly');
       depths = [n.append("svg:g").attr("class", "tier depth-2"), n.append("svg:g").attr("class", "tier depth-1"), n.append("svg:g").attr("class", "tier depth-0")];
       _fn = function(d) {
         var circle, node;
+  
         node = depths[Math.abs(d.depth - 2)].append("svg:g").attr("class", d.count != null ? "node depth-" + d.depth + " count-" + d.count : "node depth-" + d.depth).attr("transform", "rotate(" + (d.x - 90) + ")translate(" + d.y + ")");
         circle = node.append("svg:circle").attr("r", Math.abs(d.depth - 6)).attr("class", d.band ? d.type ? "band-" + d.band + " type " + d.type : "band-" + d.band : d.type ? "type " + d.type : void 0);
         circle.on("click", function() {
@@ -464,7 +472,7 @@ new Error('This widget cannot be called directly');
           }
         });
         node.append("svg:title").text(d.name);
-        if (!(d.band != null) || d.band > (_this.termTextBand - 2)) {
+        if ((d.band == null) || d.band > (_this.termTextBand - 2)) {
           return node.append("svg:text").attr("dx", d.x < 180 ? 8 : -8).attr("dy", ".31em").attr("text-anchor", d.x < 180 ? "start" : "end").attr("transform", d.x < 180 ? null : "rotate(180)").text(d.name.length > 50 ? d.name.slice(0, 50) + '...' : d.name);
         }
       };
@@ -479,12 +487,12 @@ new Error('This widget cannot be called directly');
   })(Dendrogram);
   
   TreeDendrogram = (function(_super) {
-  
     __extends(TreeDendrogram, _super);
   
     function TreeDendrogram(opts) {
       var cluster, d, depths, diagonal, key, link, links, n, nodes, sort, value, vis, _fn, _i, _j, _len, _len1, _ref,
         _this = this;
+  
       assert((opts.width != null) && typeof opts.width === 'number', '`width` is missing and needs to be a number');
       assert((opts.height != null) && typeof opts.height === 'number', '`height` is missing and needs to be a number');
       assert((opts.el != null) && typeof opts.el === 'object', '`el` is missing and needs to be an HTMLDivElement');
@@ -523,6 +531,7 @@ new Error('This widget cannot be called directly');
       depths = [n.append("svg:g").attr("class", "tier depth-2"), n.append("svg:g").attr("class", "tier depth-1"), n.append("svg:g").attr("class", "tier depth-0")];
       _fn = function(d) {
         var circle, node;
+  
         node = depths[Math.abs(d.depth - 2)].append("svg:g").attr("class", d.count != null ? "node depth-" + d.depth + " count-" + d.count : "node depth-" + d.depth).attr("transform", "translate(" + d.y + "," + d.x + ")");
         circle = node.append("svg:circle").attr("r", Math.abs(d.depth - 6)).attr("class", d.band ? d.type ? "band-" + d.band + " type " + d.type : "band-" + d.band : d.type ? "type " + d.type : void 0);
         circle.on("click", function() {
@@ -531,7 +540,7 @@ new Error('This widget cannot be called directly');
           }
         });
         node.append("svg:title").text(d.name);
-        if (!(d.band != null) || d.band > (_this.termTextBand - 2)) {
+        if ((d.band == null) || d.band > (_this.termTextBand - 2)) {
           return node.append("svg:text").attr("dx", d.children ? -8 : 8).attr("dy", "3").attr("text-anchor", d.children ? "end" : "start").text(d.name.length > 50 ? d.name.slice(0, 50) + '...' : d.name);
         }
       };
@@ -546,12 +555,11 @@ new Error('This widget cannot be called directly');
   })(Dendrogram);
   
   PopoverTable = (function() {
-  
     function PopoverTable(opts) {
       this.remove = __bind(this.remove, this);
-  
       var key, value,
         _this = this;
+  
       for (key in opts) {
         value = opts[key];
         this[key] = value;
@@ -572,6 +580,7 @@ new Error('This widget cannot be called directly');
   
     PopoverTable.prototype.remove = function() {
       var _ref;
+  
       return (_ref = this.html) != null ? _ref.remove() : void 0;
     };
   
