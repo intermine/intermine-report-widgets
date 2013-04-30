@@ -10,7 +10,7 @@
     </head>
     <body>
         <div id="dag">
-            <svg width="2000" height="2000">
+            <svg>
                 <defs>
                     <marker id="arrowhead"
                             viewBox="0 0 12 12"
@@ -65,22 +65,21 @@
             background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAdCAMAAACKeiw+AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAAZQTFRF////9fb3h/JDwQAAABtJREFUeNpiYMQLGBgZ8IJR6VHpUWnKpAECDACcGgA72QxfPgAAAABJRU5ErkJggg==);
         }
         .node rect {
+            white-space: normal;
             stroke-width: 1.5px;
             stroke: #333;
-            fill: #1c93d6;
         }
         .node rect.direct {
             fill: red;
         }
         .node rect.focus {
-            fill: #7e21c7;
         }
         text {
             font-family: "Helvetica Neue", "Helvetica", "Droid Sans", "Ubuntu";
         }
-        .node text {
+        .node text.dag-label {
             stroke-width: 3px;
-            fill: #333;
+            fill: #fff;
         }
         .node text.focus,
         .node text.direct {
@@ -92,15 +91,11 @@
         .node:hover {
             cursor: pointer;
         }
-        .node:hover rect {
-            fill: #1CD6D6;
-        }
         .edge rect {
             fill: #fff;
         }
         .edge path {
             fill: none;
-            stroke-width: 5px;
         }
         .link {
             fill: none;
@@ -120,9 +115,12 @@
             stroke-width: 3px;
         }
         .edge .label text {
-            font: 300 16px "Helvetica Neue", "Helvetica", "Droid Sans", "Ubuntu";
             stroke: none;
             fill: #333;
+        }
+        .edge .label text,
+        text.dag-label {
+            font-family: "Ubuntu mono", "Droid Sans Mono", "Inconsolata", "Consolas", "Monospaced";
         }
         .chord-label {
             font-size: 8px;
@@ -154,14 +152,13 @@
         }
         text.force-label {
             cursor: pointer;
-            font-size: 20px;
         }
         circle.force-term {
             cursor: pointer;
-            fill: steelblue;
             stroke: white;
             stroke-width: 1;
         }
+        rect.root,
         circle.root {
             fill: rgb(120, 31, 180);
         }

@@ -5,13 +5,13 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, nodePadding, minTicks, directTerms, allGoTerms, wholeGraphQ, countQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, drawChord, drawForce, drawRadial, drawDag, makeGraph, doUpdate, render, flatten, rowToNode, queryParams, currentSymbol, main;
+  var Service, ref$, rows, query, nodePadding, minTicks, directTerms, allGoTerms, wholeGraphQ, countQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, mvTowards, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, drawChord, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, drawForce, drawRadial, drawDag, makeGraph, doUpdate, render, flatten, rowToNode, queryParams, currentSymbol, main;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
   }), rows = ref$.rows, query = ref$.query;
   nodePadding = 10;
-  minTicks = 50;
+  minTicks = 20;
   directTerms = function(it){
     return {
       select: ['goAnnotation.ontologyTerm.identifier'],
@@ -77,32 +77,33 @@ if (typeof window == 'undefined' || window === null) {
   }).y(function(it){
     return it.y;
   }).interpolate('bundle');
-  spline = function(e){
-    var points, source, target;
-    points = e.dagre.points.slice();
-    source = dagre.util.intersectRect(e.source.dagre, points[0]);
-    target = dagre.util.intersectRect(e.target.dagre, points[points.length - 1]);
-    points.unshift(source);
-    points.push(target);
-    return doLine(points);
+  spline = function(arg$){
+    var source, target, points, p0, pN;
+    source = arg$.source.dagre, target = arg$.target.dagre, points = arg$.dagre.points;
+    p0 = {
+      x: source.x + source.width / 2,
+      y: source.y + source.height / 2
+    };
+    pN = {
+      x: target.x - 25 - target.width / 2,
+      y: target.y + target.height / 2
+    };
+    return doLine([p0].concat(points, [pN]));
   };
-  translateEdge = curry$(function(arg$, e, dx, dy){
-    var width, height, i$, ref$, len$, p, ref1$, ref2$, results$ = [];
-    width = arg$.width, height = arg$.height;
+  translateEdge = curry$(function(svg, e, dx, dy){
+    var i$, ref$, len$, p, results$ = [];
     for (i$ = 0, len$ = (ref$ = e.dagre.points).length; i$ < len$; ++i$) {
       p = ref$[i$];
-      p.x = 0 > (ref1$ = width < (ref2$ = p.x + dx) ? width : ref2$) ? 0 : ref1$;
-      results$.push(p.y = 0 > (ref1$ = height < (ref2$ = p.y + dy) ? height : ref2$) ? 0 : ref1$);
+      p.x = p.x + dx;
+      results$.push(p.y = p.y + dy);
     }
     return results$;
   });
-  getNodeDragPos = curry$(function(sizeProp, posProp, svgBox, d){
-    var halfSize, halfRemaining, eventPos;
-    halfSize = d[sizeProp] / 2;
-    halfRemaining = svgBox[sizeProp] - d[sizeProp] / 2;
-    eventPos = d3.event[posProp];
-    return Math.max(halfSize, Math.min(halfRemaining, eventPos));
-  });
+  getNodeDragPos = function(posProp){
+    return function(){
+      return d3.event[posProp];
+    };
+  };
   toNodeId = compose$([
     (function(it){
       return 'node' + it;
@@ -160,56 +161,32 @@ if (typeof window == 'undefined' || window === null) {
       return "translate(" + x + "," + y + ")";
     });
   };
+  mvTowards = function(howMuch, goal, n){
+    var scale, dx, dy;
+    scale = (function(it){
+      return it * howMuch;
+    });
+    dx = scale(goal.x - n.x);
+    dy = scale(goal.y - n.y);
+    n.x += dx;
+    n.y += dy;
+  };
   markReachable = function(node){
-    var sources, targets, nextRank, toMark, n, lresult$, nextLevel, i$, len$, nn, results$ = [];
+    var queue, moar, n, results$ = [];
     node.isFocus = true;
-    sources = compose$([
-      reject(function(it){
-        return it.isReachable;
-      }), map(function(it){
-        it.isSource;
-        return it;
-      }), map(function(it){
-        return it.source;
-      }), function(it){
-        return it.edges;
-      }
-    ]);
-    targets = compose$([
-      reject(function(it){
-        return it.isReachable;
-      }), map(function(it){
-        it.isTarget;
-        return it;
+    queue = [node];
+    moar = function(n){
+      return reject((function(it){
+        return it === n;
       }), map(function(it){
         return it.target;
-      }), function(it){
-        return it.edges;
-      }
-    ]);
-    nextRank = function(it){
-      return unique(concat([sources(it), targets(it)]));
+      }, n.edges));
     };
-    toMark = nextRank(node);
-    while (n = toMark.shift()) {
-      lresult$ = [];
+    while (n = queue.shift()) {
       n.isReachable = true;
-      nextLevel = (fn$());
-      for (i$ = 0, len$ = nextLevel.length; i$ < len$; ++i$) {
-        nn = nextLevel[i$];
-        lresult$.push(toMark.push(nn));
-      }
-      results$.push(lresult$);
+      results$.push(each(bind$(queue, 'push'), moar(n)));
     }
     return results$;
-    function fn$(){
-      switch (false) {
-      case !n.isSource:
-        return targets(n);
-      default:
-        return sources(n);
-      }
-    }
   };
   unmark = function(nodes){
     var i$, len$, n, results$ = [];
@@ -227,13 +204,13 @@ if (typeof window == 'undefined' || window === null) {
       nodes: filter(function(it){
         return it.isReachable;
       }, nodes),
-      edges: filter(function(arg$){
-        var target, source;
-        target = arg$.target, source = arg$.source;
-        return all(function(it){
+      edges: filter(compose$([
+        function(it){
           return it.isReachable;
-        }, [source, target]);
-      }, edges)
+        }, function(it){
+          return it.source;
+        }
+      ]), edges)
     };
   };
   findRoots = function(arg$){
@@ -483,7 +460,7 @@ if (typeof window == 'undefined' || window === null) {
         }
       ]))(
       map(function(it){
-        return it.target;
+        return it.source;
       }, edges));
     };
     while (n = queue.shift()) {
@@ -492,19 +469,67 @@ if (typeof window == 'undefined' || window === null) {
     }
     return root;
   }
+  relationshipPalette = d3.scale.category10();
+  linkFill = compose$([
+    relationshipPalette, function(it){
+      return it.label;
+    }
+  ]);
+  linkStroke = compose$([
+    function(it){
+      return it.darker();
+    }, bind$(d3, 'rgb'), linkFill
+  ]);
+  termPalette = d3.scale.category20();
+  termColor = compose$([
+    function(it){
+      return it.darker();
+    }, bind$(d3, 'rgb'), termPalette, function(it){
+      return it.id;
+    }, function(it){
+      return it.root;
+    }
+  ]);
+  brighten = compose$([
+    function(it){
+      return it.brighter();
+    }, bind$(d3, 'rgb')
+  ]);
+  darken = compose$([
+    function(it){
+      return it.darker();
+    }, bind$(d3, 'rgb')
+  ]);
+  BRIGHTEN = compose$([brighten, brighten]);
   drawForce = function(directNodes, edges, nodeForIdent){
-    var graph, i$, ref$, len$, n, isRoot, isLeaf, getR, force, svg, svgGroup, zoom, color, relationships, link, getLabelId, node, nG, legend, lg, timer, basisLine, linkSpline, drawCurve, mvTowards, byX, widthRange, stratify, centrify, tickCount;
+    var currentZoom, animationState, runAnimation, graph, i$, ref$, len$, n, isRoot, isLeaf, getR, dimensions, getCharge, linkDistance, force, svg, svgGroup, getLabelFontSize, zoom, relationships, link, getLabelId, node, nG, legend, lg, tickCount, timer, basisLine, linkSpline, drawCurve, byX, widthRange, stratify, centrify;
+    currentZoom = 1;
+    animationState = 'paused';
     $('#jiggle').show().val(queryParams.jiggle).on('change', function(){
       queryParams.jiggle = $(this).val();
-      force.start();
+      runAnimation();
     });
     $('#spline').show().val(queryParams.spline).on('change', function(){
       queryParams.spline = $(this).val();
       tick();
     });
+    runAnimation = function(){
+      force.start();
+      return animationState = 'running';
+    };
     $('#force-stop').show().on('click', function(){
-      force.stop();
-      setTimeout(bind$(force, 'start'), 40000);
+      var ref$, action, nextState, nextLabel;
+      ref$ = (function(){
+        switch (animationState) {
+        case 'running':
+          return [bind$(force, 'stop'), 'paused', 'Start animation'];
+        case 'paused':
+          return [bind$(force, 'resume'), 'running', 'Pause animation'];
+        }
+      }()), action = ref$[0], nextState = ref$[1], nextLabel = ref$[2];
+      action();
+      animationState = nextState;
+      $(this).text(nextLabel);
     });
     graph = makeGraph.apply(this, arguments);
     for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
@@ -517,25 +542,24 @@ if (typeof window == 'undefined' || window === null) {
     isLeaf = function(it){
       return it.isLeaf;
     };
-    getR = compose$([
-      (function(it){
-        return 5 + it;
-      }), (function(it){
-        return 1.5 * it;
-      }), ln, function(it){
-        return it.count;
-      }
-    ]);
-    force = d3.layout.force().charge(function(d){
+    getR = function(it){
+      return (1.5 * ln(it.count) + 5) * (it.marked ? 2 : 1);
+    };
+    dimensions = {
+      w: $('body').width(),
+      h: $('body').height()
+    };
+    getCharge = function(d){
       var radius, rootBump, edgeBump, markedBump, jiggleBump, k;
       radius = getR(d);
       rootBump = isRoot(d) ? 150 : 0;
       edgeBump = 10 * d.edges.length;
       markedBump = d.marked ? 150 : 0;
       jiggleBump = queryParams.jiggle === 'strata' ? 100 : 0;
-      k = 100;
+      k = 150;
       return 1 - (k + radius + rootBump + edgeBump + markedBump);
-    }).gravity(0.04).linkStrength(0.8).linkDistance(function(arg$){
+    };
+    linkDistance = function(arg$){
       var source, target, ns, edges, markedBump, mutedPenalty, radii;
       source = arg$.source, target = arg$.target;
       ns = [source, target];
@@ -543,15 +567,16 @@ if (typeof window == 'undefined' || window === null) {
         var ref$;
         return ((ref$ = it.edges) != null ? ref$.length : void 8) || 0;
       }, ns));
-      markedBump = any(function(it){
+      markedBump = 50 * length(filter(function(it){
         return it.marked;
-      }, ns) ? 150 : 0;
+      }, ns));
       mutedPenalty = any(function(it){
         return it.muted;
       }, ns) ? 100 : 0;
       radii = sum(map(getR, ns));
       return 3 * edges + radii + 50 + markedBump - mutedPenalty;
-    }).size([1400, 1000]);
+    };
+    force = d3.layout.force().size([dimensions.w, dimensions.h]).charge(getCharge).gravity(0.04).linkStrength(0.8).linkDistance(linkDistance);
     query(
     countQuery(
     keys(
@@ -570,30 +595,27 @@ if (typeof window == 'undefined' || window === null) {
         n.count = summary[n.id];
       }
       nG.selectAll('circle').attr('r', getR);
-      return force.start();
+      return updateMarked();
     });
     svg = d3.select('svg');
     svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
+    getLabelFontSize = function(){
+      return Math.min(40, 20 / currentZoom);
+    };
     zoom = d3.behavior.zoom().on('zoom', function(){
-      return svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + d3.event.scale + ")");
+      currentZoom = d3.event.scale;
+      svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + currentZoom + ")");
+      force.tick();
+      return tick();
     });
     svg.call(zoom);
-    color = d3.scale.category10();
     relationships = unique(map(function(it){
       return it.label;
     }, graph.edges));
-    svg.attr('width', 1400).attr('height', 1000);
+    svg.attr('width', dimensions.w).attr('height', dimensions.h);
     force.nodes(graph.nodes).links(graph.edges).on('tick', tick);
     link = svgGroup.selectAll('.force-link').data(graph.edges);
-    link.enter().append(queryParams.spline ? 'path' : 'line').attr('class', 'force-link').attr('stroke-width', '1px').attr('stroke', compose$([
-      color, bind$(relationships, 'indexOf'), function(it){
-        return it.label;
-      }
-    ])).attr('fill', compose$([
-      color, bind$(relationships, 'indexOf'), function(it){
-        return it.label;
-      }
-    ]));
+    link.enter().append(queryParams.spline ? 'path' : 'line').attr('class', 'force-link').attr('stroke-width', '1px').attr('stroke', linkStroke).attr('fill', linkFill);
     link.exit().remove();
     getLabelId = compose$([
       (function(it){
@@ -608,15 +630,15 @@ if (typeof window == 'undefined' || window === null) {
     nG = node.enter().append('g').attr('class', 'force-node').call(force.drag).on('click', drawPathToRoot);
     nG.append('circle').attr('class', 'force-term').classed('root', isRoot).classed('direct', function(it){
       return it.isDirect;
-    }).attr('x', -100).attr('y', -100).attr('r', getR);
-    nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('x', -100).attr('y', -100).attr('dy', '0.3em');
-    nG.append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'black').attr('stroke-width', '0.5px').attr('display', function(it){
+    }).attr('fill', termColor).attr('cx', -dimensions.w).attr('cy', -dimensions.h).attr('r', getR);
+    nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('display', 'none').attr('x', -dimensions.w).attr('y', -dimensions.h).attr('dy', '0.3em');
+    nG.append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'black').attr('stroke-width', '0.1px').attr('display', function(it){
       if (it.isDirect) {
         return 'block';
       } else {
         return 'none';
       }
-    }).attr('id', getLabelId).attr('x', -100).attr('y', -100).text(function(it){
+    }).attr('id', getLabelId).attr('x', -dimensions.w).attr('y', -dimensions.h).text(function(it){
       return it.label;
     });
     nG.append('title').text(function(it){
@@ -641,13 +663,15 @@ if (typeof window == 'undefined' || window === null) {
     });
     lg.append('rect').attr('opacity', 0.6).attr('width', 180).attr('height', 50).attr('x', 25).attr('y', function(d, i){
       return 50 * i;
-    }).attr('fill', function(d, i){
-      return color(i);
-    });
+    }).attr('fill', relationshipPalette);
     lg.append('text').attr('x', 25).attr('y', function(d, i){
       return 25 + 50 * i;
     }).attr('dy', '0.31em').attr('dx', '1em').text(id);
+    tickCount = 0;
     updateMarked();
+    function isReady(){
+      return tickCount > minTicks * ln(length(graph.edges));
+    }
     function drawPathToRoot(d, i){
       var queue, moar, count, max, n, i$, ref$, len$, sn;
       if (isRoot(d)) {
@@ -661,7 +685,7 @@ if (typeof window == 'undefined' || window === null) {
             return it.marked;
           })(
           map(function(it){
-            return it.source;
+            return it.target;
           })(
           it.edges)));
         };
@@ -690,88 +714,11 @@ if (typeof window == 'undefined' || window === null) {
       }
       return updateMarked();
     }
-    function updateMarked(marked){
-      force.start();
-      node.selectAll('text.force-label').attr('display', function(arg$){
-        var marked, id, edges, isDirect;
-        marked = arg$.marked, id = arg$.id, edges = arg$.edges, isDirect = arg$.isDirect;
-        switch (false) {
-        case !(marked || isDirect):
-          return 'block';
-        case !all((function(it){
-            return it === id;
-          }), map(compose$([
-            function(it){
-              return it.id;
-            }, function(it){
-              return it.source;
-            }
-          ]), edges)):
-          return 'block';
-        default:
-          return 'none';
-        }
-      });
-      link.attr('stroke-width', function(arg$){
-        var target;
-        target = arg$.target;
-        switch (false) {
-        case !target.marked:
-          return '2px';
-        default:
-          return '1px';
-        }
-      });
-      if (marked) {
-        node.selectAll('circle').attr('opacity', function(it){
-          if (it.marked) {
-            return 1;
-          } else {
-            return 0.2;
-          }
-        });
-        link.attr('opacity', function(arg$){
-          var target;
-          target = arg$.target;
-          switch (false) {
-          case !target.marked:
-            return 0.8;
-          default:
-            return 0.2;
-          }
-        });
-        return node.selectAll('text').attr('opacity', function(it){
-          if (it.marked) {
-            return 1;
-          } else {
-            return 0.2;
-          }
-        });
-      } else {
-        link.attr('opacity', function(arg$){
-          var muted;
-          muted = arg$.source.muted;
-          if (muted) {
-            return 0.3;
-          } else {
-            return 0.6;
-          }
-        });
-        node.selectAll('circle').attr('opacity', function(it){
-          if (it.muted) {
-            return 0.3;
-          } else {
-            return 1;
-          }
-        });
-        return node.selectAll('text').attr('opacity', function(it){
-          if (it.muted) {
-            return 0.3;
-          } else {
-            return 1;
-          }
-        });
+    function updateMarked(afterMark){
+      if (!afterMark || animationState === 'running') {
+        runAnimation();
       }
+      return tick();
     }
     function showLabel(d, i){
       var i$, ref$, len$, n;
@@ -801,25 +748,24 @@ if (typeof window == 'undefined' || window === null) {
     /* http://bl.ocks.org/sboak/2942556 */
     basisLine = d3.svg.line().interpolate('basis');
     linkSpline = curry$(function(offsetScale, args){
-      var source, target, lineLength, endPoint, width, cos90, sin90, meanX, meanY, offset, mp1X, mp1Y, mp2X, mp2Y;
-      source = args[0], target = args[1], lineLength = args[2], endPoint = args[3], width = args[4], cos90 = args[5], sin90 = args[6];
+      var source, target, lineLength, endPoint, radiusS, cos90, sin90, meanX, meanY, offset, mp1X, mp1Y, mp2X, mp2Y;
+      source = args[0], target = args[1], lineLength = args[2], endPoint = args[3], radiusS = args[4], cos90 = args[5], sin90 = args[6];
       meanX = mean(map(function(it){
         return it.x;
       }, [source, target]));
       meanY = mean(map(function(it){
         return it.y;
       }, [source, target]));
-      offset = offsetScale * lineLength - width / 2;
+      offset = offsetScale * lineLength - radiusS / 4;
       mp1X = meanX + offset * cos90;
       mp1Y = meanY + offset * sin90;
       mp2X = meanX + offset * cos90;
       mp2Y = meanY + offset * sin90;
-      return [[source.x - width * cos90, source.y - width * sin90], [mp2X, mp2Y], endPoint, endPoint, [mp1X, mp1Y], [source.x + width * cos90, source.y + width * sin90]];
+      return [[source.x - radiusS * cos90, source.y - radiusS * sin90], [mp2X, mp2Y], endPoint, endPoint, [mp1X, mp1Y], [source.x + radiusS * cos90, source.y + radiusS * sin90]];
     });
     drawCurve = function(arg$){
-      var target, source, ref$, cos, sin, sqrt, atan2, pow, PI, slope, sinS, cosS, slopePlus90, sin90, cos90, radiusT, radiusS, width, lineLength, endPoint, args, points;
+      var target, source, cos, sin, sqrt, atan2, pow, PI, slope, ref$, sinS, cosS, slopePlus90, sin90, cos90, radiusT, radiusS, lineLength, endPoint, args, points;
       target = arg$.target, source = arg$.source;
-      ref$ = [target, source], source = ref$[0], target = ref$[1];
       cos = Math.cos, sin = Math.sin, sqrt = Math.sqrt, atan2 = Math.atan2, pow = Math.pow, PI = Math.PI;
       slope = atan2(target.y - source.y, target.x - source.x);
       ref$ = map(function(it){
@@ -830,10 +776,9 @@ if (typeof window == 'undefined' || window === null) {
         return it(slopePlus90);
       }, [sin, cos]), sin90 = ref$[0], cos90 = ref$[1];
       ref$ = map(getR, [target, source]), radiusT = ref$[0], radiusS = ref$[1];
-      width = radiusS / 3;
       lineLength = sqrt(pow(target.x - source.x, 2) + pow(target.y - source.y, 2));
-      endPoint = [target.x + radiusT * cosS, target.y + radiusT * sinS];
-      args = [source, target, lineLength, endPoint, width, cos90, sin90];
+      endPoint = [target.x - radiusT * 0.9 * cosS, target.y - radiusT * 0.9 * sinS];
+      args = [source, target, lineLength, endPoint, radiusS, cos90, sin90];
       points = (function(){
         switch (queryParams.spline) {
         case 'straight':
@@ -849,68 +794,60 @@ if (typeof window == 'undefined' || window === null) {
       points(
       args)));
     };
-    mvTowards = function(howMuch, goal, n){
-      var scale, dx, dy;
-      scale = (function(it){
-        return it * howMuch;
-      });
-      dx = scale(goal.x - n.x);
-      dy = scale(goal.y - n.y);
-      n.x += dx;
-      n.y += dy;
-    };
     byX = compare(function(it){
       return it.x;
     });
-    widthRange = d3.scale.linear().range([0, 1400]);
+    widthRange = d3.scale.linear().range([0.1 * dimensions.w, 0.9 * dimensions.w]);
     stratify = function(){
-      var roots, leaves, quantile, i$, ref$, len$, n, ref1$, qn, qr;
+      var roots, leaves, surface, currentFontSize, corners, quantile, i$, ref$, len$, n;
       roots = sortBy(byX, filter(isRoot, graph.nodes));
-      leaves = sortBy(byX, filter(isLeaf, graph.nodes));
-      widthRange.domain([0, roots.length - 1]);
-      roots.forEach(function(root, i){
-        return mvTowards(0.06, {
-          y: 0,
-          x: widthRange(i)
-        }, root);
-      });
-      quantile = d3.scale.quantile().domain([0, 1400]).range((function(){
+      leaves = sortBy(byX, filter(function(it){
+        return it.isDirect && it.isLeaf;
+      }, graph.nodes));
+      surface = fold(min, 0, map(function(it){
+        return it.y;
+      }, graph.nodes));
+      currentFontSize = getLabelFontSize();
+      corners = d3.scale.quantile().domain([0, dimensions.w]).range([0, dimensions.w]);
+      quantile = d3.scale.quantile().domain([0, dimensions.w]).range((function(){
         var i$, to$, results$ = [];
         for (i$ = 0, to$ = roots.length; i$ < to$; ++i$) {
           results$.push(i$);
         }
         return results$;
       }()));
+      roots.forEach(function(root, i){
+        return mvTowards(0.01, {
+          y: surface - getR(root),
+          x: widthRange(i)
+        }, root);
+      });
       for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
         n = ref$[i$];
-        ref1$ = map(quantile, [n.x, n.root.x]), qn = ref1$[0], qr = ref1$[1];
-        if (qn !== qr && (abs(qn - qr) > 1 || any(fn$, filter(fn1$, graph.nodes)))) {
-          mvTowards(0.02, {
-            y: n.y,
-            x: n.root.x
+        if (!(n.isRoot && n.y - getR(n) < surface)) {
+          mvTowards(0.001, {
+            x: n.root.x,
+            y: dimensions.h
           }, n);
         }
       }
+      widthRange.domain([0, roots.length - 1]);
       leaves.forEach(function(n, i){
-        if (n.y < 1000) {
-          mvTowards(0.02, {
+        var speed;
+        speed = n.y < dimensions.h / 2 ? 0.05 : 0.005;
+        if (n.y < dimensions.h * 0.9) {
+          mvTowards(speed, {
             x: n.x,
-            y: 1000
+            y: dimensions.h * 0.9
           }, n);
         }
-        if (n.y >= 970) {
-          return n.y = 1000 + 30 * i;
+        if (n.y >= dimensions.h * 0.85) {
+          return n.y = dimensions.h * 0.9 + currentFontSize * 1.1 * i;
         }
       });
-      function fn$(it){
-        return it.root !== n.root;
-      }
-      function fn1$(it){
-        return quantile(it.x === qr);
-      }
     };
     centrify = function(){
-      var roots, meanD;
+      var roots, meanD, half, centre, i$, ref$, len$, leaf;
       roots = sortBy(compare(function(it){
         return it.y;
       }), filter(isRoot, graph.nodes));
@@ -919,18 +856,30 @@ if (typeof window == 'undefined' || window === null) {
           return it * 2;
         }), getR
       ]), roots));
+      half = (function(it){
+        return it / 2;
+      });
       roots.forEach(function(n, i){
         var goal;
         goal = {
-          x: 700,
-          y: 500 - meanD * roots.length / 2 + meanD * i
+          x: half(dimensions.w),
+          y: half(dimensions.h) - meanD * roots.length / 2 + meanD * i
         };
         mvTowards(0.05, goal, n);
       });
+      centre = {
+        x: half(dimensions.w),
+        y: half(dimensions.h)
+      };
+      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+        leaf = ref$[i$];
+        if (isLeaf(leaf)) {
+          mvTowards(-0.001, centre, leaf);
+        }
+      }
     };
-    tickCount = 0;
     function tick(){
-      var jiggle, meanX, getHalf, texts, displayedTexts, circles;
+      var jiggle, currentFontSize, fontPlusPad, meanX, getHalf, texts, displayedTexts, circles;
       tickCount++;
       jiggle = (function(){
         switch (queryParams.jiggle) {
@@ -943,34 +892,37 @@ if (typeof window == 'undefined' || window === null) {
       if (jiggle) {
         jiggle();
       }
-      if (!(tickCount > minTicks)) {
+      if (!isReady()) {
         return;
       }
+      currentFontSize = getLabelFontSize();
+      fontPlusPad = currentFontSize * 1.1;
       meanX = mean(map(function(it){
         return it.x;
       }, graph.nodes));
-      getHalf = d3.scale.quantile().domain([0, 1400]).range(['left', 'right']);
+      getHalf = d3.scale.quantile().domain([0, dimensions.w]).range(['left', 'right']);
       texts = node.selectAll('text.force-label');
       displayedTexts = texts.filter(function(){
         return 'block' === d3.select(this).attr('display');
       });
       displayedTexts.each(function(d1, i){
-        var overlapped, thisHalf, op;
-        overlapped = false;
+        var ys, thisHalf, op;
+        ys = [];
         thisHalf = getHalf(d1.x);
         displayedTexts.each(function(d2){
-          var overlapped;
-          return overlapped || (overlapped = getHalf(d2.x === thisHalf) && abs(d1.y - d2.y) < 20);
+          if (d2 !== d2 && getHalf(d2.x === thisHalf) && abs(d1.y - d2.y) < fontPlusPad) {
+            return ys.push(d2.y);
+          }
         });
-        if (overlapped) {
-          op = even(i)
+        if (ys.length) {
+          op = d1.y > mean(ys)
             ? curry$(function(x$, y$){
               return x$ + y$;
             })
             : curry$(function(x$, y$){
               return x$ - y$;
             });
-          return d1.y = op(d1.y, 22);
+          return d1.y = op(d1.y, fontPlusPad);
         }
       });
       texts.attr('x', function(it){
@@ -1001,15 +953,10 @@ if (typeof window == 'undefined' || window === null) {
       ])).text(function(it){
         return it.count;
       });
-      circles = node.selectAll('circle').attr('cx', function(it){
-        return it.x;
-      }).attr('cy', function(it){
-        return it.y;
-      });
       if (queryParams.spline) {
-        return link.attr('d', drawCurve);
+        link.attr('d', drawCurve);
       } else {
-        return link.attr('x1', compose$([
+        link.attr('x1', compose$([
           function(it){
             return it.x;
           }, function(it){
@@ -1035,11 +982,106 @@ if (typeof window == 'undefined' || window === null) {
           }
         ]));
       }
+      node.selectAll('text').attr('display', function(arg$){
+        var marked, id, edges, isDirect;
+        marked = arg$.marked, id = arg$.id, edges = arg$.edges, isDirect = arg$.isDirect;
+        switch (false) {
+        case !(currentZoom > 2):
+          return 'block';
+        case !(marked || isDirect):
+          return 'block';
+        case !all((function(it){
+            return it === id;
+          }), map(compose$([
+            function(it){
+              return it.id;
+            }, function(it){
+              return it.source;
+            }
+          ]), edges)):
+          return 'block';
+        default:
+          return 'none';
+        }
+      });
+      node.selectAll('text.force-label').attr('font-size', currentFontSize);
+      link.attr('stroke-width', function(arg$){
+        var target;
+        target = arg$.target;
+        switch (false) {
+        case !target.marked:
+          return '2px';
+        default:
+          return '1px';
+        }
+      });
+      circles = node.selectAll('circle').attr('r', getR).attr('cx', function(it){
+        return it.x;
+      }).attr('cy', function(it){
+        return it.y;
+      });
+      if (any(function(it){
+        return it.marked;
+      }, graph.nodes)) {
+        circles.attr('opacity', function(it){
+          if (it.marked) {
+            return 1;
+          } else {
+            return 0.2;
+          }
+        });
+        link.attr('opacity', function(arg$){
+          var source;
+          source = arg$.source;
+          switch (false) {
+          case !source.marked:
+            return 0.8;
+          default:
+            return 0.1;
+          }
+        });
+        return node.selectAll('text').attr('opacity', function(it){
+          if (it.marked) {
+            return 1;
+          } else {
+            return 0.2;
+          }
+        });
+      } else {
+        link.attr('opacity', function(arg$){
+          var muted;
+          muted = arg$.source.muted;
+          if (muted) {
+            return 0.3;
+          } else {
+            return 0.5;
+          }
+        });
+        circles.attr('opacity', function(arg$){
+          var muted, isDirect;
+          muted = arg$.muted, isDirect = arg$.isDirect;
+          switch (false) {
+          case !muted:
+            return 0.3;
+          case !isDirect:
+            return 1;
+          default:
+            return 0.9;
+          }
+        });
+        return node.selectAll('text').attr('opacity', function(it){
+          if (it.muted) {
+            return 0.3;
+          } else {
+            return 1;
+          }
+        });
+      }
     }
     return tick;
   };
   drawRadial = function(directNodes, edges, nodeForIdent){
-    var graph, roots, root, tree, svg, svgGroup, zoom, cluster, diagonal, nodes, links, palette, relationships, linkStroke, link, node, setOnEachToRoot, circlePalette, nodeIds, circleFill, circles, texts, showFocussed;
+    var graph, roots, root, tree, svg, svgGroup, zoom, cluster, diagonal, nodes, links, palette, relationships, link, node, setOnEachToRoot, circlePalette, nodeIds, circleFill, circles, texts, showFocussed;
     graph = makeGraph.apply(this, arguments);
     roots = findRoots(graph);
     root = (function(){
@@ -1078,7 +1120,6 @@ if (typeof window == 'undefined' || window === null) {
     relationships = unique(map(function(it){
       return it.relationship;
     }, nodes));
-    linkStroke = compose$([palette, bind$(relationships, 'indexOf')]);
     link = svgGroup.selectAll('path.link').data(links).enter().append('path').attr('class', 'link').attr('stroke', linkStroke).attr('d', diagonal);
     node = svgGroup.selectAll('g.treenode').data(nodes).enter().append('g').attr('class', 'treenode').attr('transform', function(arg$){
       var x, y;
@@ -1191,9 +1232,9 @@ if (typeof window == 'undefined' || window === null) {
         var focus;
         focus = arg$.target.focus;
         if (focus) {
-          return '5px';
+          return 10;
         } else {
-          return '1.5px';
+          return 5;
         }
       });
       return circles.attr('r', function(arg$){
@@ -1211,13 +1252,11 @@ if (typeof window == 'undefined' || window === null) {
     })();
   };
   drawDag = function(directNodes, edges, nodeForIdent){
-    var graph, svg, svgGroup, x$, svgBBox;
+    var graph, svg, svgGroup;
     graph = makeGraph.apply(this, arguments);
     svg = d3.select('svg');
     svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
-    x$ = svgBBox = svg.node().getBBox();
-    x$.width = 5000;
-    x$.height = 2000;
+    d3.selectAll(svg.node).attr('width', $('body').width()).attr('height', $('body').height());
     return render(svg, svgGroup, graph);
   };
   makeGraph = function(directNodes, edges, nodeForIdent){
@@ -1239,14 +1278,14 @@ if (typeof window == 'undefined' || window === null) {
       return all((function(it){
         return it === n;
       }), map(function(it){
-        return it.source;
+        return it.target;
       }, n.edges));
     };
     isLeaf = function(n){
       return all((function(it){
         return it === n;
       }), map(function(it){
-        return it.target;
+        return it.source;
       }, n.edges));
     };
     for (i$ = 0, len$ = nodes.length; i$ < len$; ++i$) {
@@ -1301,7 +1340,7 @@ if (typeof window == 'undefined' || window === null) {
     });
   };
   render = curry$(function(svg, svgGroup, arg$){
-    var nodes, edges, reset, reRender, update, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, rects, dragCp, labels, focusEdges, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag, zoom;
+    var nodes, edges, reset, reRender, update, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, rects, dragCp, lineWrap, labels, applyLayout, overlaps, getOverlapping, separateColliding, fixDagBoxCollisions, focusEdges, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag, currentZoom, zoom;
     nodes = arg$.nodes, edges = arg$.edges, reset = arg$.reset;
     reRender = render(svg, svgGroup);
     update = function(){
@@ -1315,7 +1354,7 @@ if (typeof window == 'undefined' || window === null) {
     });
     console.log("Rendering " + length(nodes) + " nodes and " + length(edges) + " edges");
     svgBBox = svg.node().getBBox();
-    mvEdge = translateEdge(svgBBox);
+    mvEdge = translateEdge(svg);
     svgGroup.selectAll('*').remove();
     svgEdges = svgGroup.selectAll('g .edge').data(edges);
     edgesEnter = svgEdges.enter().append('g').attr('id', function(it){
@@ -1339,22 +1378,43 @@ if (typeof window == 'undefined' || window === null) {
         return reRender((filtered.reset = reset, filtered));
       }
     });
+    edgesEnter.append('path').attr('marker-end', 'url(#Triangle)').attr('stroke-width', 5).attr('opacity', 0.8).attr('stroke', linkStroke);
     rects = nodesEnter.append('rect');
-    edgesEnter.append('path').attr('marker-start', 'url(#arrowhead)');
+    nodesEnter.append('title').text(function(it){
+      return it.label;
+    });
     dragCp = d3.behavior.drag().on('drag', function(d){
       d.y += d3.event.dy;
       mvEdge(d.parent, d3.event.dx, 0);
       return d3.select('#' + d.parent.dagre.id).attr('d', spline);
     });
-    labels = nodesEnter.append('text').attr('text-anchor', 'middle').attr('x', 0).attr('class', function(it){
-      if (it.isDirect) {
-        return 'direct';
-      } else {
-        return 'indirect';
+    lineWrap = function(str){
+      var buff, maxLl, i$, ref$, len$, word;
+      buff = [''];
+      maxLl = 25;
+      for (i$ = 0, len$ = (ref$ = str.split(' ')).length; i$ < len$; ++i$) {
+        word = ref$[i$];
+        if (buff[buff.length - 1].length + word.length + 1 > maxLl) {
+          buff.push('');
+        }
+        buff[buff.length - 1] += ' ' + word;
       }
+      return map(function(it){
+        return it.substring(1);
+      }, buff);
+    };
+    labels = nodesEnter.append('text').attr('class', 'dag-label').attr('text-anchor', 'middle').attr('x', 0).classed('direct', function(it){
+      return it.isDirect;
     });
-    labels.append('tspan').attr('x', 0).attr('dy', '1em').text(function(it){
-      return it.label;
+    labels.each(function(n){
+      var text, el, i$, len$, line, results$ = [];
+      text = lineWrap(n.label);
+      el = d3.select(this);
+      for (i$ = 0, len$ = text.length; i$ < len$; ++i$) {
+        line = text[i$];
+        results$.push(el.append('tspan').text(line).attr('dy', '1em').attr('x', 0));
+      }
+      return results$;
     });
     labels.each(function(d){
       var bbox;
@@ -1365,13 +1425,13 @@ if (typeof window == 'undefined' || window === null) {
     });
     rects.attr('width', compose$([
       (function(it){
-        return nodePadding + it;
+        return nodePadding * 2 + it;
       }), function(it){
         return it.width;
       }
     ])).attr('height', compose$([
       (function(it){
-        return nodePadding + it;
+        return nodePadding * 2 + it;
       }), function(it){
         return it.height;
       }
@@ -1379,46 +1439,193 @@ if (typeof window == 'undefined' || window === null) {
       return -it.bbox.width / 2 - nodePadding;
     }).attr('y', function(it){
       return -it.bbox.height / 2 - nodePadding / 2;
-    }).attr('class', function(it){
-      switch (false) {
-      case !it.isFocus:
-        return 'focus';
-      case !it.isDirect:
-        return 'direct';
-      default:
-        return 'indirect';
-      }
+    }).attr('fill', termColor).classed('focus', function(it){
+      return it.isFocus;
+    }).classed('direct', function(it){
+      return it.isDirect;
+    }).classed('root', function(it){
+      return it.isRoot;
     });
     labels.attr('x', function(it){
       return -it.bbox.width / 2;
     }).attr('y', function(it){
       return -it.bbox.height / 2;
     });
-    dagre.layout().nodeSep(50).edgeSep(10).rankSep(50).nodes(nodes).edges(edges).debugLevel(1).run();
-    nodesEnter.attr('transform', function(it){
-      return "translate(" + it.dagre.x + "," + it.dagre.y + ")";
-    });
+    dagre.layout().nodeSep(100).edgeSep(20).rankSep(200).rankDir('LR').nodes(nodes).edges(edges).debugLevel(1).run();
+    (applyLayout = function(){
+      return nodesEnter.attr('transform', function(it){
+        return "translate(" + it.dagre.x + "," + it.dagre.y + ")";
+      });
+    })();
+    overlaps = function(arg$, arg1$){
+      var a, b, requiredSeparation, dx, dy, adx, ady, mdx, mdy;
+      a = arg$.dagre;
+      b = arg1$.dagre;
+      requiredSeparation = nodePadding;
+      dx = a.x - b.x;
+      dy = a.y - b.y;
+      adx = abs(dx);
+      ady = abs(dy);
+      mdx = (1 + requiredSeparation) * mean(map(function(it){
+        return it.width;
+      }, [a, b]));
+      mdy = (1 + requiredSeparation) * mean(map(function(it){
+        return it.height;
+      }, [a, b]));
+      return adx < mdx && ady < mdy;
+    };
+    getOverlapping = function(things){
+      var i$, len$, t, j$, len1$, tt, results$ = [];
+      for (i$ = 0, len$ = things.length; i$ < len$; ++i$) {
+        t = things[i$];
+        for (j$ = 0, len1$ = things.length; j$ < len1$; ++j$) {
+          tt = things[j$];
+          if (t !== tt && overlaps(t, tt)) {
+            results$.push([t, tt]);
+          }
+        }
+      }
+      return results$;
+    };
+    separateColliding = function(arg$, arg1$){
+      var left, right;
+      left = arg$.dagre;
+      right = arg1$.dagre;
+      mvTowards(-0.1, left, right);
+      return mvTowards(-0.1, right, left);
+    };
+    fixDagBoxCollisions = function(d, i){
+      var highlit, colliding, maxRounds, i$, len$, ref$, left, right;
+      if (i) {
+        return;
+      }
+      return false;
+      highlit = filter(function(it){
+        return any(function(it){
+          return it.highlight;
+        }, it.edges);
+      }, nodes);
+      colliding = getOverlapping(highlit);
+      maxRounds = 50;
+      i = 0;
+      while (colliding.length && i++ < maxRounds) {
+        console.log("Found " + colliding.length + " collisions");
+        for (i$ = 0, len$ = colliding.length; i$ < len$; ++i$) {
+          ref$ = colliding[i$], left = ref$[0], right = ref$[1];
+          separateColliding(left, right);
+        }
+        colliding = getOverlapping(highlit);
+      }
+      /* Finding collisions work, but avoiding them is a TODO */
+      nodesEnter.filter(function(it){
+        return it.highlight;
+      }).attr('transform', function(it){
+        return "translate(" + it.dagre.x + "," + it.dagre.y + ") scale(" + Math.min(3, 1 / currentZoom) + ")";
+      });
+      return console.log(colliding.length + " collisions left after " + i + " rounds");
+    };
     focusEdges = function(){
-      return svgEdges.selectAll('path').attr('class', function(it){
+      var someLit, duration, maxScale, deScale, notFocussed;
+      someLit = any(function(it){
+        return it.highlight;
+      }, edges);
+      duration = 250;
+      maxScale = 2.5;
+      deScale = Math.max(1, Math.min(maxScale, 1 / currentZoom));
+      notFocussed = function(it){
+        return !someLit || !any(function(it){
+          return it.highlight;
+        }, it.edges);
+      };
+      nodesEnter.transition().duration(duration).attr('transform', function(it){
+        switch (false) {
+        case !notFocussed(it):
+          return "translate(" + it.dagre.x + "," + it.dagre.y + ")";
+        default:
+          return "translate(" + it.dagre.x + "," + it.dagre.y + ") scale(" + deScale + ")";
+        }
+      }).attr('opacity', function(it){
+        switch (false) {
+        case !!someLit:
+          return 1;
+        case !any(function(it){
+            return it.highlight;
+          }, it.edges):
+          return 1;
+        default:
+          return 0.3;
+        }
+      }).each('end', fixDagBoxCollisions);
+      svgEdges.selectAll('path').transition().duration(duration).attr('stroke-width', function(it){
+        if (it.highlight) {
+          return 15;
+        } else {
+          return 5;
+        }
+      }).attr('stroke', function(it){
         switch (false) {
         case !it.highlight:
-          return 'highlight';
+          return BRIGHTEN(linkStroke(it));
         default:
-          return it.label;
+          return linkStroke(it);
+        }
+      }).attr('fill', function(it){
+        switch (false) {
+        case !it.highlight:
+          return BRIGHTEN(linkFill(it));
+        default:
+          return linkFill(it);
+        }
+      }).attr('opacity', function(it){
+        if (!someLit || it.highlight) {
+          return 0.8;
+        } else {
+          return 0.5;
+        }
+      });
+      return svgEdges.selectAll('text').transition().duration(duration).attr('font-weight', function(it){
+        if (it.highlight) {
+          return 'bold';
+        } else {
+          return 'normal';
+        }
+      }).attr('font-size', function(it){
+        if (it.highlight) {
+          return 28;
+        } else {
+          return 14;
         }
       });
     };
-    nodesEnter.on('mouseover', function(node){
-      var i$, ref$, len$, e;
-      for (i$ = 0, len$ = (ref$ = node.edges).length; i$ < len$; ++i$) {
-        e = ref$[i$];
-        e.highlight = true;
+    highlightTargets = function(node){
+      var moar, queue, n;
+      moar = function(n){
+        return reject((function(it){
+          return it === n;
+        }), map(function(it){
+          return it.target;
+        }, n.edges));
+      };
+      queue = [node];
+      while (n = queue.shift()) {
+        each((fn$), reject(compose$([(fn1$), fn2$]), n.edges));
+        each(bind$(queue, 'push'), moar(n));
       }
       return focusEdges();
-    });
+      function fn$(it){
+        return it.highlight = true, it;
+      }
+      function fn1$(it){
+        return it === n;
+      }
+      function fn2$(it){
+        return it.target;
+      }
+    };
+    nodesEnter.on('mouseover', highlightTargets);
     nodesEnter.on('mouseout', function(node){
       var i$, ref$, len$, e;
-      for (i$ = 0, len$ = (ref$ = node.edges).length; i$ < len$; ++i$) {
+      for (i$ = 0, len$ = (ref$ = edges).length; i$ < len$; ++i$) {
         e = ref$[i$];
         e.highlight = false;
       }
@@ -1468,14 +1675,14 @@ if (typeof window == 'undefined' || window === null) {
       }
     ])).attr('d', spline).attr('stroke', edgeStroke);
     update();
-    getDragX = getNodeDragPos('width', 'x', svgBBox);
-    getDragY = getNodeDragPos('height', 'y', svgBBox);
+    getDragX = getNodeDragPos('x');
+    getDragY = getNodeDragPos('y');
     dragHandler = function(d, i){
       var prevX, prevY, dx, dy, i$, ref$, len$, e, results$ = [];
       prevX = d.dagre.x;
       prevY = d.dagre.y;
-      d.dagre.x = getDragX(d);
-      d.dagre.y = getDragY(d);
+      d.dagre.x = getDragX();
+      d.dagre.y = getDragY();
       d3.select(this).attr('transform', "translate(" + d.dagre.x + "," + d.dagre.y + ")");
       dx = d.dagre.x - prevX;
       dy = d.dagre.y - prevY;
@@ -1504,8 +1711,10 @@ if (typeof window == 'undefined' || window === null) {
       mvEdge(d, d3.event.dx, d3.event.dy);
       return d3.select(this).attr('d', spline(d));
     });
+    currentZoom = 1;
     zoom = d3.behavior.zoom().on('zoom', function(){
-      return svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + d3.event.scale + ")");
+      currentZoom = d3.event.scale;
+      return svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + currentZoom + ")");
     });
     svg.call(zoom);
     nodesEnter.call(nodeDrag);
@@ -1513,8 +1722,8 @@ if (typeof window == 'undefined' || window === null) {
   });
   flatten = concatMap(id);
   rowToNode = function(arg$){
-    var target, label, source;
-    target = arg$[0], label = arg$[1], source = arg$[2];
+    var source, label, target;
+    source = arg$[0], label = arg$[1], target = arg$[2];
     return {
       target: target,
       label: label,
@@ -1586,13 +1795,13 @@ if (typeof window == 'undefined' || window === null) {
     };
     return _curry();
   }
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
   function in$(x, arr){
     var i = -1, l = arr.length >>> 0;
     while (++i < l) if (x === arr[i] && i in arr) return true;
     return false;
-  }
-  function bind$(obj, key, target){
-    return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
   function import$(obj, src){
     var own = {}.hasOwnProperty;

@@ -7,7 +7,7 @@
 
 node-padding = 10
 
-min-ticks = 50
+min-ticks = 20
 
 # Get the ontology terms for a gene.
 direct-terms = ->
@@ -49,24 +49,23 @@ do-line = d3.svg.line!
         .y (.y)
         .interpolate \bundle
 
-spline = (e) ->
-    points = e.dagre.points.slice!
-    source = dagre.util.intersect-rect e.source.dagre, points[0]
-    target = dagre.util.intersect-rect e.target.dagre, points[* - 1]
-    points.unshift source
-    points.push target
-    do-line points
+spline = ({source: {dagre:source}, target:{dagre:target}, dagre: {points}}) ->
+    p0 =
+        x: source.x + source.width / 2
+        y: source.y + source.height / 2
+    # dagre.util.intersect-rect e.source.dagre, points[0]
+    pN =
+        x: target.x - 25 - target.width / 2
+        y: target.y + target.height / 2
+    #dagre.util.intersect-rect e.target.dagre, points[* - 1]
+    do-line [p0] ++ points ++ [pN]
 
-translate-edge = ({width, height}, e, dx, dy) -->
+translate-edge = (svg, e, dx, dy) -->
     for p in e.dagre.points
-        p.x = 0 >? (width <? p.x + dx)
-        p.y = 0 >? (height <? p.y + dy)
+        p.x = p.x + dx
+        p.y = p.y + dy
 
-get-node-drag-pos = (size-prop, pos-prop, svg-box, d) -->
-    half-size = d[size-prop] / 2
-    half-remaining = svg-box[size-prop] - d[size-prop] / 2
-    event-pos = d3.event[pos-prop]
-    Math.max(half-size, Math.min(half-remaining, event-pos))
+get-node-drag-pos = (pos-prop) -> -> d3.event[pos-prop]
 
 to-node-id = (\node +) << (.replace /:/g, \_) << (.id)
 
@@ -102,19 +101,20 @@ add-labels = (selection) ->
         y = mean map (.y), points
         "translate(#{ x },#{ y })"
 
+mv-towards = !(how-much, goal, n) ->
+    scale = (* how-much)
+    dx = scale goal.x - n.x
+    dy = scale goal.y - n.y
+    n.x += dx
+    n.y += dy
+
 mark-reachable = (node) ->
     node.is-focus = true
-    sources = (reject (.is-reachable)) << (map -> it.is-source; it) << (map (.source)) << (.edges)
-    targets = (reject (.is-reachable)) << (map -> it.is-target; it) << (map (.target)) << (.edges)
-    next-rank = -> unique concat [ (sources it), (targets it) ]
-    to-mark = next-rank node
-    while n = to-mark.shift()
+    queue = [node]
+    moar = (n) -> reject (is n), map (.target), n.edges
+    while n = queue.shift!
         n.is-reachable = true
-        next-level =
-            | n.is-source => targets n
-            | otherwise   => sources n
-        for nn in next-level
-            to-mark.push nn
+        each queue~push, moar n
 
 unmark = (nodes) ->
     for n in nodes
@@ -125,7 +125,7 @@ unmark = (nodes) ->
 
 only-marked = (nodes, edges) ->
     nodes: filter (.is-reachable), nodes
-    edges: filter (({target, source}) -> all (.is-reachable), [source, target]), edges
+    edges: filter (.is-reachable) << (.source), edges
 
 # Roots are those nodes that only have edges coming in, not going out.
 find-roots = ({nodes}) -> [n for n in nodes when all ((is n) << (.source)), n.edges]
@@ -281,20 +281,35 @@ draw-chord = (direct-nodes, edges, node-for-ident) ->
 
 function mark-subtree root, prop, val
     queue = [root]
-    moar = ({edges}) -> map (.target), edges |> reject (is val) << (.[prop])
+    moar = ({edges}) -> map (.source), edges |> reject (is val) << (.[prop])
     while n = queue.shift!
         n[prop] = val
         each queue~push, moar n
     root
 
+relationship-palette = d3.scale.category10!
+link-fill = relationship-palette << (.label)
+link-stroke = (.darker!) << d3~rgb << link-fill
+
+term-palette = d3.scale.category20!
+term-color = (.darker!) << (d3~rgb) << (term-palette) << (.id) << (.root)
+
+brighten = (.brighter!) << (d3~rgb)
+darken = (.darker!) << (d3~rgb)
+
+BRIGHTEN = brighten << brighten
+
 draw-force =  (direct-nodes, edges, node-for-ident) ->
+
+    current-zoom = 1
+    animation-state = \paused
 
     $ \#jiggle
         .show!
         .val query-params.jiggle
         .on \change, !->
             query-params.jiggle = $(@).val!
-            force.start!
+            run-animation!
     $ \#spline
         .show!
         .val query-params.spline
@@ -302,11 +317,20 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             query-params.spline = $(@).val!
             tick!
 
+    run-animation = ->
+        force.start!
+        animation-state := \running
+
     $ \#force-stop
         .show!
         .on \click !->
-            force.stop!
-            set-timeout force~start, 40_000ms
+            [action, next-state, next-label] = switch animation-state
+                | \running => [force~stop, \paused, 'Start animation']
+                | \paused  => [force~resume, \running, 'Pause animation']
+
+            action!
+            animation-state := next-state
+            $(@).text next-label
 
     graph = make-graph ...
 
@@ -315,27 +339,35 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     is-root = (.is-root)
     is-leaf = (.is-leaf)
-    get-r = (5 +) << (1.5 *) << ln << (.count)
+    get-r = -> ((1.5 * ln it.count) + 5) * (if it.marked then 2 else 1)
+
+    dimensions =
+        w: $ \body .width!
+        h: $ \body .height!
+
+    get-charge = (d) ->
+        radius = get-r d
+        root-bump = if is-root d then 150 else 0
+        edge-bump = 10 * d.edges.length
+        marked-bump = if d.marked then 150 else 0
+        jiggle-bump = if query-params.jiggle is \strata then 100 else 0
+        k = 150
+        1 - (k + radius + root-bump + edge-bump + marked-bump)
+
+    link-distance = ({source, target}) ->
+        ns = [source, target]
+        edges = sum map (-> it.edges?.length or 0), ns
+        marked-bump = 50 * length filter (.marked), ns
+        muted-penalty = if (any (.muted), ns) then 100 else 0
+        radii = sum map get-r, ns
+        (3 * edges) + radii + 50 + marked-bump - muted-penalty
 
     force = d3.layout.force!
-        .charge (d) ->
-            radius = get-r d
-            root-bump = if is-root d then 150 else 0
-            edge-bump = 10 * d.edges.length
-            marked-bump = if d.marked then 150 else 0
-            jiggle-bump = if query-params.jiggle is \strata then 100 else 0
-            k = 100
-            1 - (k + radius + root-bump + edge-bump + marked-bump)
+        .size [dimensions.w, dimensions.h]
+        .charge get-charge
         .gravity 0.04
         .link-strength 0.8
-        .link-distance ({source, target}) ->
-            ns = [source, target]
-            edges = sum map (-> it.edges?.length or 0), ns
-            marked-bump = if (any (.marked), ns) then 150 else 0
-            muted-penalty = if (any (.muted), ns) then 100 else 0
-            radii = sum map get-r, ns
-            (3 * edges) + radii + 50 + marked-bump - muted-penalty
-        .size [1400, 1000]
+        .link-distance link-distance
 
     (node-for-ident |> keys |> count-query |> query)
         .then (.summarise \goAnnotation.ontologyTerm.parents.identifier)
@@ -345,27 +377,32 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
                 n.count = summary[n.id]
             n-g.select-all \circle
                 .attr \r, get-r
-            force.start!
-
+            update-marked!
 
     svg = d3.select \svg
     svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
 
+    get-label-font-size = -> Math.min 40, 20 / current-zoom
+
     zoom = d3.behavior.zoom!
-        .on \zoom, -> svg-group.attr \transform, "translate(#{ d3.event.translate }) scale(#{ d3.event.scale })"
+        .on \zoom, ->
+            current-zoom := d3.event.scale
+            svg-group.attr \transform, "translate(#{ d3.event.translate }) scale(#{ current-zoom })"
+            force.tick!
+            tick!
 
     svg.call zoom
 
-    color = d3.scale.category10!
     relationships = unique map (.label), graph.edges
 
     svg
-        .attr \width, 1400
-        .attr \height, 1000
+        .attr \width, dimensions.w
+        .attr \height, dimensions.h
 
     force.nodes graph.nodes
         .links graph.edges
         .on \tick, tick
+
 
     link = svg-group.select-all \.force-link
         .data graph.edges
@@ -373,9 +410,10 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         .append (if query-params.spline then \path else \line)
         .attr \class, \force-link
         .attr \stroke-width, \1px
-        .attr \stroke, (color) << (relationships~index-of) << (.label)
-        .attr \fill, (color) << (relationships~index-of) << (.label)
+        .attr \stroke, link-stroke
+        .attr \fill, link-fill
     link.exit!remove!
+
 
     get-label-id = (\label- +) << (.replace /:/g, \-) << (.id)
     node = svg-group.select-all \.force-node
@@ -390,16 +428,18 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         .attr \class, \force-term
         .classed \root, is-root
         .classed \direct, (.is-direct)
-        .attr \x, -100
-        .attr \y, -100
+        .attr \fill, term-color
+        .attr \cx, -dimensions.w
+        .attr \cy, -dimensions.h
         .attr \r, get-r
 
     n-g.append \text
         .attr \class, \count-label
         .attr \fill, \white
         .attr \text-anchor, \middle
-        .attr \x, -100
-        .attr \y, -100
+        .attr \display, \none
+        .attr \x, -dimensions.w
+        .attr \y, -dimensions.h
         .attr \dy, \0.3em
 
     n-g.append \text
@@ -407,11 +447,11 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         .attr \text-anchor, \start
         .attr \fill, \#555
         .attr \stroke, \black
-        .attr \stroke-width, \0.5px
+        .attr \stroke-width, \0.1px
         .attr \display, -> if it.is-direct then \block else \none
         .attr \id, get-label-id
-        .attr \x, -100
-        .attr \y, -100
+        .attr \x, -dimensions.w
+        .attr \y, -dimensions.h
         .text (.label)
 
     n-g.append \title
@@ -439,7 +479,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         .attr \height, 50
         .attr \x, 25
         .attr \y, (d, i) -> 50 * i
-        .attr \fill, (d, i) -> color i
+        .attr \fill, relationship-palette
 
     lg.append \text
         .attr \x, 25
@@ -448,9 +488,13 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         .attr \dx, \1em
         .text id
 
+    tick-count = 0
+
     update-marked!
 
     var timer
+
+    function is-ready then tick-count > min-ticks * ln length graph.edges
 
     function draw-path-to-root d, i
         if is-root d
@@ -458,7 +502,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         else
             clear-timeout timer
             queue = [d]
-            moar = -> it.edges |> map (.source) |> reject (.marked) |> unique
+            moar = -> it.edges |> map (.target) |> reject (.marked) |> unique
             count = 0
             max = 15 # don't overwhelm things
             while (count++ < max) and n = queue.shift!
@@ -477,34 +521,10 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             n.marked = n.muted = false
         update-marked!
 
-    function update-marked marked
-        force.start!
-
-        node.select-all \text.force-label
-            .attr \display ({marked, id, edges, is-direct}) ->
-                | (marked or is-direct) => \block
-                | all (is id), map (.id) << (.source), edges => \block
-                | otherwise => \none
-
-        link.attr \stroke-width, ({target}) ->
-            | target.marked => \2px
-            | otherwise => \1px
-
-        if marked
-            node.select-all \circle
-                .attr \opacity, -> if it.marked then 1 else 0.2
-            link.attr \opacity, ({target}) ->
-                | target.marked => 0.8
-                | otherwise => 0.2
-            node.select-all \text
-                .attr \opacity, -> if it.marked then 1 else 0.2
-
-        else
-            link.attr \opacity, ({source: {muted}}) -> if muted then 0.3 else 0.6
-            node.select-all \circle
-                .attr \opacity, -> if it.muted then 0.3 else 1
-            node.select-all \text
-                .attr \opacity, -> if it.muted then 0.3 else 1
+    function update-marked after-mark
+        if not after-mark or animation-state is \running
+            run-animation!
+        tick!
 
     function show-label d, i
         for n in concat-map (-> [it.source, it.target]), d.edges
@@ -521,12 +541,11 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             .interpolate \basis
 
     link-spline = (offset-scale, args) -->
-        [source, target, line-length, end-point, width, cos90, sin90] = args
+        [source, target, line-length, end-point, radius-s, cos90, sin90] = args
         mean-x = mean map (.x), [source, target]
         mean-y = mean map (.y), [source, target]
 
-
-        offset = (offset-scale * line-length) - (width / 2)
+        offset = (offset-scale * line-length) - (radius-s / 4)
 
         mp1-x = mean-x + offset * cos90
         mp1-y = mean-y + offset * sin90
@@ -534,17 +553,16 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         mp2-y = mean-y + offset * sin90
 
         [
-            [(source.x - width * cos90), (source.y - width * sin90)],
+            [(source.x - radius-s * cos90), (source.y - radius-s * sin90)],
             [mp2-x, mp2-y],
             end-point,
             end-point,
             [mp1-x, mp1-y],
-            [(source.x + width * cos90), (source.y + width * sin90)]
+            [(source.x + radius-s * cos90), (source.y + radius-s * sin90)]
         ]
 
 
     draw-curve = ({target, source}) ->
-        [source, target] = [target, source]
         {cos, sin, sqrt, atan2, pow, PI} = Math
         slope = atan2 (target.y - source.y), (target.x - source.x)
         [sin-s, cos-s] = map (-> it slope), [sin, cos]
@@ -552,12 +570,11 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         [sin90, cos90] = map (-> it slope-plus90), [sin, cos]
 
         [radius-t, radius-s] = map get-r, [target, source]
-        width = radius-s / 3
 
         line-length = sqrt pow(target.x - source.x, 2) + pow(target.y - source.y, 2)
-        end-point = [(target.x + radius-t * cos-s), (target.y + radius-t * sin-s)]
+        end-point = [(target.x - radius-t * 0.9 * cos-s), (target.y - radius-t * 0.9 * sin-s)]
 
-        args = [source, target, line-length, end-point, width, cos90, sin90]
+        args = [source, target, line-length, end-point, radius-s, cos90, sin90]
 
         points = switch query-params.spline
             | \straight => link-spline 0.0
@@ -565,51 +582,64 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
         args |> points |> basis-line |> (+ \Z)
 
-    mv-towards = !(how-much, goal, n) ->
-        scale = (* how-much)
-        dx = scale goal.x - n.x
-        dy = scale goal.y - n.y
-        n.x += dx
-        n.y += dy
 
     by-x = compare (.x)
     width-range = d3.scale.linear!
-        .range [0, 1400]
+        .range [0.1 * dimensions.w, 0.9 * dimensions.w]
 
     stratify = !->
         roots = sort-by by-x, filter is-root, graph.nodes
-        leaves = sort-by by-x, filter is-leaf, graph.nodes
+        leaves = sort-by by-x, filter (-> it.is-direct and it.is-leaf), graph.nodes
+        surface = fold min, 0, map (.y), graph.nodes
+        current-font-size = get-label-font-size!
+
+        corners = d3.scale.quantile!
+            .domain [0, dimensions.w]
+            .range [0, dimensions.w]
+        quantile = d3.scale.quantile!
+            .domain [0, dimensions.w]
+            .range [0 til roots.length]
+
+        roots.for-each (root, i) ->
+            mv-towards 0.01, {y: (surface - get-r root), x: width-range i}, root
+
+        for n in graph.nodes when not (n.is-root and (n.y - get-r n) < surface)
+            mv-towards 0.001, {x: n.root.x, y: dimensions.h}, n
 
         width-range.domain [0, roots.length - 1]
 
-        roots.for-each (root, i) ->
-            mv-towards 0.06, {y: 0, x: width-range i}, root
 
-        quantile = d3.scale.quantile!
-            .domain [0, 1400]
-            .range [0 til roots.length]
-
-        for n in graph.nodes
-            [qn, qr] = map quantile, [n.x, n.root.x]
-            if qn isnt qr and (abs(qn - qr) > 1 or any (-> it.root isnt n.root), filter (-> quantile it.x is qr), graph.nodes)
-                mv-towards 0.02, {n.y, x: n.root.x}, n
+        #for n in graph.nodes
+        #    [qn, qr] = map quantile, [n.x, n.root.x]
+        #    if qn isnt qr and (abs(qn - qr) > 1 or any (-> it.root isnt n.root), filter (-> qr is quantile it.x), graph.nodes)
+        #        mv-towards 0.02, {n.y, x: n.root.x}, n
 
         leaves.for-each (n, i) ->
-            if n.y < 1000
-                mv-towards 0.02, {n.x, y: 1000}, n
-            if n.y >= 970
-                n.y = 1000 + (30 * i)
+            speed = if n.y < (dimensions.h / 2) then 0.05 else 0.005
+            if n.y < dimensions.h * 0.9
+                mv-towards speed, {n.x, y: dimensions.h * 0.9}, n
+            if n.y >= dimensions.h * 0.85
+                n.y = dimensions.h * 0.9 + (current-font-size * 1.1 * i)
 
     centrify = !->
         roots = sort-by (compare (.y)), filter is-root, graph.nodes
         mean-d = mean map (* 2) << get-r, roots
+        half = (/ 2)
+        # Put root nodes under a centripetal force.
         roots.for-each !(n, i) ->
             goal =
-                x: 700
-                y: 500 - (mean-d * roots.length / 2) + (mean-d * i)
+                x: half dimensions.w
+                y: (half dimensions.h) - (mean-d * roots.length / 2) + (mean-d * i)
             mv-towards 0.05, goal, n
 
-    tick-count = 0
+        # Put leaf nodes under a centrifugal force. Must be very faint to avoid reaching terminal
+        # velocity.
+        centre =
+            x: half dimensions.w
+            y: half dimensions.h
+        for leaf in graph.nodes when is-leaf leaf
+            mv-towards -0.001, centre, leaf
+
     function tick
 
         tick-count++
@@ -620,24 +650,28 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
         do jiggle if jiggle
 
-        return unless tick-count > min-ticks
+        return unless is-ready!
+
+        current-font-size = get-label-font-size!
+        font-plus-pad = current-font-size * 1.1
 
         mean-x = mean map (.x), graph.nodes
 
         # find overlapping labels
         get-half = d3.scale.quantile!
-            .domain [0, 1400]
+            .domain [0, dimensions.w]
             .range [\left, \right]
 
         texts = node.select-all \text.force-label
         displayed-texts = texts.filter -> \block is d3.select(@).attr \display
         displayed-texts.each (d1, i) ->
-            overlapped = false
+            ys = []
             this-half = get-half d1.x
-            displayed-texts.each (d2) -> overlapped or= (get-half d2.x is this-half) and abs(d1.y - d2.y) < 20
-            if overlapped
-                op = if even i then (+) else (-)
-                d1.y = op d1.y, 22 # Jiggle them out of the way of each other.
+            displayed-texts.each (d2) ->
+                ys.push d2.y if d2 isnt d2 and (get-half d2.x is this-half) and abs(d1.y - d2.y) < font-plus-pad
+            if ys.length
+                op = if d1.y > mean ys then (+) else (-)
+                d1.y = op d1.y, font-plus-pad # Jiggle them out of the way of each other.
 
         texts.attr \x, (.x)
             .attr \text-anchor, -> if it.x < mean-x then \end else \start
@@ -650,10 +684,6 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             .attr \font-size, (/ 1.5) << get-r
             .text (.count)
 
-        circles = node.select-all \circle
-            .attr \cx, (.x)
-            .attr \cy, (.y)
-
         if query-params.spline
             link.attr \d, draw-curve
         else
@@ -661,6 +691,41 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
                 .attr \y1, (.y) << (.source)
                 .attr \x2, (.x) << (.target)
                 .attr \y2, (.y) << (.target)
+
+        node.select-all \text
+            .attr \display ({marked, id, edges, is-direct}) ->
+                | current-zoom > 2 => \block
+                | (marked or is-direct) => \block
+                | all (is id), map (.id) << (.source), edges => \block
+                | otherwise => \none
+
+        node.select-all \text.force-label
+            .attr \font-size, current-font-size
+
+        link.attr \stroke-width, ({target}) ->
+            | target.marked => \2px
+            | otherwise => \1px
+
+        circles = node.select-all \circle
+            .attr \r, get-r
+            .attr \cx, (.x)
+            .attr \cy, (.y)
+
+        if any (.marked), graph.nodes
+            circles.attr \opacity, -> if it.marked then 1 else 0.2
+            link.attr \opacity, ({source}) ->
+                | source.marked => 0.8
+                | otherwise => 0.1
+            node.select-all \text
+                .attr \opacity, -> if it.marked then 1 else 0.2
+        else
+            link.attr \opacity, ({source: {muted}}) -> if muted then 0.3 else 0.5
+            circles.attr \opacity, ({muted, is-direct}) ->
+                | muted => 0.3
+                | is-direct => 1
+                | otherwise => 0.9
+            node.select-all \text
+                .attr \opacity, -> if it.muted then 0.3 else 1
 
 
 draw-radial = (direct-nodes, edges, node-for-ident) ->
@@ -702,7 +767,6 @@ draw-radial = (direct-nodes, edges, node-for-ident) ->
 
     palette = d3.scale.category10!
     relationships = unique map (.relationship), nodes
-    link-stroke = (palette) << (relationships~index-of)
 
     link = svg-group.select-all \path.link
         .data links
@@ -765,11 +829,11 @@ draw-radial = (direct-nodes, edges, node-for-ident) ->
             | focus => 1
             | nodes.length > 50 => 0
             | otherwise => 0.1
-        link.attr \stroke-width, ({target: {focus}}) -> if focus then \5px else \1.5px
+        link.attr \stroke-width, ({target: {focus}}) -> if focus then 10px else 5px
         circles.attr \r, ({node-type, synonym}) ->
-            | node-type is \root => 10
-            | synonym => 7
-            | otherwise => 3.5
+            | node-type is \root => 10px
+            | synonym            => 7px
+            | otherwise          => 3.5px
 
 
 draw-dag = (direct-nodes, edges, node-for-ident) ->
@@ -779,9 +843,13 @@ draw-dag = (direct-nodes, edges, node-for-ident) ->
     svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
 
     # Hacky hack for now - should not have to do this...
-    svgBBox = svg.node!getBBox!
-        ..width = 5000
-        ..height = 2000
+    #svgBBox = svg.node!getBBox!
+    #    ..width = 5000
+    #    ..height = 2000
+
+    d3.select-all(svg.node)
+        .attr \width, $(\body).width()
+        .attr \height, $(\body).height()
 
     render svg, svg-group, graph
 
@@ -799,8 +867,8 @@ make-graph = (direct-nodes, edges, node-for-ident) ->
 
     nodes = values node-for-ident
 
-    is-root = (n) -> all (is n), map (.source), n.edges
-    is-leaf = (n) -> all (is n), map (.target), n.edges
+    is-root = (n) -> all (is n), map (.target), n.edges
+    is-leaf = (n) -> all (is n), map (.source), n.edges
 
     # Precompute all these useful properties.
     for n in nodes
@@ -843,7 +911,7 @@ render = (svg, svg-group, {nodes, edges, reset}) -->
 
     svgBBox = svg.node!getBBox!
 
-    mv-edge = translate-edge svgBBox
+    mv-edge = translate-edge svg
 
     svg-group.select-all('*').remove!
 
@@ -878,10 +946,16 @@ render = (svg, svg-group, {nodes, edges, reset}) -->
             filtered = only-marked nodes, edges
             re-render filtered <<< {reset}
 
+    edges-enter.append \path
+        .attr \marker-end, 'url(#Triangle)'
+        .attr \stroke-width, 5px
+        .attr \opacity, 0.8
+        .attr \stroke, link-stroke
+
     rects = nodes-enter.append \rect
 
-    edges-enter.append \path
-        .attr \marker-start, 'url(#arrowhead)'
+    nodes-enter.append \title
+        .text (.label)
 
     drag-cp = d3.behavior.drag!
         .on \drag, (d) ->
@@ -889,16 +963,29 @@ render = (svg, svg-group, {nodes, edges, reset}) -->
             mv-edge d.parent, d3.event.dx, 0
             d3.select(\# + d.parent.dagre.id).attr \d, spline
 
+    line-wrap = (str) ->
+        buff = ['']
+        max-ll = 25
+        for word in str.split ' '
+            if buff[* - 1].length + word.length + 1 > max-ll
+                buff.push ''
+            buff[* - 1] += ' ' + word
+        map (.substring 1), buff
 
     labels = nodes-enter.append \text
+        .attr \class, \dag-label
         .attr \text-anchor, \middle
         .attr \x, 0
-        .attr \class, -> if it.is-direct then \direct else \indirect
+        .classed \direct, (.is-direct)
 
-    labels.append \tspan
-        .attr \x, 0
-        .attr \dy, \1em
-        .text (.label)
+    labels.each (n) ->
+        text = line-wrap n.label
+        el = d3.select @
+        for line in text
+            el.append \tspan
+                .text line
+                .attr \dy, \1em
+                .attr \x, 0
 
     labels.each (d) ->
         bbox = @getBBox!
@@ -907,43 +994,121 @@ render = (svg, svg-group, {nodes, edges, reset}) -->
         d.height = bbox.height + 2  # * node-padding
 
     rects
-        .attr \width, (node-padding +) << (.width)
-        .attr \height, (node-padding +) << (.height)
+        .attr \width, (node-padding * 2 +) << (.width)
+        .attr \height, (node-padding * 2 +) << (.height)
         .attr \x, -> -it.bbox.width / 2 - node-padding
         .attr \y, -> -it.bbox.height / 2 - node-padding / 2
-        .attr \class, ->
-            | it.is-focus  => \focus
-            | it.is-direct => \direct
-            | otherwise    => \indirect
+        .attr \fill, term-color
+        .classed \focus, (.is-focus)
+        .classed \direct, (.is-direct)
+        .classed \root, (.is-root)
 
     labels
         .attr \x, -> -it.bbox.width / 2
         .attr \y, -> -it.bbox.height / 2
 
     dagre.layout!
-        .nodeSep 50
-        .edgeSep 10
-        .rankSep 50
+        .nodeSep 100
+        .edgeSep 20
+        .rankSep 200
+        .rankDir \LR
         .nodes nodes
         .edges edges
         .debugLevel 1
         .run!
 
     # Apply the layout
-    nodes-enter.attr \transform, -> "translate(#{ it.dagre.x },#{ it.dagre.y })"
+    do apply-layout = ->
+        nodes-enter.attr \transform, -> "translate(#{ it.dagre.x },#{ it.dagre.y })"
+
+    overlaps = ({dagre:a}, {dagre:b}) ->
+        required-separation = node-padding
+        dx = a.x - b.x
+        dy = a.y - b.y
+        adx = abs dx
+        ady = abs dy
+        mdx = (1 + required-separation) * mean map (.width), [a, b]
+        mdy = (1 + required-separation) * mean map (.height), [a, b]
+
+        adx < mdx and ady < mdy
+
+    get-overlapping = (things) ->
+        [ [t, tt] for t in things for tt in things when t isnt tt and overlaps t, tt]
+
+    separate-colliding = ({dagre:left}, {dagre:right}) ->
+        mv-towards -0.1, left, right
+        mv-towards -0.1, right, left
+
+    fix-dag-box-collisions = (d, i) ->
+        return if i
+        return false
+        highlit = filter (-> any (.highlight), it.edges), nodes
+        colliding = get-overlapping highlit
+        max-rounds = 50
+        i = 0
+        while colliding.length and i++ < max-rounds
+            console.log "Found #{ colliding.length } collisions"
+            for [left, right] in colliding
+                separate-colliding left, right
+            colliding = get-overlapping highlit
+
+        /* Finding collisions work, but avoiding them is a TODO */
+        nodes-enter.filter (.highlight)
+            .attr \transform, ->
+                "translate(#{ it.dagre.x },#{ it.dagre.y }) scale(#{ Math.min 3, 1 / current-zoom })"
+
+        console.log "#{ colliding.length } collisions left after #{ i } rounds"
 
     focus-edges = ->
-        svg-edges.select-all \path
-            .attr \class, ->
-                | it.highlight => \highlight
-                | otherwise    => it.label
+        some-lit = any (.highlight), edges
 
-    nodes-enter.on \mouseover, (node) ->
-        for e in node.edges
-            e.highlight = true
+        duration = 250ms
+        max-scale = 2.5
+        de-scale = Math.max 1, Math.min max-scale, 1 / current-zoom
+
+        not-focussed = -> not some-lit or not any (.highlight), it.edges
+
+        nodes-enter.transition!
+            .duration duration
+            .attr \transform, ->
+                | not-focussed it => "translate(#{ it.dagre.x },#{ it.dagre.y })"
+                | otherwise => "translate(#{ it.dagre.x },#{ it.dagre.y }) scale(#{ de-scale })"
+            .attr \opacity, ->
+                | not some-lit => 1
+                | any (.highlight), it.edges => 1
+                | otherwise => 0.3
+            .each \end, fix-dag-box-collisions
+
+        svg-edges.select-all \path
+            .transition!
+                .duration duration
+                .attr \stroke-width, -> if it.highlight then 15px else 5px
+                .attr \stroke, ->
+                    | it.highlight => BRIGHTEN link-stroke it
+                    | otherwise    => link-stroke it
+                .attr \fill, ->
+                    | it.highlight => BRIGHTEN link-fill it
+                    | otherwise    => link-fill it
+                .attr \opacity, -> if not some-lit or it.highlight then 0.8 else 0.5
+
+        svg-edges.select-all \text
+            .transition!
+                .duration duration
+                .attr \font-weight, -> if it.highlight then \bold else \normal
+                .attr \font-size, -> if it.highlight then 28px else 14px
+
+    highlight-targets = (node) ->
+        moar = (n) -> reject (is n), map (.target), n.edges
+        queue = [node]
+        while n = queue.shift!
+            each (<<< highlight: true), reject (is n) << (.target), n.edges
+            each queue~push, moar n
         focus-edges!
+
+    nodes-enter.on \mouseover, highlight-targets
+
     nodes-enter.on \mouseout, (node) ->
-        for e in node.edges
+        for e in edges
             e.highlight = false
         focus-edges!
 
@@ -953,6 +1118,7 @@ render = (svg, svg-group, {nodes, edges, reset}) -->
         unless points.length
             s = d.source.dagre
             t = d.target.dagre
+            # Add the midpoint.
             points.push x: (s.x + t.x) / 2, y: (s.y + t.y) / 2
 
         if points.length is 1
@@ -980,15 +1146,15 @@ render = (svg, svg-group, {nodes, edges, reset}) -->
 
     update!
 
-    get-drag-x = get-node-drag-pos \width, \x, svgBBox
-    get-drag-y = get-node-drag-pos \height, \y, svgBBox
+    get-drag-x = get-node-drag-pos \x
+    get-drag-y = get-node-drag-pos \y
 
     drag-handler = (d, i) ->
         prev-x = d.dagre.x
         prev-y = d.dagre.y
         # Must be inside the svg box
-        d.dagre.x = get-drag-x d
-        d.dagre.y = get-drag-y d
+        d.dagre.x = get-drag-x!
+        d.dagre.y = get-drag-y!
 
         d3.select(@).attr \transform, "translate(#{ d.dagre.x },#{ d.dagre.y })"
 
@@ -1009,8 +1175,12 @@ render = (svg, svg-group, {nodes, edges, reset}) -->
             mv-edge d, d3.event.dx, d3.event.dy
             d3.select(@).attr \d, spline d
 
+    current-zoom = 1
+
     zoom = d3.behavior.zoom!
-        .on \zoom, -> svg-group.attr \transform, "translate(#{ d3.event.translate }) scale(#{ d3.event.scale })"
+        .on \zoom, ->
+            current-zoom := d3.event.scale
+            svg-group.attr \transform, "translate(#{ d3.event.translate }) scale(#{ current-zoom })"
 
     svg.call zoom
 
@@ -1019,7 +1189,7 @@ render = (svg, svg-group, {nodes, edges, reset}) -->
 
 flatten = concat-map id
 
-row-to-node = ([target, label, source]) -> {target, label, source}
+row-to-node = ([source, label, target]) -> {target, label, source}
 
 query-params =
     (location.search or '?')
