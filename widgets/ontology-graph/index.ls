@@ -351,10 +351,10 @@ trim-graph-to-height = ({nodes, edges}, level) ->
     each filtered.nodes~push, filter is-root, nodes
 
     for n in filtered.nodes when (not n.is-root) and any (not) . f, map (.target), n.edges
-        elision = {source: n, target: n.root, label: ''}
+        elision = {source: n, target: n.root, label: \elision}
         filtered.edges.push elision
 
-    console.log filtered, nodes
+    console.log "Down to #{ length filtered.edges }, #{ (.to-fixed 2) filtered.edges.length / edges.length * 100 }% of the original number of edges"
 
     return filtered
 
@@ -373,12 +373,20 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         spline: (query-params.spline or \curved)
         graph: graph
         elision: if query-params.elision then +query-params.elision else null
+        relationships: sort unique map (.label), all-edges
     }
 
     elide-graph = (s, level) ->
         console.log "Eliding graph to #{ level }"
-        g = s.get \graph
-        s.set \graph, trim-graph-to-height g, level
+        current-root = s.get \root
+        nodes =
+            | current-root => filter (is current-root) << (.root), all-nodes
+            | otherwise => all-nodes.slice!
+        edges =
+            | current-root => filter (is current-root) << (.root) << (.target), all-edges
+            | otherwise => all-edges.slice!
+
+        s.set \graph, trim-graph-to-height {nodes, edges}, level
 
     state.on \change:elision, elide-graph
 
@@ -469,6 +477,9 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
 render-force = (state, graph) ->
 
+    if graph.edges.length > 250 and not state.has(\elision)
+        return state.set elision: 2
+
     state.set zoom: 1, dimensions: {w: $(\body).width!, h: $(\body).height!}
 
     dimensions = state.get \dimensions
@@ -508,7 +519,7 @@ render-force = (state, graph) ->
 
     svg.call zoom
 
-    relationships = unique map (.label), graph.edges
+    relationships = state.get \relationships
 
     svg
         .attr \width, dimensions.w
@@ -739,12 +750,16 @@ render-force = (state, graph) ->
         roots = sort-by (compare (.y)), filter is-root, graph.nodes
         mean-d = mean map (* 2) << get-r, roots
         half = (/ 2)
+
         # Put root nodes under a centripetal force.
-        roots.for-each !(n, i) ->
-            goal =
-                x: half dimensions.w
-                y: (half dimensions.h) - (mean-d * roots.length / 2) + (mean-d * i)
-            mv-towards 0.05, goal, n
+        if roots.length is 1
+            roots[0] <<< {x: (half dimensions.w), y: (half dimensions.h), fixed: true}
+        else
+            roots.for-each !(n, i) ->
+                goal =
+                    x: half dimensions.w
+                    y: (half dimensions.h) - (mean-d * roots.length / 2) + (mean-d * i)
+                mv-towards 0.05, goal, n
 
         # Put leaf nodes under a centrifugal force. Must be very faint to avoid reaching terminal
         # velocity.

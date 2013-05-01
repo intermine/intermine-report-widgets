@@ -602,12 +602,14 @@ if (typeof window == 'undefined' || window === null) {
         elision = {
           source: n,
           target: n.root,
-          label: ''
+          label: 'elision'
         };
         filtered.edges.push(elision);
       }
     }
-    console.log(filtered, nodes);
+    console.log("Down to " + length(filtered.edges) + ", " + function(it){
+      return it.toFixed(2);
+    }(filtered.edges.length / edges.length * 100) + "% of the original number of edges");
     return filtered;
     function fn$(it){
       return it.target;
@@ -625,13 +627,49 @@ if (typeof window == 'undefined' || window === null) {
       jiggle: queryParams.jiggle || 'centre',
       spline: queryParams.spline || 'curved',
       graph: graph,
-      elision: queryParams.elision ? +queryParams.elision : null
+      elision: queryParams.elision ? +queryParams.elision : null,
+      relationships: sort(unique(map(function(it){
+        return it.label;
+      }, allEdges)))
     });
     elideGraph = function(s, level){
-      var g;
+      var currentRoot, nodes, edges;
       console.log("Eliding graph to " + level);
-      g = s.get('graph');
-      return s.set('graph', trimGraphToHeight(g, level));
+      currentRoot = s.get('root');
+      nodes = (function(){
+        switch (false) {
+        case !currentRoot:
+          return filter(compose$([
+            (function(it){
+              return it === currentRoot;
+            }), function(it){
+              return it.root;
+            }
+          ]), allNodes);
+        default:
+          return allNodes.slice();
+        }
+      }());
+      edges = (function(){
+        switch (false) {
+        case !currentRoot:
+          return filter(compose$([
+            (function(it){
+              return it === currentRoot;
+            }), function(it){
+              return it.root;
+            }, function(it){
+              return it.target;
+            }
+          ]), allEdges);
+        default:
+          return allEdges.slice();
+        }
+      }());
+      return s.set('graph', trimGraphToHeight({
+        nodes: nodes,
+        edges: edges
+      }, level));
     };
     state.on('change:elision', elideGraph);
     query(
@@ -769,6 +807,11 @@ if (typeof window == 'undefined' || window === null) {
   };
   renderForce = function(state, graph){
     var dimensions, force, svg, svgGroup, throbber, getLabelFontSize, zoom, relationships, link, getLabelId, node, nG, legend, lg, tickCount, timer, basisLine, linkSpline, drawCurve, byX, widthRange, stratify, centrify;
+    if (graph.edges.length > 250 && !state.has('elision')) {
+      return state.set({
+        elision: 2
+      });
+    }
     state.set({
       zoom: 1,
       dimensions: {
@@ -800,9 +843,7 @@ if (typeof window == 'undefined' || window === null) {
       });
     });
     svg.call(zoom);
-    relationships = unique(map(function(it){
-      return it.label;
-    }, graph.edges));
+    relationships = state.get('relationships');
     svg.attr('width', dimensions.w).attr('height', dimensions.h);
     force.nodes(graph.nodes).links(graph.edges).on('tick', tick);
     link = svgGroup.selectAll('.force-link').data(graph.edges);
@@ -1053,7 +1094,7 @@ if (typeof window == 'undefined' || window === null) {
       });
     };
     centrify = function(){
-      var roots, meanD, half, centre, i$, ref$, len$, leaf;
+      var roots, meanD, half, ref$, centre, i$, len$, leaf;
       roots = sortBy(compare(function(it){
         return it.y;
       }), filter(isRoot, graph.nodes));
@@ -1065,14 +1106,21 @@ if (typeof window == 'undefined' || window === null) {
       half = (function(it){
         return it / 2;
       });
-      roots.forEach(function(n, i){
-        var goal;
-        goal = {
-          x: half(dimensions.w),
-          y: half(dimensions.h) - meanD * roots.length / 2 + meanD * i
-        };
-        mvTowards(0.05, goal, n);
-      });
+      if (roots.length === 1) {
+        ref$ = roots[0];
+        ref$.x = half(dimensions.w);
+        ref$.y = half(dimensions.h);
+        ref$.fixed = true;
+      } else {
+        roots.forEach(function(n, i){
+          var goal;
+          goal = {
+            x: half(dimensions.w),
+            y: half(dimensions.h) - meanD * roots.length / 2 + meanD * i
+          };
+          mvTowards(0.05, goal, n);
+        });
+      }
       centre = {
         x: half(dimensions.w),
         y: half(dimensions.h)
