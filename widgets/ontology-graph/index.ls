@@ -101,7 +101,7 @@ add-labels = (selection) ->
         y = mean map (.y), points
         "translate(#{ x },#{ y })"
 
-mv-towards = !(how-much, goal, n) ->
+!function mv-towards how-much, goal, n
     scale = (* how-much)
     dx = scale goal.x - n.x
     dy = scale goal.y - n.y
@@ -320,6 +320,44 @@ get-charge = (d) ->
     k = 150
     1 - (k + radius + root-bump + edge-bump + marked-bump)
 
+mark-depth = (node, depth-at-node, max-depth) ->
+    node.depths.push depth-at-node
+    next-depth = depth-at-node + 1
+    return if next-depth > max-depth
+    for target in map (.target), node.edges when node isnt target
+        mark-depth target, next-depth, max-depth
+
+annotate-for-height = (nodes, level = 50) ->
+    leaves = filter (.is-direct), map (<<< depths: []), nodes
+    for leaf in leaves
+        mark-depth leaf, 0, level
+    each (-> it <<< steps-from-leaf: minimum it.depths), nodes
+
+#console.log list-to-obj [["#{ node.id }: #{ node.label }", node.steps-from-leaf] for node in graph.nodes]
+
+trim-graph-to-height = ({nodes, edges}, level) ->
+    return {nodes, edges} unless level
+
+    console.log "Trimming graph to #{ level }"
+
+    f = (.steps-from-leaf) >> (<= level)
+
+    filtered =
+        nodes: filter f, nodes
+        edges: filter (-> all f, [it.source, it.target]), edges
+
+    console.log filtered.nodes.length, nodes.length
+
+    each filtered.nodes~push, filter is-root, nodes
+
+    for n in filtered.nodes when (not n.is-root) and any (not) . f, map (.target), n.edges
+        elision = {source: n, target: n.root, label: ''}
+        filtered.edges.push elision
+
+    console.log filtered, nodes
+
+    return filtered
+
 draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     graph = make-graph ...
@@ -334,7 +372,15 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         jiggle: (query-params.jiggle or \centre)
         spline: (query-params.spline or \curved)
         graph: graph
+        elision: if query-params.elision then +query-params.elision else null
     }
+
+    elide-graph = (s, level) ->
+        console.log "Eliding graph to #{ level }"
+        g = s.get \graph
+        s.set \graph, trim-graph-to-height g, level
+
+    state.on \change:elision, elide-graph
 
     (node-for-ident |> keys |> count-query |> query)
         .then (.summarise \goAnnotation.ontologyTerm.parents.identifier)
@@ -343,37 +389,58 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
             for n in all-nodes
                 n.count = summary[n.id]
 
-    $ \#jiggle
+    $ \.graph-control
         .show!
+
+    $ \#jiggle
         .val state.get \jiggle
         .on \change, -> state.set \jiggle, $(@).val!
 
     state.on \change:jiggle, flip $(\#jiggle)~val
 
     $ \#spline
-        .show!
         .val state.get \spline
         .on \change, -> state.set \spline, $(@).val!
 
     state.on \change:spline, flip $(\#spline)~val
 
     root-selector = $ \#graph-root
-        ..show!
         ..on \change, !-> state.set \root, node-for-ident[ $(@).val! ]
 
     state.on \change:root, flip root-selector~val << (.id)
 
     state.on \change:root, (s, current-root) ->
+        console.log "Filtering to #{ current-root.label }"
         nodes = filter (is current-root) << (.root), all-nodes
         edges = filter (is current-root) << (.root) << (.target), all-edges
-        state.set \graph, {nodes, edges}
+        level = state.get \elision
+        graph =
+            | level and any (.steps-from-leaf), nodes => trim-graph-to-height {nodes, edges}, level
+            | otherwise => {nodes, edges}
+        state.set \graph, graph
+
+    elision-selector = $ \#elision
+        ..on \change, -> state.set \elision, parse-int $(@).val!, 10
+
+    state.on \change:elision, flip elision-selector~val
+
+    set-timeout ( ->
+        annotate-for-height all-nodes
+        heights = sort unique map (.steps-from-leaf), all-nodes
+        for h in heights
+            elision-selector.append """<option value="#{ h }">#{ h }</option>"""
+        if level = state.get \elision
+            elision-selector.val level
+            elide-graph state, level
+    ), 0
+
 
     state.on \change:graph, render-force
 
     $ \#force-stop
         .show!
         .on \click !->
-            next-state = switch animation-state
+            next-state = switch state.get \animating
                 | \waiting => \running
                 | \running => \paused
                 | \paused  => \running
@@ -396,6 +463,9 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         render-force state, graph
     else
         state.set \root, roots[0]
+
+# The following would make good tests...
+#console.log fold ((m, depth) -> m[depth] = (m[depth] or 0) + 1; m), {}, map minimum << (.depths), graph.nodes
 
 render-force = (state, graph) ->
 
@@ -888,8 +958,8 @@ render-dag = (svg, svg-group, {nodes, edges, reset}) -->
 
     rects = nodes-enter.append \rect
 
-    nodes-enter.append \title
-        .text (.label)
+    #nodes-enter.append \title
+    #    .text (.label)
 
     drag-cp = d3.behavior.drag!
         .on \drag, (d) ->
@@ -940,9 +1010,9 @@ render-dag = (svg, svg-group, {nodes, edges, reset}) -->
         .attr \y, -> -it.bbox.height / 2
 
     dagre.layout!
-        .nodeSep 100
+        .nodeSep 50
         .edgeSep 20
-        .rankSep 200
+        .rankSep 75
         .rankDir \LR
         .nodes nodes
         .edges edges
@@ -973,134 +1043,87 @@ render-dag = (svg, svg-group, {nodes, edges, reset}) -->
         zoom.translate [dx, 5]
         svg-group.attr \transform, "translate(#{ dx },5) scale(#{ current-zoom })"
 
-    overlaps = (a, b) ->
-        required-separation = node-padding
-        dx = a.x - b.x
-        dy = a.y - b.y
-        adx = abs dx
-        ady = abs dy
-        mdx = (1 + required-separation) * mean map (.width), [a, b]
-        mdy = (1 + required-separation) * mean map (.height), [a, b]
-
-        adx < mdx and ady < mdy
+    de-dup = (f) -> fold ((ls, e) -> if (any (is f e), map f, ls) then ls.slice! else ls ++ [e]), []
+    to-combos = de-dup (join \-) << sort << (map (.id))
 
     get-overlapping = (things) ->
-        [ [t, tt] for t in things for tt in things when t isnt tt and overlaps t, tt]
+        to-combos [ [t, tt] for t in things for tt in things when t isnt tt and overlaps t, tt]
+
+    get-descale = -> 1/ current-zoom #Math.min 4, 1 / current-zoom
 
     separate-colliding = (left, right) ->
-        mv-towards -0.1, left, right
-        mv-towards -0.1, right, left
+        [pt-a, pt-b] = map (to-xywh << (.bounds)), [left, right]
+        speed = 0.1
+        mv-towards -speed, pt-a, pt-b unless right.is-centre
+        mv-towards -speed, pt-b, pt-a unless left.is-centre
+        left.bounds <<< to-ltrb pt-a
+        right.bounds <<< to-ltrb pt-b
 
-    fix-dag-box-collisions = (d, i) ->
-        return if i # only fire once.
-        scale = Math.min 2.5, 1 / current-zoom
+    draw-collisions = (collisions) ->
+        for collision in collisions
+            for node in collision
+                draw-debug-rect svg-group, node
+
+    explodify = (highlit, i, rounds-per-run, max-rounds, done) ->
+        collisions = get-overlapping highlit
+        next-break = i + rounds-per-run
+
+        while collisions.length and i++ < max-rounds and i < next-break
+            for [left, right] in collisions
+
+                separate-colliding left, right
+
+            #draw-collisions collisions
+
+            collisions = get-overlapping highlit
+
+        if collisions.length and i < max-rounds
+            done!
+            set-timeout (-> explodify highlit, i, rounds-per-run, max-rounds, done), 0
+        else
+            console.log "#{ collisions.length } collisions left after #{ i } rounds"
+            done!
+
+
+    fix-dag-box-collisions = (max-i, d, i) -->
+        return if i < max-i # only fire once, and only at the end of all transitions.
+        scale = get-descale!
         half-pad = node-padding / 2
         is-focussed = -> any (.highlight), it.edges
-        to-ltrb = ({x, y, height, width}) ->
-            l: x - scale * width / 2
-            t: y - scale * height / 2
-            r: x + scale * width / 2
-            b: y + scale * height / 2
-        to-xywh = ({l, t, r, b}) ->
-            x: l
-            y: t
-            height: b - t
-            width: r - l
 
-        highlit = map (-> it <<< {bounds: to-ltrb it.dagre{x, y, height, width}}), filter is-focussed, nodes
+        highlit = map (-> it <<< {bounds: to-ltrb it.dagre{x, y, height, width}, scale}), filter is-focussed, nodes
 
         return unless highlit.length
 
-        for n in highlit
-            console.log \BEFORE, n.id, n.x, n.y, n.width, n.height
-
-        colliding = get-overlapping highlit
         max-rounds = 50
-        i = 0
+        round = 0
+        rounds-per-run = 5
 
-        colors = d3.scale.category10!
-        var tracking-left, tracking-right
-
-        for hl, hli in highlit
-            let left = to-xywh hl.bounds
-                console.log \bounds, hli, left
-                svg-group.append \circle
-                    .attr \cx, hl.dagre.x
-                    .attr \cy, hl.dagre.y
-                    .attr \r, 10
-                svg-group.append \rect
-                    .attr \x, left.x
-                    .attr \y, left.y
-                    .attr \width, left.width
-                    .attr \height, left.height
-                    .attr \stroke, \red
-                    .attr \stroke-width, 5px
-                    .attr \opacity, 0.3
-                    .attr \fill, colors hli
-                svg-group.append \text
-                    .attr \x, left.x
-                    .attr \y, left.y + left.height
-                    .attr \fill, \white
-                    .attr \font-size, left.height * 0.3
-                    .text hl.label
-
-        while colliding.length and i++ < max-rounds
-            console.log "Found #{ colliding.length } collisions"
-            for [left, right] in colliding
-                console.log "Collision detected between", left{x, y, height, width}, right{x, y, height, width}
-                tracking-left ?= left
-                tracking-right ?= right
-                if left is tracking-left and right is tracking-right
-                    svg-group.append \rect
-                        .attr \x, left.x
-                        .attr \y, left.y
-                        .attr \width, left.width
-                        .attr \height, left.height
-                        .attr \stroke, \red
-                        .attr \stroke-width, 5px
-                        .attr \fill, colors i
-                    svg-group.append \rect
-                        .attr \x, right.x
-                        .attr \y, right.y
-                        .attr \width, right.width
-                        .attr \height, right.height
-                        .attr \stroke, \red
-                        .attr \stroke-width, 5px
-                        .attr \fill, brighten colors i
-                    svg-group.append \text
-                        .attr \x, left.x + left.width / 2
-                        .attr \y, left.y + left.height / 2
-                        .attr \fill, \white
-                        .attr \font-size, left.height * 0.9
-                        .text "#{ left.label } - #{ i }"
-                    svg-group.append \text
-                        .attr \x, right.x + right.width / 2
-                        .attr \y, right.y + right.height / 2
-                        .attr \fill, \white
-                        .attr \font-size, right.height * 0.9
-                        .text "#{ right.label } - #{ i }"
-
-                separate-colliding left, right
-            colliding = get-overlapping highlit
-
-        console.log "#{ colliding.length } collisions left after #{ i } rounds"
-
-        nodes-enter.each (n, i) ->
-            if is-focussed n
-                console.log \APPLYING, n.id, n.x, n.y, n.width, n.height
-                d3.select(@).attr \transform, "translate(#{ n.x },#{ n.y }) scale(#{ scale })"
+        explodify highlit, round, rounds-per-run, max-rounds, ->
+            nodes-enter.each (n, i) ->
+                fill = n |> term-color |> if n.is-centre then brighten else id
+                node-selection = d3.select @
+                if is-focussed n
+                    {x, y} = to-xywh n.bounds
+                    node-selection.transition!
+                        .duration 100ms
+                        .attr \transform, "translate(#{ x },#{ y }) scale(#{ scale })"
+                node-selection.select-all \rect
+                                .attr \fill, fill
 
     focus-edges = ->
         some-lit = any (.highlight), edges
 
-        duration = 250ms
-        max-scale = 2.5
-        de-scale = Math.max 1, Math.min max-scale, 1 / current-zoom
+        duration = 100ms
+        delay = 200ms
+        de-scale = Math.max 1, get-descale!
+        max-i = nodes.length - 1
 
         not-focussed = -> not some-lit or not any (.highlight), it.edges
 
         nodes-enter.transition!
-            .duration duration
+            .duration duration * 2
+            .delay delay
             .attr \transform, ->
                 | not-focussed it => "translate(#{ it.dagre.x },#{ it.dagre.y })"
                 | otherwise => "translate(#{ it.dagre.x },#{ it.dagre.y }) scale(#{ de-scale })"
@@ -1108,10 +1131,11 @@ render-dag = (svg, svg-group, {nodes, edges, reset}) -->
                 | not some-lit => 1
                 | any (.highlight), it.edges => 1
                 | otherwise => 0.3
-            .each \end, if (some-lit and de-scale > 1) then fix-dag-box-collisions else (->)
+            .each \end, if (some-lit and de-scale > 1) then fix-dag-box-collisions max-i else (->)
 
         svg-edges.select-all \path
             .transition!
+                .delay delay
                 .duration duration
                 .attr \stroke-width, -> if it.highlight then 15px else 5px
                 .attr \stroke, ->
@@ -1128,13 +1152,20 @@ render-dag = (svg, svg-group, {nodes, edges, reset}) -->
         svg-edges.select-all \text
             .transition!
                 .duration duration
+                .delay delay
                 .attr \font-weight, -> if it.highlight then \bold else \normal
                 .attr \font-size, -> if it.highlight then 28px else 14px
 
     highlight-targets = (node) ->
+        svg-group.node().append-child this # Move to front
+
         moar = (n) -> reject (is n), map (.target), n.edges
+        node.is-centre = true
         queue = [node]
-        while n = queue.shift!
+        max-marked = 25
+        marked = 0
+
+        while (n = queue.shift!) and marked++ < max-marked
             each (<<< highlight: true), reject (is n) << (.target), n.edges
             each queue~push, moar n
         focus-edges!
@@ -1143,6 +1174,7 @@ render-dag = (svg, svg-group, {nodes, edges, reset}) -->
 
     nodes-enter.on \mouseout, (node) ->
         for e in edges
+            e.source.is-centre = e.target.is-centre = false
             e.highlight = false
         focus-edges!
 
@@ -1246,4 +1278,70 @@ main = (symbol) ->
 
 # Let's go!
 main current-symbol!
+
+### Utils.
+
+function to-ltrb {x, y, height, width}, k = 1 then
+    l: x - k * width / 2
+    t: y - k * height / 2
+    r: x + k * width / 2
+    b: y + k * height / 2
+
+function to-xywh {l, t, r, b} then
+    x: l + (r - l) / 2
+    y: t + (b - t) / 2
+    height: b - t
+    width: r - l
+
+debug-colors = d3.scale.category10!
+
+function draw-debug-rect svg-group, node
+    console.log \drawing, node.id
+    let tracked = to-xywh node.bounds
+        svg-group.append \circle
+            .attr \cx, tracked.x
+            .attr \fill, \green
+            .attr \cy, tracked.y
+            .attr \r, 10
+        svg-group.append \rect
+            .attr \x, tracked.x - tracked.width / 2
+            .attr \y, tracked.y - tracked.height / 2
+            .attr \width, tracked.width
+            .attr \height, tracked.height
+            .attr \stroke, \red
+            .attr \stroke-width, 1px
+            .attr \opacity, 0.3
+            .attr \fill, debug-colors node.id
+
+sort-on-x = sort-by compare (.l)
+sort-on-y = sort-by compare (.t)
+
+function overlaps {bounds:a}, {bounds:b}
+    p = node-padding
+
+    # Check for:
+    #
+    #    +- +-----+----+
+    #    |  |     |    |
+    #    |  |     |    |
+    #    + -+-----+----+
+    #
+    [a, b] = sort-on-x [a, b]
+    overlaps-h =
+        | a.l - p < b.l and b.l - p < a.r => true
+        | a.l - p < b.r and b.r + p < a.r => true
+        | otherwise => false
+
+    [a, b] = sort-on-y [a, b]
+    overlaps-v =
+        | a.t - p < b.t and b.t - p < a.b => true
+        | a.t - p < b.b and b.b + p < a.b => true
+        | otherwise => false
+
+    contained =
+        | overlaps-h or overlaps-v => false
+        | a.l < b.l and b.l < a.r and a.t < b.t and b.t < a.b => true
+        | otherwise => false
+
+    contained or (overlaps-h and overlaps-v)
 

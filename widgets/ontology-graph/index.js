@@ -5,7 +5,7 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, nodePadding, minTicks, directTerms, allGoTerms, wholeGraphQ, countQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, mvTowards, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, drawChord, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, drawForce, drawRadial, drawDag, makeGraph, doUpdate, render, flatten, rowToNode, queryParams, currentSymbol, main;
+  var Service, ref$, rows, query, nodePadding, minTicks, directTerms, allGoTerms, wholeGraphQ, countQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, drawChord, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, drawForce, renderForce, drawDag, makeGraph, doUpdate, renderDag, flatten, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
@@ -82,11 +82,11 @@ if (typeof window == 'undefined' || window === null) {
     source = arg$.source.dagre, target = arg$.target.dagre, points = arg$.dagre.points;
     p0 = {
       x: source.x + source.width / 2,
-      y: source.y + source.height / 2
+      y: source.y
     };
     pN = {
-      x: target.x - 25 - target.width / 2,
-      y: target.y + target.height / 2
+      x: target.x - 15 - target.width / 2,
+      y: target.y
     };
     return doLine([p0].concat(points, [pN]));
   };
@@ -161,7 +161,7 @@ if (typeof window == 'undefined' || window === null) {
       return "translate(" + x + "," + y + ")";
     });
   };
-  mvTowards = function(howMuch, goal, n){
+  function mvTowards(howMuch, goal, n){
     var scale, dx, dy;
     scale = (function(it){
       return it * howMuch;
@@ -170,7 +170,7 @@ if (typeof window == 'undefined' || window === null) {
     dy = scale(goal.y - n.y);
     n.x += dx;
     n.y += dy;
-  };
+  }
   markReachable = function(node){
     var queue, moar, n, results$ = [];
     node.isFocus = true;
@@ -501,82 +501,139 @@ if (typeof window == 'undefined' || window === null) {
     }, bind$(d3, 'rgb')
   ]);
   BRIGHTEN = compose$([brighten, brighten]);
-  drawForce = function(directNodes, edges, nodeForIdent){
-    var currentZoom, animationState, runAnimation, graph, i$, ref$, len$, n, isRoot, isLeaf, getR, dimensions, getCharge, linkDistance, force, svg, svgGroup, getLabelFontSize, zoom, relationships, link, getLabelId, node, nG, legend, lg, tickCount, timer, basisLine, linkSpline, drawCurve, byX, widthRange, stratify, centrify;
-    currentZoom = 1;
-    animationState = 'paused';
-    $('#jiggle').show().val(queryParams.jiggle).on('change', function(){
-      queryParams.jiggle = $(this).val();
-      runAnimation();
-    });
-    $('#spline').show().val(queryParams.spline).on('change', function(){
-      queryParams.spline = $(this).val();
-      tick();
-    });
-    runAnimation = function(){
-      force.start();
-      return animationState = 'running';
-    };
-    $('#force-stop').show().on('click', function(){
-      var ref$, action, nextState, nextLabel;
-      ref$ = (function(){
-        switch (animationState) {
-        case 'running':
-          return [bind$(force, 'stop'), 'paused', 'Start animation'];
-        case 'paused':
-          return [bind$(force, 'resume'), 'running', 'Pause animation'];
-        }
-      }()), action = ref$[0], nextState = ref$[1], nextLabel = ref$[2];
-      action();
-      animationState = nextState;
-      $(this).text(nextLabel);
-    });
-    graph = makeGraph.apply(this, arguments);
-    for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
-      n = ref$[i$];
-      n.count = 1;
+  isRoot = function(it){
+    return it.isRoot;
+  };
+  isLeaf = function(it){
+    return it.isLeaf;
+  };
+  getR = function(it){
+    return (1.5 * ln(it.count) + 5) * (it.marked ? 2 : 1);
+  };
+  linkDistance = function(arg$){
+    var source, target, ns, edges, markedBump, mutedPenalty, radii;
+    source = arg$.source, target = arg$.target;
+    ns = [source, target];
+    edges = sum(map(function(it){
+      var ref$;
+      return ((ref$ = it.edges) != null ? ref$.length : void 8) || 0;
+    }, ns));
+    markedBump = 50 * length(filter(function(it){
+      return it.marked;
+    }, ns));
+    mutedPenalty = any(function(it){
+      return it.muted;
+    }, ns) ? 100 : 0;
+    radii = sum(map(getR, ns));
+    return 3 * edges + radii + 50 + markedBump - mutedPenalty;
+  };
+  getCharge = function(d){
+    var radius, rootBump, edgeBump, markedBump, jiggleBump, k;
+    radius = getR(d);
+    rootBump = isRoot(d) ? 150 : 0;
+    edgeBump = 10 * d.edges.length;
+    markedBump = d.marked ? 150 : 0;
+    jiggleBump = queryParams.jiggle === 'strata' ? 20 : 0;
+    k = 150;
+    return 1 - (k + radius + rootBump + edgeBump + markedBump);
+  };
+  markDepth = function(node, depthAtNode, maxDepth){
+    var nextDepth, i$, ref$, len$, target, results$ = [];
+    node.depths.push(depthAtNode);
+    nextDepth = depthAtNode + 1;
+    if (nextDepth > maxDepth) {
+      return;
     }
-    isRoot = function(it){
-      return it.isRoot;
+    for (i$ = 0, len$ = (ref$ = map(fn$, node.edges)).length; i$ < len$; ++i$) {
+      target = ref$[i$];
+      if (node !== target) {
+        results$.push(markDepth(target, nextDepth, maxDepth));
+      }
+    }
+    return results$;
+    function fn$(it){
+      return it.target;
+    }
+  };
+  annotateForHeight = function(nodes, level){
+    var leaves, i$, len$, leaf;
+    level == null && (level = 50);
+    leaves = filter(function(it){
+      return it.isDirect;
+    }, map((function(it){
+      return it.depths = [], it;
+    }), nodes));
+    for (i$ = 0, len$ = leaves.length; i$ < len$; ++i$) {
+      leaf = leaves[i$];
+      markDepth(leaf, 0, level);
+    }
+    return each(function(it){
+      return it.stepsFromLeaf = minimum(it.depths), it;
+    }, nodes);
+  };
+  trimGraphToHeight = function(arg$, level){
+    var nodes, edges, f, filtered, i$, ref$, len$, n, elision;
+    nodes = arg$.nodes, edges = arg$.edges;
+    if (!level) {
+      return {
+        nodes: nodes,
+        edges: edges
+      };
+    }
+    console.log("Trimming graph to " + level);
+    f = compose$([
+      (function(it){
+        return it <= level;
+      }), function(it){
+        return it.stepsFromLeaf;
+      }
+    ]);
+    filtered = {
+      nodes: filter(f, nodes),
+      edges: filter(function(it){
+        return all(f, [it.source, it.target]);
+      }, edges)
     };
-    isLeaf = function(it){
-      return it.isLeaf;
+    console.log(filtered.nodes.length, nodes.length);
+    each(bind$(filtered.nodes, 'push'), filter(isRoot, nodes));
+    for (i$ = 0, len$ = (ref$ = filtered.nodes).length; i$ < len$; ++i$) {
+      n = ref$[i$];
+      if (!n.isRoot && any(compose$([not$, f]), map(fn$, n.edges))) {
+        elision = {
+          source: n,
+          target: n.root,
+          label: ''
+        };
+        filtered.edges.push(elision);
+      }
+    }
+    console.log(filtered, nodes);
+    return filtered;
+    function fn$(it){
+      return it.target;
+    }
+  };
+  drawForce = function(directNodes, edges, nodeForIdent){
+    var graph, allNodes, allEdges, state, elideGraph, x$, rootSelector, y$, elisionSelector, i$, ref$, len$, n, roots, r;
+    graph = makeGraph.apply(this, arguments);
+    allNodes = graph.nodes.slice();
+    allEdges = graph.edges.slice();
+    state = new Backbone.Model({
+      smallGraphThreshold: 15,
+      animating: 'waiting',
+      root: null,
+      jiggle: queryParams.jiggle || 'centre',
+      spline: queryParams.spline || 'curved',
+      graph: graph,
+      elision: queryParams.elision ? +queryParams.elision : null
+    });
+    elideGraph = function(s, level){
+      var g;
+      console.log("Eliding graph to " + level);
+      g = s.get('graph');
+      return s.set('graph', trimGraphToHeight(g, level));
     };
-    getR = function(it){
-      return (1.5 * ln(it.count) + 5) * (it.marked ? 2 : 1);
-    };
-    dimensions = {
-      w: $('body').width(),
-      h: $('body').height()
-    };
-    getCharge = function(d){
-      var radius, rootBump, edgeBump, markedBump, jiggleBump, k;
-      radius = getR(d);
-      rootBump = isRoot(d) ? 150 : 0;
-      edgeBump = 10 * d.edges.length;
-      markedBump = d.marked ? 150 : 0;
-      jiggleBump = queryParams.jiggle === 'strata' ? 100 : 0;
-      k = 150;
-      return 1 - (k + radius + rootBump + edgeBump + markedBump);
-    };
-    linkDistance = function(arg$){
-      var source, target, ns, edges, markedBump, mutedPenalty, radii;
-      source = arg$.source, target = arg$.target;
-      ns = [source, target];
-      edges = sum(map(function(it){
-        var ref$;
-        return ((ref$ = it.edges) != null ? ref$.length : void 8) || 0;
-      }, ns));
-      markedBump = 50 * length(filter(function(it){
-        return it.marked;
-      }, ns));
-      mutedPenalty = any(function(it){
-        return it.muted;
-      }, ns) ? 100 : 0;
-      radii = sum(map(getR, ns));
-      return 3 * edges + radii + 50 + markedBump - mutedPenalty;
-    };
-    force = d3.layout.force().size([dimensions.w, dimensions.h]).charge(getCharge).gravity(0.04).linkStrength(0.8).linkDistance(linkDistance);
+    state.on('change:elision', elideGraph);
     query(
     countQuery(
     keys(
@@ -589,24 +646,158 @@ if (typeof window == 'undefined' || window === null) {
         return [item, count];
       })
     ])).then(function(summary){
-      var i$, ref$, len$, n;
-      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+      var i$, ref$, len$, n, results$ = [];
+      for (i$ = 0, len$ = (ref$ = allNodes).length; i$ < len$; ++i$) {
         n = ref$[i$];
-        n.count = summary[n.id];
+        results$.push(n.count = summary[n.id]);
       }
-      nG.selectAll('circle').attr('r', getR);
-      return updateMarked();
+      return results$;
     });
+    $('.graph-control').show();
+    $('#jiggle').val(state.get('jiggle')).on('change', function(){
+      return state.set('jiggle', $(this).val());
+    });
+    state.on('change:jiggle', flip(bind$($('#jiggle'), 'val')));
+    $('#spline').val(state.get('spline')).on('change', function(){
+      return state.set('spline', $(this).val());
+    });
+    state.on('change:spline', flip(bind$($('#spline'), 'val')));
+    x$ = rootSelector = $('#graph-root');
+    x$.on('change', function(){
+      state.set('root', nodeForIdent[$(this).val()]);
+    });
+    state.on('change:root', flip(compose$([
+      bind$(rootSelector, 'val'), function(it){
+        return it.id;
+      }
+    ])));
+    state.on('change:root', function(s, currentRoot){
+      var nodes, edges, level, graph;
+      console.log("Filtering to " + currentRoot.label);
+      nodes = filter(compose$([
+        (function(it){
+          return it === currentRoot;
+        }), function(it){
+          return it.root;
+        }
+      ]), allNodes);
+      edges = filter(compose$([
+        (function(it){
+          return it === currentRoot;
+        }), function(it){
+          return it.root;
+        }, function(it){
+          return it.target;
+        }
+      ]), allEdges);
+      level = state.get('elision');
+      graph = (function(){
+        switch (false) {
+        case !(level && any(function(it){
+          return it.stepsFromLeaf;
+        }, nodes)):
+          return trimGraphToHeight({
+            nodes: nodes,
+            edges: edges
+          }, level);
+        default:
+          return {
+            nodes: nodes,
+            edges: edges
+          };
+        }
+      }());
+      return state.set('graph', graph);
+    });
+    y$ = elisionSelector = $('#elision');
+    y$.on('change', function(){
+      return state.set('elision', parseInt($(this).val(), 10));
+    });
+    state.on('change:elision', flip(bind$(elisionSelector, 'val')));
+    setTimeout(function(){
+      var heights, i$, len$, h, level;
+      annotateForHeight(allNodes);
+      heights = sort(unique(map(function(it){
+        return it.stepsFromLeaf;
+      }, allNodes)));
+      for (i$ = 0, len$ = heights.length; i$ < len$; ++i$) {
+        h = heights[i$];
+        elisionSelector.append("<option value=\"" + h + "\">" + h + "</option>");
+      }
+      if (level = state.get('elision')) {
+        elisionSelector.val(level);
+        return elideGraph(state, level);
+      }
+    }, 0);
+    state.on('change:graph', renderForce);
+    $('#force-stop').show().on('click', function(){
+      var nextState;
+      nextState = (function(){
+        switch (state.get('animating')) {
+        case 'waiting':
+          return 'running';
+        case 'running':
+          return 'paused';
+        case 'paused':
+          return 'running';
+        }
+      }());
+      state.set('animating', nextState);
+    });
+    state.on('change:animating', function(){
+      switch (false) {
+      case !'running':
+        return $('#force-stop').text('Pause animation');
+      case !'paused':
+        return $('#force-label').text('Resume animation');
+      }
+    });
+    for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+      n = ref$[i$];
+      n.count = 1;
+    }
+    roots = filter(isRoot, allNodes);
+    for (i$ = 0, len$ = roots.length; i$ < len$; ++i$) {
+      r = roots[i$];
+      rootSelector.append("<option value=\"" + r.id + "\">" + r.label + "</option>");
+    }
+    if (queryParams.allRoots) {
+      return renderForce(state, graph);
+    } else {
+      return state.set('root', roots[0]);
+    }
+  };
+  renderForce = function(state, graph){
+    var dimensions, force, svg, svgGroup, throbber, getLabelFontSize, zoom, relationships, link, getLabelId, node, nG, legend, lg, tickCount, timer, basisLine, linkSpline, drawCurve, byX, widthRange, stratify, centrify;
+    state.set({
+      zoom: 1,
+      dimensions: {
+        w: $('body').width(),
+        h: $('body').height()
+      }
+    });
+    dimensions = state.get('dimensions');
+    force = d3.layout.force().size([dimensions.w, dimensions.h]).charge(getCharge).gravity(0.04).linkStrength(0.8).linkDistance(linkDistance);
     svg = d3.select('svg');
-    svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
+    svg.selectAll('g.ontology').remove();
+    svgGroup = svg.append('g').attr('class', 'ontology').attr('transform', 'translate(5, 5)');
+    throbber = svg.append('use').attr('x', dimensions.w / 2 - 150).attr('y', dimensions.h / 2 - 150).attr('xlink:href', '#throbber');
+    state.on('change:zoom', function(s, currentZoom){
+      svgGroup.attr('transform', "translate(" + s.get('translate') + ") scale(" + currentZoom + ")");
+      return force.tick();
+    });
+    state.on('change:translate', function(s, currentTranslation){
+      svgGroup.attr('transform', "translate(" + currentTranslation + ") scale(" + s.get('zoom') + ")");
+      return force.tick();
+    });
     getLabelFontSize = function(){
-      return Math.min(40, 20 / currentZoom);
+      return Math.min(40, 20 / state.get('zoom'));
     };
     zoom = d3.behavior.zoom().on('zoom', function(){
-      currentZoom = d3.event.scale;
-      svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + currentZoom + ")");
-      force.tick();
-      return tick();
+      return state.set({
+        zoom: d3.event.scale,
+        translate: d3.event.translate.slice()
+      });
     });
     svg.call(zoom);
     relationships = unique(map(function(it){
@@ -615,7 +806,9 @@ if (typeof window == 'undefined' || window === null) {
     svg.attr('width', dimensions.w).attr('height', dimensions.h);
     force.nodes(graph.nodes).links(graph.edges).on('tick', tick);
     link = svgGroup.selectAll('.force-link').data(graph.edges);
-    link.enter().append(queryParams.spline ? 'path' : 'line').attr('class', 'force-link').attr('stroke-width', '1px').attr('stroke', linkStroke).attr('fill', linkFill);
+    link.enter().append(queryParams.spline ? 'path' : 'line').attr('class', 'force-link').attr('stroke-width', '1px').attr('stroke', linkStroke).attr('fill', linkFill).append('title', function(e){
+      return e.source.label + " " + e.label + " " + e.target.label;
+    });
     link.exit().remove();
     getLabelId = compose$([
       (function(it){
@@ -628,11 +821,12 @@ if (typeof window == 'undefined' || window === null) {
     ]);
     node = svgGroup.selectAll('.force-node').data(graph.nodes);
     nG = node.enter().append('g').attr('class', 'force-node').call(force.drag).on('click', drawPathToRoot);
+    node.exit().remove();
     nG.append('circle').attr('class', 'force-term').classed('root', isRoot).classed('direct', function(it){
       return it.isDirect;
     }).attr('fill', termColor).attr('cx', -dimensions.w).attr('cy', -dimensions.h).attr('r', getR);
     nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('display', 'none').attr('x', -dimensions.w).attr('y', -dimensions.h).attr('dy', '0.3em');
-    nG.append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'black').attr('stroke-width', '0.1px').attr('display', function(it){
+    nG.append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'white').attr('stroke-width', '0.1px').attr('display', function(it){
       if (it.isDirect) {
         return 'block';
       } else {
@@ -661,6 +855,7 @@ if (typeof window == 'undefined' || window === null) {
       updateMarked(true);
       return setTimeout(unmark, 10000);
     });
+    legend.exit().remove();
     lg.append('rect').attr('opacity', 0.6).attr('width', 180).attr('height', 50).attr('x', 25).attr('y', function(d, i){
       return 50 * i;
     }).attr('fill', relationshipPalette);
@@ -668,12 +863,14 @@ if (typeof window == 'undefined' || window === null) {
       return 25 + 50 * i;
     }).attr('dy', '0.31em').attr('dx', '1em').text(id);
     tickCount = 0;
-    updateMarked();
+    force.start();
     function isReady(){
       return tickCount > minTicks * ln(length(graph.edges));
     }
     function drawPathToRoot(d, i){
       var queue, moar, count, max, n, i$, ref$, len$, sn;
+      state.set('animating', 'running');
+      force.resume();
       if (isRoot(d)) {
         return toggleSubtree(d);
       } else {
@@ -715,10 +912,10 @@ if (typeof window == 'undefined' || window === null) {
       return updateMarked();
     }
     function updateMarked(afterMark){
-      if (!afterMark || animationState === 'running') {
-        runAnimation();
+      if (afterMark) {
+        force.start();
       }
-      return tick();
+      return force.tick();
     }
     function showLabel(d, i){
       var i$, ref$, len$, n;
@@ -761,7 +958,7 @@ if (typeof window == 'undefined' || window === null) {
       mp1Y = meanY + offset * sin90;
       mp2X = meanX + offset * cos90;
       mp2Y = meanY + offset * sin90;
-      return [[source.x - radiusS * cos90, source.y - radiusS * sin90], [mp2X, mp2Y], endPoint, endPoint, [mp1X, mp1Y], [source.x + radiusS * cos90, source.y + radiusS * sin90]];
+      return [[source.x - radiusS * 0.9 * cos90, source.y - radiusS * 0.9 * sin90], [mp2X, mp2Y], endPoint, endPoint, [mp1X, mp1Y], [source.x + radiusS * 0.9 * cos90, source.y + radiusS * 0.9 * sin90]];
     });
     drawCurve = function(arg$){
       var target, source, cos, sin, sqrt, atan2, pow, PI, slope, ref$, sinS, cosS, slopePlus90, sin90, cos90, radiusT, radiusS, lineLength, endPoint, args, points;
@@ -780,7 +977,7 @@ if (typeof window == 'undefined' || window === null) {
       endPoint = [target.x - radiusT * 0.9 * cosS, target.y - radiusT * 0.9 * sinS];
       args = [source, target, lineLength, endPoint, radiusS, cos90, sin90];
       points = (function(){
-        switch (queryParams.spline) {
+        switch (state.get('spline')) {
         case 'straight':
           return linkSpline(0.0);
         default:
@@ -808,36 +1005,45 @@ if (typeof window == 'undefined' || window === null) {
         return it.y;
       }, graph.nodes));
       currentFontSize = getLabelFontSize();
+      widthRange.domain([0, leaves.length - 1]);
       corners = d3.scale.quantile().domain([0, dimensions.w]).range([0, dimensions.w]);
-      quantile = d3.scale.quantile().domain([0, dimensions.w]).range((function(){
-        var i$, to$, results$ = [];
-        for (i$ = 0, to$ = roots.length; i$ < to$; ++i$) {
-          results$.push(i$);
+      quantile = (function(){
+        switch (false) {
+        case !!roots.length:
+          return function(){
+            return dimensions.w / 2;
+          };
+        default:
+          return d3.scale.quantile().domain([0, dimensions.w]).range((function(){
+            var i$, to$, results$ = [];
+            for (i$ = 0, to$ = roots.length; i$ < to$; ++i$) {
+              results$.push(i$);
+            }
+            return results$;
+          }()));
         }
-        return results$;
-      }()));
+      }());
       roots.forEach(function(root, i){
         return mvTowards(0.01, {
           y: surface - getR(root),
-          x: widthRange(i)
+          x: root.x
         }, root);
       });
       for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
         n = ref$[i$];
-        if (!(n.isRoot && n.y - getR(n) < surface)) {
+        if (!n.isRoot && n.y + getR(n) < surface) {
           mvTowards(0.001, {
             x: n.root.x,
             y: dimensions.h
           }, n);
         }
       }
-      widthRange.domain([0, roots.length - 1]);
       leaves.forEach(function(n, i){
         var speed;
         speed = n.y < dimensions.h / 2 ? 0.05 : 0.005;
         if (n.y < dimensions.h * 0.9) {
           mvTowards(speed, {
-            x: n.x,
+            x: widthRange(i),
             y: dimensions.h * 0.9
           }, n);
         }
@@ -882,7 +1088,7 @@ if (typeof window == 'undefined' || window === null) {
       var jiggle, currentFontSize, fontPlusPad, meanX, getHalf, texts, displayedTexts, circles;
       tickCount++;
       jiggle = (function(){
-        switch (queryParams.jiggle) {
+        switch (state.get('jiggle')) {
         case 'strata':
           return stratify;
         case 'centre':
@@ -894,6 +1100,9 @@ if (typeof window == 'undefined' || window === null) {
       }
       if (!isReady()) {
         return;
+      }
+      if (throbber != null) {
+        throbber.remove();
       }
       currentFontSize = getLabelFontSize();
       fontPlusPad = currentFontSize * 1.1;
@@ -986,7 +1195,9 @@ if (typeof window == 'undefined' || window === null) {
         var marked, id, edges, isDirect;
         marked = arg$.marked, id = arg$.id, edges = arg$.edges, isDirect = arg$.isDirect;
         switch (false) {
-        case !(currentZoom > 2):
+        case !(graph.edges.length < state.get('smallGraphThreshold')):
+          return 'block';
+        case !(state.get('zoom') > 2):
           return 'block';
         case !(marked || isDirect):
           return 'block';
@@ -1080,184 +1291,13 @@ if (typeof window == 'undefined' || window === null) {
     }
     return tick;
   };
-  drawRadial = function(directNodes, edges, nodeForIdent){
-    var graph, roots, root, tree, svg, svgGroup, zoom, cluster, diagonal, nodes, links, palette, relationships, link, node, setOnEachToRoot, circlePalette, nodeIds, circleFill, circles, texts, showFocussed;
-    graph = makeGraph.apply(this, arguments);
-    roots = findRoots(graph);
-    root = (function(){
-      switch (false) {
-      case !((typeof queryParams != 'undefined' && queryParams !== null) && queryParams.root):
-        return find(compose$([
-          (function(it){
-            return it === queryParams.root;
-          }), function(it){
-            return it.id;
-          }
-        ]), roots);
-      default:
-        return head(roots);
-      }
-    }());
-    tree = growTree(root);
-    svg = d3.select('svg');
-    svg.attr('width', 2000).attr('height', 1000);
-    svgGroup = svg.append('g').attr('transform', 'translate(500, 500)');
-    zoom = d3.behavior.zoom().on('zoom', function(){
-      return svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + d3.event.scale + ")");
-    });
-    svg.call(zoom);
-    cluster = d3.layout.cluster().size([360, 225]).sort(function(a, b){
-      return d3.ascending(a.children.length, b.children.length);
-    });
-    diagonal = d3.svg.diagonal.radial().projection(function(arg$){
-      var x, y;
-      x = arg$.x, y = arg$.y;
-      return [y, x / 180 * Math.PI];
-    });
-    nodes = cluster.nodes(tree);
-    links = cluster.links(nodes);
-    palette = d3.scale.category10();
-    relationships = unique(map(function(it){
-      return it.relationship;
-    }, nodes));
-    link = svgGroup.selectAll('path.link').data(links).enter().append('path').attr('class', 'link').attr('stroke', linkStroke).attr('d', diagonal);
-    node = svgGroup.selectAll('g.treenode').data(nodes).enter().append('g').attr('class', 'treenode').attr('transform', function(arg$){
-      var x, y;
-      x = arg$.x, y = arg$.y;
-      return "rotate(" + (x - 90) + ") translate(" + y + ")";
-    });
-    setOnEachToRoot = function(tn, val){
-      var results$ = [];
-      import$(tn, val);
-      while (tn = tn.parent) {
-        results$.push(import$(tn, val));
-      }
-      return results$;
-    };
-    circlePalette = d3.scale.category20();
-    nodeIds = unique(map(function(it){
-      return it.id;
-    }, nodes));
-    circleFill = compose$([
-      circlePalette, bind$(nodeIds, 'indexOf'), function(it){
-        return it.id;
-      }
-    ]);
-    circles = node.append('circle').attr('r', function(it){
-      if (it.nodeType === 'root') {
-        return 10;
-      } else {
-        return 3.5;
-      }
-    }).attr('class', function(it){
-      if (in$(it.id, directNodes)) {
-        return 'direct';
-      } else {
-        return it.nodeType;
-      }
-    }).attr('fill', circleFill).on('mouseover', function(tn){
-      var i$, ref$, len$, n;
-      setOnEachToRoot(tn, {
-        focus: true
-      });
-      for (i$ = 0, len$ = (ref$ = nodes).length; i$ < len$; ++i$) {
-        n = ref$[i$];
-        if (n.id === tn.id && n !== tn) {
-          n.synonym = true;
-        }
-      }
-      return showFocussed();
-    }).on('mouseout', function(tn){
-      var i$, ref$, len$, n;
-      setOnEachToRoot(tn, {
-        focus: false
-      });
-      for (i$ = 0, len$ = (ref$ = nodes).length; i$ < len$; ++i$) {
-        n = ref$[i$];
-        n.synonym = false;
-      }
-      return showFocussed();
-    });
-    texts = node.append('text').attr('class', 'go-name').attr('dx', function(arg$){
-      var x;
-      x = arg$.x;
-      if (x < 180) {
-        return 8;
-      } else {
-        return -8;
-      }
-    }).attr('dy', '.31em').text(function(it){
-      return it.label;
-    }).attr('text-anchor', 'start').attr('text-anchor', function(arg$){
-      var x, children;
-      x = arg$.x, children = arg$.children;
-      switch (false) {
-      case !(x < 180):
-        return 'start';
-      case !(children.length > 1):
-        return 'start';
-      default:
-        return 'end';
-      }
-    }).attr('transform', function(arg$){
-      var x, children;
-      x = arg$.x, children = arg$.children;
-      switch (false) {
-      case !(children.length > 1):
-        return 'rotate(0)';
-      case !(x < 45):
-        return 'rotate(45)';
-      case !(x < 180):
-        return 'rotate(-45)';
-      case !(x < 315):
-        return 'rotate(240)';
-      default:
-        return 'rotate(120)';
-      }
-    });
-    return (showFocussed = function(){
-      texts.attr('opacity', function(arg$){
-        var focus;
-        focus = arg$.focus;
-        switch (false) {
-        case !focus:
-          return 1;
-        case !(nodes.length > 50):
-          return 0;
-        default:
-          return 0.1;
-        }
-      });
-      link.attr('stroke-width', function(arg$){
-        var focus;
-        focus = arg$.target.focus;
-        if (focus) {
-          return 10;
-        } else {
-          return 5;
-        }
-      });
-      return circles.attr('r', function(arg$){
-        var nodeType, synonym;
-        nodeType = arg$.nodeType, synonym = arg$.synonym;
-        switch (false) {
-        case nodeType !== 'root':
-          return 10;
-        case !synonym:
-          return 7;
-        default:
-          return 3.5;
-        }
-      });
-    })();
-  };
   drawDag = function(directNodes, edges, nodeForIdent){
     var graph, svg, svgGroup;
     graph = makeGraph.apply(this, arguments);
     svg = d3.select('svg');
     svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
     d3.selectAll(svg.node).attr('width', $('body').width()).attr('height', $('body').height());
-    return render(svg, svgGroup, graph);
+    return renderDag(svg, svgGroup, graph);
   };
   makeGraph = function(directNodes, edges, nodeForIdent){
     var i$, len$, e, j$, ref$, len1$, prop, nodes, isRoot, isLeaf, n;
@@ -1339,10 +1379,10 @@ if (typeof window == 'undefined' || window === null) {
       return "translate(" + x + "," + y + ")";
     });
   };
-  render = curry$(function(svg, svgGroup, arg$){
-    var nodes, edges, reset, reRender, update, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, rects, dragCp, lineWrap, labels, applyLayout, overlaps, getOverlapping, separateColliding, fixDagBoxCollisions, focusEdges, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag, currentZoom, zoom;
+  renderDag = curry$(function(svg, svgGroup, arg$){
+    var nodes, edges, reset, reRender, update, svgBBox, currentZoom, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, rects, dragCp, lineWrap, labels, applyLayout, maxY, zoom, asZoom, maxX, dx, deDup, toCombos, getOverlapping, getDescale, separateColliding, drawCollisions, explodify, fixDagBoxCollisions, focusEdges, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
     nodes = arg$.nodes, edges = arg$.edges, reset = arg$.reset;
-    reRender = render(svg, svgGroup);
+    reRender = renderDag(svg, svgGroup);
     update = function(){
       return doUpdate(svgGroup);
     };
@@ -1354,6 +1394,7 @@ if (typeof window == 'undefined' || window === null) {
     });
     console.log("Rendering " + length(nodes) + " nodes and " + length(edges) + " edges");
     svgBBox = svg.node().getBBox();
+    currentZoom = 1;
     mvEdge = translateEdge(svg);
     svgGroup.selectAll('*').remove();
     svgEdges = svgGroup.selectAll('g .edge').data(edges);
@@ -1380,9 +1421,6 @@ if (typeof window == 'undefined' || window === null) {
     });
     edgesEnter.append('path').attr('marker-end', 'url(#Triangle)').attr('stroke-width', 5).attr('opacity', 0.8).attr('stroke', linkStroke);
     rects = nodesEnter.append('rect');
-    nodesEnter.append('title').text(function(it){
-      return it.label;
-    });
     dragCp = d3.behavior.drag().on('drag', function(d){
       d.y += d3.event.dy;
       mvEdge(d.parent, d3.event.dx, 0);
@@ -1407,39 +1445,39 @@ if (typeof window == 'undefined' || window === null) {
       return it.isDirect;
     });
     labels.each(function(n){
-      var text, el, i$, len$, line, results$ = [];
+      var text, el, i$, len$, line, bbox;
       text = lineWrap(n.label);
       el = d3.select(this);
       for (i$ = 0, len$ = text.length; i$ < len$; ++i$) {
         line = text[i$];
-        results$.push(el.append('tspan').text(line).attr('dy', '1em').attr('x', 0));
+        el.append('tspan').text(line).attr('dy', '1em').attr('x', 0);
       }
-      return results$;
-    });
-    labels.each(function(d){
-      var bbox;
       bbox = this.getBBox();
-      d.bbox = bbox;
-      d.width = bbox.width + 2;
-      return d.height = bbox.height + 2;
+      n.bbox = bbox;
+      n.width = bbox.width + 2 * nodePadding;
+      return n.height = bbox.height + 2 * nodePadding;
     });
-    rects.attr('width', compose$([
+    rects.attr('width', function(it){
+      return it.width;
+    }).attr('height', function(it){
+      return it.height;
+    }).attr('x', compose$([
       (function(it){
-        return nodePadding * 2 + it;
+        return 1 - it;
+      }), (function(it){
+        return it / 2;
       }), function(it){
         return it.width;
       }
-    ])).attr('height', compose$([
+    ])).attr('y', compose$([
       (function(it){
-        return nodePadding * 2 + it;
+        return 1 - it;
+      }), (function(it){
+        return it / 2;
       }), function(it){
         return it.height;
       }
-    ])).attr('x', function(it){
-      return -it.bbox.width / 2 - nodePadding;
-    }).attr('y', function(it){
-      return -it.bbox.height / 2 - nodePadding / 2;
-    }).attr('fill', termColor).classed('focus', function(it){
+    ])).attr('fill', termColor).classed('focus', function(it){
       return it.isFocus;
     }).classed('direct', function(it){
       return it.isDirect;
@@ -1447,97 +1485,181 @@ if (typeof window == 'undefined' || window === null) {
       return it.isRoot;
     });
     labels.attr('x', function(it){
-      return -it.bbox.width / 2;
+      return -it.bbox.width;
     }).attr('y', function(it){
       return -it.bbox.height / 2;
     });
-    dagre.layout().nodeSep(100).edgeSep(20).rankSep(200).rankDir('LR').nodes(nodes).edges(edges).debugLevel(1).run();
+    dagre.layout().nodeSep(50).edgeSep(20).rankSep(75).rankDir('LR').nodes(nodes).edges(edges).debugLevel(1).run();
     (applyLayout = function(){
       return nodesEnter.attr('transform', function(it){
         return "translate(" + it.dagre.x + "," + it.dagre.y + ")";
       });
     })();
-    overlaps = function(arg$, arg1$){
-      var a, b, requiredSeparation, dx, dy, adx, ady, mdx, mdy;
-      a = arg$.dagre;
-      b = arg1$.dagre;
-      requiredSeparation = nodePadding;
-      dx = a.x - b.x;
-      dy = a.y - b.y;
-      adx = abs(dx);
-      ady = abs(dy);
-      mdx = (1 + requiredSeparation) * mean(map(function(it){
-        return it.width;
-      }, [a, b]));
-      mdy = (1 + requiredSeparation) * mean(map(function(it){
-        return it.height;
-      }, [a, b]));
-      return adx < mdx && ady < mdy;
+    maxY = fold(max, 0, map(function(it){
+      return it.dagre.y;
+    }, nodes));
+    zoom = d3.behavior.zoom().on('zoom', function(){
+      currentZoom = d3.event.scale;
+      return svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + currentZoom + ")");
+    });
+    asZoom = ($('body').height() - 100) / maxY;
+    console.log(maxY);
+    if (asZoom < 1) {
+      currentZoom = asZoom;
+      zoom.scale(currentZoom);
+      svgGroup.attr('transform', "translate(5,5) scale(" + currentZoom + ")");
+    }
+    maxX = 200 + currentZoom * fold(max, 0, map(function(it){
+      return it.dagre.x;
+    }, nodes));
+    if (maxX < $('body').width()) {
+      dx = ($('body').width() - maxX) / 2;
+      zoom.translate([dx, 5]);
+      svgGroup.attr('transform', "translate(" + dx + ",5) scale(" + currentZoom + ")");
+    }
+    deDup = function(f){
+      return fold(function(ls, e){
+        if (any((function(it){
+          return it === f(e);
+        }), map(f, ls))) {
+          return ls.slice();
+        } else {
+          return ls.concat([e]);
+        }
+      }, []);
     };
+    toCombos = deDup(compose$([
+      join('-'), sort, map(function(it){
+        return it.id;
+      })
+    ]));
     getOverlapping = function(things){
-      var i$, len$, t, j$, len1$, tt, results$ = [];
-      for (i$ = 0, len$ = things.length; i$ < len$; ++i$) {
-        t = things[i$];
-        for (j$ = 0, len1$ = things.length; j$ < len1$; ++j$) {
-          tt = things[j$];
-          if (t !== tt && overlaps(t, tt)) {
-            results$.push([t, tt]);
+      var t, tt;
+      return toCombos((function(){
+        var i$, ref$, len$, j$, ref1$, len1$, results$ = [];
+        for (i$ = 0, len$ = (ref$ = things).length; i$ < len$; ++i$) {
+          t = ref$[i$];
+          for (j$ = 0, len1$ = (ref1$ = things).length; j$ < len1$; ++j$) {
+            tt = ref1$[j$];
+            if (t !== tt && overlaps(t, tt)) {
+              results$.push([t, tt]);
+            }
           }
         }
+        return results$;
+      }()));
+    };
+    getDescale = function(){
+      return 1 / currentZoom;
+    };
+    separateColliding = function(left, right){
+      var ref$, ptA, ptB, speed;
+      ref$ = map(compose$([
+        toXywh, function(it){
+          return it.bounds;
+        }
+      ]), [left, right]), ptA = ref$[0], ptB = ref$[1];
+      speed = 0.1;
+      if (!right.isCentre) {
+        mvTowards(-speed, ptA, ptB);
+      }
+      if (!left.isCentre) {
+        mvTowards(-speed, ptB, ptA);
+      }
+      import$(left.bounds, toLtrb(ptA));
+      return import$(right.bounds, toLtrb(ptB));
+    };
+    drawCollisions = function(collisions){
+      var i$, len$, collision, lresult$, j$, len1$, node, results$ = [];
+      for (i$ = 0, len$ = collisions.length; i$ < len$; ++i$) {
+        collision = collisions[i$];
+        lresult$ = [];
+        for (j$ = 0, len1$ = collision.length; j$ < len1$; ++j$) {
+          node = collision[j$];
+          lresult$.push(drawDebugRect(svgGroup, node));
+        }
+        results$.push(lresult$);
       }
       return results$;
     };
-    separateColliding = function(arg$, arg1$){
-      var left, right;
-      left = arg$.dagre;
-      right = arg1$.dagre;
-      mvTowards(-0.1, left, right);
-      return mvTowards(-0.1, right, left);
+    explodify = function(highlit, i, roundsPerRun, maxRounds, done){
+      var collisions, nextBreak, i$, len$, ref$, left, right;
+      collisions = getOverlapping(highlit);
+      nextBreak = i + roundsPerRun;
+      while (collisions.length && i++ < maxRounds && i < nextBreak) {
+        for (i$ = 0, len$ = collisions.length; i$ < len$; ++i$) {
+          ref$ = collisions[i$], left = ref$[0], right = ref$[1];
+          separateColliding(left, right);
+        }
+        collisions = getOverlapping(highlit);
+      }
+      if (collisions.length && i < maxRounds) {
+        done();
+        return setTimeout(function(){
+          return explodify(highlit, i, roundsPerRun, maxRounds, done);
+        }, 0);
+      } else {
+        console.log(collisions.length + " collisions left after " + i + " rounds");
+        return done();
+      }
     };
-    fixDagBoxCollisions = function(d, i){
-      var highlit, colliding, maxRounds, i$, len$, ref$, left, right;
-      if (i) {
+    fixDagBoxCollisions = curry$(function(maxI, d, i){
+      var scale, halfPad, isFocussed, highlit, maxRounds, round, roundsPerRun;
+      if (i < maxI) {
         return;
       }
-      return false;
-      highlit = filter(function(it){
+      scale = getDescale();
+      halfPad = nodePadding / 2;
+      isFocussed = function(it){
         return any(function(it){
           return it.highlight;
         }, it.edges);
-      }, nodes);
-      colliding = getOverlapping(highlit);
-      maxRounds = 50;
-      i = 0;
-      while (colliding.length && i++ < maxRounds) {
-        console.log("Found " + colliding.length + " collisions");
-        for (i$ = 0, len$ = colliding.length; i$ < len$; ++i$) {
-          ref$ = colliding[i$], left = ref$[0], right = ref$[1];
-          separateColliding(left, right);
-        }
-        colliding = getOverlapping(highlit);
+      };
+      highlit = map(function(it){
+        var ref$;
+        return it.bounds = toLtrb({
+          x: (ref$ = it.dagre).x,
+          y: ref$.y,
+          height: ref$.height,
+          width: ref$.width
+        }, scale), it;
+      }, filter(isFocussed, nodes));
+      if (!highlit.length) {
+        return;
       }
-      /* Finding collisions work, but avoiding them is a TODO */
-      nodesEnter.filter(function(it){
-        return it.highlight;
-      }).attr('transform', function(it){
-        return "translate(" + it.dagre.x + "," + it.dagre.y + ") scale(" + Math.min(3, 1 / currentZoom) + ")";
+      maxRounds = 50;
+      round = 0;
+      roundsPerRun = 5;
+      return explodify(highlit, round, roundsPerRun, maxRounds, function(){
+        return nodesEnter.each(function(n, i){
+          var fill, nodeSelection, ref$, x, y;
+          fill = (n.isCentre ? brighten : id)(
+          termColor(
+          n));
+          nodeSelection = d3.select(this);
+          if (isFocussed(n)) {
+            ref$ = toXywh(n.bounds), x = ref$.x, y = ref$.y;
+            nodeSelection.transition().duration(100).attr('transform', "translate(" + x + "," + y + ") scale(" + scale + ")");
+          }
+          return nodeSelection.selectAll('rect').attr('fill', fill);
+        });
       });
-      return console.log(colliding.length + " collisions left after " + i + " rounds");
-    };
+    });
     focusEdges = function(){
-      var someLit, duration, maxScale, deScale, notFocussed;
+      var someLit, duration, delay, deScale, maxI, notFocussed;
       someLit = any(function(it){
         return it.highlight;
       }, edges);
-      duration = 250;
-      maxScale = 2.5;
-      deScale = Math.max(1, Math.min(maxScale, 1 / currentZoom));
+      duration = 100;
+      delay = 200;
+      deScale = Math.max(1, getDescale());
+      maxI = nodes.length - 1;
       notFocussed = function(it){
         return !someLit || !any(function(it){
           return it.highlight;
         }, it.edges);
       };
-      nodesEnter.transition().duration(duration).attr('transform', function(it){
+      nodesEnter.transition().duration(duration * 2).delay(delay).attr('transform', function(it){
         switch (false) {
         case !notFocussed(it):
           return "translate(" + it.dagre.x + "," + it.dagre.y + ")";
@@ -1555,8 +1677,10 @@ if (typeof window == 'undefined' || window === null) {
         default:
           return 0.3;
         }
-      }).each('end', fixDagBoxCollisions);
-      svgEdges.selectAll('path').transition().duration(duration).attr('stroke-width', function(it){
+      }).each('end', someLit && deScale > 1
+        ? fixDagBoxCollisions(maxI)
+        : function(){});
+      svgEdges.selectAll('path').transition().delay(delay).duration(duration).attr('stroke-width', function(it){
         if (it.highlight) {
           return 15;
         } else {
@@ -1577,13 +1701,16 @@ if (typeof window == 'undefined' || window === null) {
           return linkFill(it);
         }
       }).attr('opacity', function(it){
-        if (!someLit || it.highlight) {
+        switch (false) {
+        case !(!someLit || it.highlight):
           return 0.8;
-        } else {
+        case !someLit:
+          return 0.2;
+        default:
           return 0.5;
         }
       });
-      return svgEdges.selectAll('text').transition().duration(duration).attr('font-weight', function(it){
+      return svgEdges.selectAll('text').transition().duration(duration).delay(delay).attr('font-weight', function(it){
         if (it.highlight) {
           return 'bold';
         } else {
@@ -1598,7 +1725,8 @@ if (typeof window == 'undefined' || window === null) {
       });
     };
     highlightTargets = function(node){
-      var moar, queue, n;
+      var moar, queue, maxMarked, marked, n;
+      svgGroup.node().appendChild(this);
       moar = function(n){
         return reject((function(it){
           return it === n;
@@ -1606,8 +1734,11 @@ if (typeof window == 'undefined' || window === null) {
           return it.target;
         }, n.edges));
       };
+      node.isCentre = true;
       queue = [node];
-      while (n = queue.shift()) {
+      maxMarked = 25;
+      marked = 0;
+      while ((n = queue.shift()) && marked++ < maxMarked) {
         each((fn$), reject(compose$([(fn1$), fn2$]), n.edges));
         each(bind$(queue, 'push'), moar(n));
       }
@@ -1627,6 +1758,7 @@ if (typeof window == 'undefined' || window === null) {
       var i$, ref$, len$, e;
       for (i$ = 0, len$ = (ref$ = edges).length; i$ < len$; ++i$) {
         e = ref$[i$];
+        e.source.isCentre = e.target.isCentre = false;
         e.highlight = false;
       }
       return focusEdges();
@@ -1711,11 +1843,6 @@ if (typeof window == 'undefined' || window === null) {
       mvEdge(d, d3.event.dx, d3.event.dy);
       return d3.select(this).attr('d', spline(d));
     });
-    currentZoom = 1;
-    zoom = d3.behavior.zoom().on('zoom', function(){
-      currentZoom = d3.event.scale;
-      return svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + currentZoom + ")");
-    });
     svg.call(zoom);
     nodesEnter.call(nodeDrag);
     return edgesEnter.call(edgeDrag);
@@ -1775,6 +1902,80 @@ if (typeof window == 'undefined' || window === null) {
     return $.when(gettingDirect, gettingEdges, gettingNames).then(draw);
   };
   main(currentSymbol());
+  function toLtrb(arg$, k){
+    var x, y, height, width;
+    x = arg$.x, y = arg$.y, height = arg$.height, width = arg$.width;
+    k == null && (k = 1);
+    return {
+      l: x - k * width / 2,
+      t: y - k * height / 2,
+      r: x + k * width / 2,
+      b: y + k * height / 2
+    };
+  }
+  function toXywh(arg$){
+    var l, t, r, b;
+    l = arg$.l, t = arg$.t, r = arg$.r, b = arg$.b;
+    return {
+      x: l + (r - l) / 2,
+      y: t + (b - t) / 2,
+      height: b - t,
+      width: r - l
+    };
+  }
+  debugColors = d3.scale.category10();
+  function drawDebugRect(svgGroup, node){
+    console.log('drawing', node.id);
+    return (function(tracked){
+      svgGroup.append('circle').attr('cx', tracked.x).attr('fill', 'green').attr('cy', tracked.y).attr('r', 10);
+      return svgGroup.append('rect').attr('x', tracked.x - tracked.width / 2).attr('y', tracked.y - tracked.height / 2).attr('width', tracked.width).attr('height', tracked.height).attr('stroke', 'red').attr('stroke-width', 1).attr('opacity', 0.3).attr('fill', debugColors(node.id));
+    }.call(this, toXywh(node.bounds)));
+  }
+  sortOnX = sortBy(compare(function(it){
+    return it.l;
+  }));
+  sortOnY = sortBy(compare(function(it){
+    return it.t;
+  }));
+  function overlaps(arg$, arg1$){
+    var a, b, p, ref$, overlapsH, overlapsV, contained;
+    a = arg$.bounds;
+    b = arg1$.bounds;
+    p = nodePadding;
+    ref$ = sortOnX([a, b]), a = ref$[0], b = ref$[1];
+    overlapsH = (function(){
+      switch (false) {
+      case !(a.l - p < b.l && b.l - p < a.r):
+        return true;
+      case !(a.l - p < b.r && b.r + p < a.r):
+        return true;
+      default:
+        return false;
+      }
+    }());
+    ref$ = sortOnY([a, b]), a = ref$[0], b = ref$[1];
+    overlapsV = (function(){
+      switch (false) {
+      case !(a.t - p < b.t && b.t - p < a.b):
+        return true;
+      case !(a.t - p < b.b && b.b + p < a.b):
+        return true;
+      default:
+        return false;
+      }
+    }());
+    contained = (function(){
+      switch (false) {
+      case !(overlapsH || overlapsV):
+        return false;
+      case !(a.l < b.l && b.l < a.r && a.t < b.t && b.t < a.b):
+        return true;
+      default:
+        return false;
+      }
+    }());
+    return contained || (overlapsH && overlapsV);
+  }
   function compose$(fs){
     return function(){
       var i, args = arguments;
@@ -1803,6 +2004,7 @@ if (typeof window == 'undefined' || window === null) {
     while (++i < l) if (x === arr[i] && i in arr) return true;
     return false;
   }
+  function not$(x){ return !x; }
   function import$(obj, src){
     var own = {}.hasOwnProperty;
     for (var key in src) if (own.call(src, key)) obj[key] = src[key];

@@ -3,7 +3,8 @@
         <script src="http://cdn.intermine.org/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
         <script src="http://cdn.intermine.org/js/underscore.js/latest/underscore.js"></script>
         <script src="http://cdn.intermine.org/js/intermine/imjs/latest/im.js"></script>
-        <script src="http://cdn.intermine.org/js/d3/3.0.6/d3.v3.min.js"></script>
+        <script src="http://cdn.intermine.org/js/d3/3.0.8/d3.js" charset="UTF-8"></script>
+        <script src="http://cdn.intermine.org/js/backbone.js/0.9.2/backbone-min.js"></script>
         <script src="http://cdn.intermine.org/js/prelude-ls/latest/prelude-browser-min.js"></script>
         <script src="dagre.js"></script>
         <script src="index.js"></script>
@@ -30,23 +31,39 @@
                         orient="auto">
                         <path d="M 0 0 L 10 5 L 0 10 z" />
                     </marker>
+                    <path id="throbber" d="M 150,0
+                            a 150,150 0 0,1 106.066,256.066
+                            l -35.355,-35.355
+                            a -100,-100 0 0,0 -70.711,-170.711 z"
+                            fill="#3d7fe6">
+                        <animateTransform attributeName="transform" attributeType="XML"
+                            type="rotate" from="0 150 150" to="360 150 150"
+                            begin="0s" dur="1s" fill="freeze" repeatCount="indefinite" />
+                    </path>
                 </defs>
             </svg>
         </div>
-        <select id="jiggle">
+        <select id="jiggle" class="graph-control">
             <option value="none">Force Directed Layout</option>
             <option value="strata">Move Roots to Top</option>
             <option value="centre">Move Roots to Centre</option>
         </select>
-        <select id="spline">
+        <select id="spline" class="graph-control">
             <option value="curved">Curved Links</option>
             <option value="straight">Straight Links</option>
         </select>
-        <button id="force-stop">Pause animation</button>
+        <button id="force-stop" class="graph-control">Start animation</button>
+        <select id="graph-root" class="graph-control">
+        </select>
+        <label id="elision-label" class="graph-control">
+            Elide after n links from directly annotated term:
+            <select id="elision" >
+            </select>
+        </label>
     </body>
     <style>
 
-        #jiggle, #spline, #force-stop {
+        .graph-control {
             display: none;
             position: absolute;
             left: 50px;
@@ -58,7 +75,13 @@
             bottom: 50px;
         }
         #force-stop {
+            bottom: 125px;
+        }
+        #graph-root {
             bottom: 75px;
+        }
+        #elision-label {
+            bottom: 100px;
         }
 
         svg {
