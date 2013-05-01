@@ -272,7 +272,7 @@ if (typeof window == 'undefined' || window === null) {
     return values(children);
   };
   drawChord = function(directNodes, edges, nodeForIdent){
-    var graph, roots, trees, ontology, nodeMapping, i$, len$, tree, subOntology, j$, ref$, len1$, term, getMapped, links, svg, orientation, svgGroup, zoom, bundle, cluster, line, nodes, splines, path, angleBetween, dragGTerms, goTerms, linkagePalette;
+    var graph, roots, trees, ontology, nodeMapping, i$, len$, tree, subOntology, j$, ref$, len1$, term, getMapped, links, svg, svgGroup, zoom, bundle, cluster, line, nodes, splines, path, angleBetween, dragGTerms, goTerms, linkagePalette;
     graph = makeGraph.apply(this, arguments);
     roots = findRoots(graph);
     trees = map(growTree, roots);
@@ -319,9 +319,6 @@ if (typeof window == 'undefined' || window === null) {
     console.log(links.length);
     svg = d3.select('svg');
     svg.attr('width', 2000).attr('height', 1000);
-    orientation = {
-      angle: 0
-    };
     svgGroup = svg.append('g').attr('transform', 'translate(500, 500)');
     zoom = d3.behavior.zoom().on('zoom', function(){
       return svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + d3.event.scale + ")");
@@ -621,7 +618,7 @@ if (typeof window == 'undefined' || window === null) {
     allNodes = graph.nodes.slice();
     allEdges = graph.edges.slice();
     state = new Backbone.Model({
-      smallGraphThreshold: 15,
+      smallGraphThreshold: 20,
       animating: 'waiting',
       root: null,
       jiggle: queryParams.jiggle || 'centre',
@@ -630,7 +627,7 @@ if (typeof window == 'undefined' || window === null) {
       elision: queryParams.elision ? +queryParams.elision : null,
       relationships: sort(unique(map(function(it){
         return it.label;
-      }, allEdges)))
+      }, allEdges))).concat(['elision'])
     });
     elideGraph = function(s, level){
       var currentRoot, nodes, edges;
@@ -782,12 +779,12 @@ if (typeof window == 'undefined' || window === null) {
       }());
       state.set('animating', nextState);
     });
-    state.on('change:animating', function(){
-      switch (false) {
-      case !'running':
+    state.on('change:animating', function(s, currently){
+      switch (currently) {
+      case 'running':
         return $('#force-stop').text('Pause animation');
-      case !'paused':
-        return $('#force-label').text('Resume animation');
+      case 'paused':
+        return $('#force-stop').text('Resume animation');
       }
     });
     for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
@@ -806,7 +803,7 @@ if (typeof window == 'undefined' || window === null) {
     }
   };
   renderForce = function(state, graph){
-    var dimensions, force, svg, svgGroup, throbber, getLabelFontSize, zoom, relationships, link, getLabelId, node, nG, legend, lg, tickCount, timer, basisLine, linkSpline, drawCurve, byX, widthRange, stratify, centrify;
+    var dimensions, force, svg, svgGroup, throbber, getLabelFontSize, zoom, relationships, link, getLabelId, node, nG, legend, lg, tickCount, timer, basisLine, linkSpline, drawCurve, byX, widthRange, stratify, centrify, unfix;
     if (graph.edges.length > 250 && !state.has('elision')) {
       return state.set({
         elision: 2
@@ -821,8 +818,31 @@ if (typeof window == 'undefined' || window === null) {
     });
     dimensions = state.get('dimensions');
     force = d3.layout.force().size([dimensions.w, dimensions.h]).charge(getCharge).gravity(0.04).linkStrength(0.8).linkDistance(linkDistance);
+    state.on('change:spline', function(){
+      return state.set({
+        animating: 'running'
+      });
+    });
+    state.on('change:jiggle', function(){
+      return state.set({
+        animating: 'running'
+      });
+    });
+    window.force = force;
+    state.on('change:animating', function(){
+      var currently;
+      currently = state.get('animating');
+      switch (currently) {
+      case 'running':
+        force.resume();
+        break;
+      case 'paused':
+        force.stop();
+      }
+    });
     svg = d3.select('svg');
     svg.selectAll('g.ontology').remove();
+    svg.selectAll('text.root-label').remove();
     svgGroup = svg.append('g').attr('class', 'ontology').attr('transform', 'translate(5, 5)');
     throbber = svg.append('use').attr('x', dimensions.w / 2 - 150).attr('y', dimensions.h / 2 - 150).attr('xlink:href', '#throbber');
     state.on('change:zoom', function(s, currentZoom){
@@ -845,9 +865,20 @@ if (typeof window == 'undefined' || window === null) {
     svg.call(zoom);
     relationships = state.get('relationships');
     svg.attr('width', dimensions.w).attr('height', dimensions.h);
+    (function(roots){
+      var parts, rootLabel, i$, len$, word;
+      if (roots.length === 1) {
+        parts = roots[0].label.split('_');
+        rootLabel = svg.append('text').attr('class', 'root-label').attr('x', 0.25 * dimensions.w).attr('y', 0.35 * dimensions.h).attr('font-size', 0.2 * dimensions.h).attr('opacity', 0.08);
+        for (i$ = 0, len$ = parts.length; i$ < len$; ++i$) {
+          word = parts[i$];
+          rootLabel.append('tspan').text(word).attr('x', 0).attr('dx', '0.3em').attr('dy', '1em');
+        }
+      }
+    }.call(this, filter(isRoot, graph.nodes)));
     force.nodes(graph.nodes).links(graph.edges).on('tick', tick);
     link = svgGroup.selectAll('.force-link').data(graph.edges);
-    link.enter().append(queryParams.spline ? 'path' : 'line').attr('class', 'force-link').attr('stroke-width', '1px').attr('stroke', linkStroke).attr('fill', linkFill).append('title', function(e){
+    link.enter().append(state.has('spline') ? 'path' : 'line').attr('class', 'force-link').attr('stroke-width', '1px').attr('stroke', linkStroke).attr('fill', linkFill).append('title', function(e){
       return e.source.label + " " + e.label + " " + e.target.label;
     });
     link.exit().remove();
@@ -884,7 +915,7 @@ if (typeof window == 'undefined' || window === null) {
       return 25 + 50 * i;
     }).on('click', function(rel){
       var i$, ref$, len$, e, j$, ref1$, len1$, n;
-      for (i$ = 0, len$ = (ref$ = graph.edges).length; i$ < len$; ++i$) {
+      for (i$ = 0, len$ = (ref$ = state.get('graph').edges).length; i$ < len$; ++i$) {
         e = ref$[i$];
         if (e.label === rel) {
           for (j$ = 0, len1$ = (ref1$ = [e.source, e.target]).length; j$ < len1$; ++j$) {
@@ -905,13 +936,13 @@ if (typeof window == 'undefined' || window === null) {
     }).attr('dy', '0.31em').attr('dx', '1em').text(id);
     tickCount = 0;
     force.start();
+    state.set('animating', 'running');
     function isReady(){
       return tickCount > minTicks * ln(length(graph.edges));
     }
     function drawPathToRoot(d, i){
       var queue, moar, count, max, n, i$, ref$, len$, sn;
       state.set('animating', 'running');
-      force.resume();
       if (isRoot(d)) {
         return toggleSubtree(d);
       } else {
@@ -954,7 +985,7 @@ if (typeof window == 'undefined' || window === null) {
     }
     function updateMarked(afterMark){
       if (afterMark) {
-        force.start();
+        state.set('animating', 'running');
       }
       return force.tick();
     }
@@ -1065,6 +1096,7 @@ if (typeof window == 'undefined' || window === null) {
         }
       }());
       roots.forEach(function(root, i){
+        root.fixed = false;
         return mvTowards(0.01, {
           y: surface - getR(root),
           x: root.x
@@ -1132,6 +1164,11 @@ if (typeof window == 'undefined' || window === null) {
         }
       }
     };
+    unfix = function(){
+      each((function(it){
+        return it.fixed = false, it;
+      }), filter(isRoot, graph.nodes));
+    };
     function tick(){
       var jiggle, currentFontSize, fontPlusPad, meanX, getHalf, texts, displayedTexts, circles;
       tickCount++;
@@ -1141,6 +1178,8 @@ if (typeof window == 'undefined' || window === null) {
           return stratify;
         case 'centre':
           return centrify;
+        default:
+          return unfix;
         }
       }());
       if (jiggle) {
@@ -1199,18 +1238,7 @@ if (typeof window == 'undefined' || window === null) {
           return getR(it);
         }
       });
-      node.selectAll('text.count-label').attr('x', function(it){
-        return it.x;
-      }).attr('y', function(it){
-        return it.y;
-      }).attr('font-size', compose$([
-        (function(it){
-          return it / 1.5;
-        }), getR
-      ])).text(function(it){
-        return it.count;
-      });
-      if (queryParams.spline) {
+      if (state.has('spline')) {
         link.attr('d', drawCurve);
       } else {
         link.attr('x1', compose$([
@@ -1243,25 +1271,35 @@ if (typeof window == 'undefined' || window === null) {
         var marked, id, edges, isDirect;
         marked = arg$.marked, id = arg$.id, edges = arg$.edges, isDirect = arg$.isDirect;
         switch (false) {
-        case !(graph.edges.length < state.get('smallGraphThreshold')):
+        case !(graph.nodes.length < state.get('smallGraphThreshold')):
           return 'block';
         case !(state.get('zoom') > 2):
           return 'block';
         case !(marked || isDirect):
           return 'block';
-        case !all((function(it){
-            return it === id;
-          }), map(compose$([
-            function(it){
-              return it.id;
-            }, function(it){
-              return it.source;
-            }
-          ]), edges)):
+        default:
+          return 'none';
+        }
+      });
+      node.selectAll('text.count-label').attr('x', function(it){
+        return it.x;
+      }).attr('y', function(it){
+        return it.y;
+      }).attr('font-size', compose$([
+        (function(it){
+          return it / 1.5;
+        }), getR
+      ])).attr('display', function(arg$){
+        var marked, isRoot, isDirect;
+        marked = arg$.marked, isRoot = arg$.isRoot, isDirect = arg$.isDirect;
+        switch (false) {
+        case !(marked || isDirect || isRoot):
           return 'block';
         default:
           return 'none';
         }
+      }).text(function(it){
+        return it.count;
       });
       node.selectAll('text.force-label').attr('font-size', currentFontSize);
       link.attr('stroke-width', function(arg$){

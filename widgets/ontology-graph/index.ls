@@ -188,7 +188,6 @@ draw-chord = (direct-nodes, edges, node-for-ident) ->
         .attr \width, 2000
         .attr \height, 1000
 
-    orientation = angle: 0
 
     svg-group = svg.append(\g).attr \transform, 'translate(500, 500)'
 
@@ -366,14 +365,14 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     all-edges = graph.edges.slice!
 
     state = new Backbone.Model {
-        small-graph-threshold: 15
+        small-graph-threshold: 20
         animating: \waiting
         root: null
         jiggle: (query-params.jiggle or \centre)
         spline: (query-params.spline or \curved)
         graph: graph
         elision: if query-params.elision then +query-params.elision else null
-        relationships: sort unique map (.label), all-edges
+        relationships: (sort unique map (.label), all-edges) ++ [\elision]
     }
 
     elide-graph = (s, level) ->
@@ -455,9 +454,10 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
             state.set \animating, next-state
 
-    state.on \change:animating, ->
-        | \running => $(\#force-stop).text 'Pause animation'
-        | \paused => $(\#force-label).text 'Resume animation'
+    state.on \change:animating, (s, currently) ->
+        switch currently
+            | \running => $(\#force-stop).text 'Pause animation'
+            | \paused => $(\#force-stop).text 'Resume animation'
 
     for n in graph.nodes
         n.count = 1
@@ -482,6 +482,7 @@ render-force = (state, graph) ->
 
     state.set zoom: 1, dimensions: {w: $(\body).width!, h: $(\body).height!}
 
+
     dimensions = state.get \dimensions
 
     force = d3.layout.force!
@@ -491,9 +492,21 @@ render-force = (state, graph) ->
         .link-strength 0.8
         .link-distance link-distance
 
+    state.on \change:spline, -> state.set animating: \running
+    state.on \change:jiggle, -> state.set animating: \running
+
+    window.force = force
+
+    state.on \change:animating, !->
+        currently = state.get \animating
+        switch currently
+            | \running => force.resume!
+            | \paused => force.stop!
+
     svg = d3.select \svg
 
     svg.select-all(\g.ontology).remove!
+    svg.select-all(\text.root-label).remove!
 
     svg-group = svg.append(\g)
         .attr \class, \ontology
@@ -525,6 +538,22 @@ render-force = (state, graph) ->
         .attr \width, dimensions.w
         .attr \height, dimensions.h
 
+    let roots = filter is-root, graph.nodes
+        if roots.length is 1
+            parts = roots[0].label.split \_
+            root-label = svg.append \text
+                .attr \class, \root-label
+                .attr \x, 0.25 * dimensions.w
+                .attr \y, 0.35 * dimensions.h
+                .attr \font-size, 0.2 * dimensions.h
+                .attr \opacity, 0.08
+            for word in parts
+                root-label.append \tspan
+                    .text word
+                    .attr \x, 0
+                    .attr \dx, \0.3em
+                    .attr \dy, \1em
+
     force.nodes graph.nodes
         .links graph.edges
         .on \tick, tick
@@ -532,7 +561,7 @@ render-force = (state, graph) ->
     link = svg-group.select-all \.force-link
         .data graph.edges
     link.enter!
-        .append (if query-params.spline then \path else \line)
+        .append (if state.has(\spline) then \path else \line)
         .attr \class, \force-link
         .attr \stroke-width, \1px
         .attr \stroke, link-stroke
@@ -593,7 +622,7 @@ render-force = (state, graph) ->
         .attr \x, 25
         .attr \y, (d, i) -> 25 + 50 * i
         .on \click, (rel) ->
-            for e in graph.edges when e.label is rel
+            for e in state.get(\graph).edges when e.label is rel
                 for n in [e.source, e.target]
                     n.marked = true
             update-marked true
@@ -618,6 +647,7 @@ render-force = (state, graph) ->
     tick-count = 0
 
     force.start!
+    state.set \animating, \running
 
     var timer
 
@@ -625,7 +655,6 @@ render-force = (state, graph) ->
 
     function draw-path-to-root d, i
         state.set \animating, \running
-        force.resume!
         if is-root d
             toggle-subtree d
         else
@@ -652,7 +681,7 @@ render-force = (state, graph) ->
 
     function update-marked after-mark
         if after-mark
-            force.start!
+            state.set \animating, \running
         force.tick!
 
     function show-label d, i
@@ -734,6 +763,7 @@ render-force = (state, graph) ->
                     .range [0 til roots.length]
 
         roots.for-each (root, i) ->
+            root.fixed = false
             mv-towards 0.01, {y: (surface - get-r root), x: root.x}, root #width-range i}, root
 
         for n in graph.nodes when (not n.is-root) and (n.y + get-r n) < surface
@@ -769,6 +799,9 @@ render-force = (state, graph) ->
         for leaf in graph.nodes when is-leaf leaf
             mv-towards -0.001, centre, leaf
 
+    unfix = !->
+        each (<<< fixed: false), filter is-root, graph.nodes
+
     function tick
 
         tick-count++
@@ -776,6 +809,7 @@ render-force = (state, graph) ->
         jiggle = switch state.get \jiggle
             | \strata => stratify
             | \centre => centrify
+            | otherwise => unfix
 
         do jiggle if jiggle
 
@@ -808,13 +842,8 @@ render-force = (state, graph) ->
             .attr \y, (.y)
             .attr \dx, -> if it.x < mean-x then 1 - get-r it else get-r it
 
-        node.select-all \text.count-label
-            .attr \x, (.x)
-            .attr \y, (.y)
-            .attr \font-size, (/ 1.5) << get-r
-            .text (.count)
 
-        if query-params.spline
+        if state.has(\spline)
             link.attr \d, draw-curve
         else
             link.attr \x1, (.x) << (.source)
@@ -824,11 +853,19 @@ render-force = (state, graph) ->
 
         node.select-all \text
             .attr \display ({marked, id, edges, is-direct}) ->
-                | graph.edges.length < state.get(\smallGraphThreshold) => \block
+                | graph.nodes.length < state.get(\smallGraphThreshold) => \block
                 | state.get(\zoom) > 2 => \block
                 | (marked or is-direct) => \block
-                | all (is id), map (.id) << (.source), edges => \block
                 | otherwise => \none
+
+        node.select-all \text.count-label
+            .attr \x, (.x)
+            .attr \y, (.y)
+            .attr \font-size, (/ 1.5) << get-r
+            .attr \display ({marked, is-root, is-direct}) ->
+                | marked or is-direct or is-root => \block
+                | otherwise => \none
+            .text (.count)
 
         node.select-all \text.force-label
             .attr \font-size, current-font-size
