@@ -8,6 +8,7 @@
         <script src="http://cdn.intermine.org/js/prelude-ls/latest/prelude-browser-min.js"></script>
         <script src="dagre.js"></script>
         <script src="index.js"></script>
+        <link rel="stylesheet" href="http://cdn.intermine.org/css/foundation/3.1.1/stylesheets/foundation.css">
     </head>
     <body>
         <div id="dag">
@@ -52,18 +53,53 @@
             <option value="curved">Curved Links</option>
             <option value="straight">Straight Links</option>
         </select>
-        <button id="force-stop" class="graph-control">Start animation</button>
+        <button id="force-reset" class="graph-control">Reset</button>
         <select id="graph-root" class="graph-control">
         </select>
-        <label id="elision-label" class="graph-control">
-            Elide after n links from directly annotated term:
-            <select id="elision" >
-            </select>
-        </label>
+        <select id="elision" class="graph-control">
+        </select>
+        <div id="ontology-table">
+            <div class="slide-control">
+                show rows
+            </div>
+            <div class="ontology-table-container">
+                <table class="marked-terms">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Predicate</th>
+                            <th>Object</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
     </body>
     <style>
 
+        #ontology-table, #ontology-table .slide-control {
+            border: 1px solid #ccc;
+        }
+        #ontology-table {
+            position: absolute;
+            display: none;
+            z-index: 1000;
+            background: #fff;
+        }
+        #ontology-table .slide-control {
+            float: left;
+            height: 100%;
+            width: 50px;
+            border-top: none;
+            border-left: none;
+            border-bottom: none;
+        }
+        #dag {
+            width: 100%;
+            height: 100%;
+        }
         .graph-control {
+            width: 200px;
             display: none;
             position: absolute;
             left: 50px;
@@ -74,13 +110,13 @@
         #spline {
             bottom: 50px;
         }
-        #force-stop {
+        #force-reset {
             bottom: 125px;
         }
         #graph-root {
             bottom: 75px;
         }
-        #elision-label {
+        #elision {
             bottom: 100px;
         }
 
@@ -142,8 +178,9 @@
             fill: #333;
         }
         .edge .label text,
+        .legend text,
         text.dag-label {
-            font-family: "Ubuntu mono", "Droid Sans Mono", "Inconsolata", "Consolas", "Monospaced";
+            font-family: "Ubuntu mono", "Droid Sans Mono", "Inconsolata", "Consolas", "Monospaced", monospace;
         }
         .chord-label {
             font-size: 8px;

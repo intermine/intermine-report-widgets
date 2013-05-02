@@ -5,13 +5,13 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, nodePadding, minTicks, directTerms, allGoTerms, wholeGraphQ, countQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, drawChord, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, drawForce, renderForce, drawDag, makeGraph, doUpdate, renderDag, flatten, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY;
+  var Service, ref$, rows, query, nodePadding, minTicks, directTerms, allGoTerms, wholeGraphQ, countQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, drawForce, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, renderForce, drawDag, makeGraph, doUpdate, renderDag, flatten, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
   }), rows = ref$.rows, query = ref$.query;
   nodePadding = 10;
-  minTicks = 20;
+  minTicks = 25;
   directTerms = function(it){
     return {
       select: ['goAnnotation.ontologyTerm.identifier'],
@@ -271,178 +271,6 @@ if (typeof window == 'undefined' || window === null) {
     }
     return values(children);
   };
-  drawChord = function(directNodes, edges, nodeForIdent){
-    var graph, roots, trees, ontology, nodeMapping, i$, len$, tree, subOntology, j$, ref$, len1$, term, getMapped, links, svg, svgGroup, zoom, bundle, cluster, line, nodes, splines, path, angleBetween, dragGTerms, goTerms, linkagePalette;
-    graph = makeGraph.apply(this, arguments);
-    roots = findRoots(graph);
-    trees = map(growTree, roots);
-    ontology = {
-      label: 'GO',
-      children: [],
-      id: 'go-ontology'
-    };
-    nodeMapping = {};
-    for (i$ = 0, len$ = trees.length; i$ < len$; ++i$) {
-      tree = trees[i$];
-      subOntology = {
-        label: tree.label,
-        id: tree.id,
-        children: allChildren(tree)
-      };
-      console.log(subOntology);
-      for (j$ = 0, len1$ = (ref$ = subOntology.children).length; j$ < len1$; ++j$) {
-        term = ref$[j$];
-        term.parent = subOntology;
-        term.children = [];
-        nodeMapping[term.id] = term;
-      }
-      subOntology.parent = ontology;
-      ontology.children.push(subOntology);
-    }
-    getMapped = function(it){
-      return nodeMapping[it.id];
-    };
-    links = filter(function(arg$){
-      var source, target;
-      source = arg$.source, target = arg$.target;
-      return source && target;
-    })(
-    map(function(arg$){
-      var source, target;
-      source = arg$.source, target = arg$.target;
-      return {
-        source: getMapped(source),
-        target: getMapped(target)
-      };
-    })(
-    graph.edges));
-    console.log(links.length);
-    svg = d3.select('svg');
-    svg.attr('width', 2000).attr('height', 1000);
-    svgGroup = svg.append('g').attr('transform', 'translate(500, 500)');
-    zoom = d3.behavior.zoom().on('zoom', function(){
-      return svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + d3.event.scale + ")");
-    });
-    svg.call(zoom);
-    bundle = d3.layout.bundle();
-    cluster = d3.layout.cluster().size([360, 250]);
-    line = d3.svg.line.radial().interpolate('bundle').tension(0.85).radius(function(it){
-      return it.y;
-    }).angle(function(it){
-      return it.x / 180 * Math.PI;
-    });
-    nodes = cluster.nodes(ontology);
-    console.log(length(allChildren(ontology)));
-    console.log(nodes.length);
-    splines = bundle(links);
-    path = svgGroup.selectAll('path.chord').data(links).enter().append('path').attr('class', 'chord').attr('stroke', '#555').attr('d', function(d, i){
-      return line(splines[i]);
-    });
-    angleBetween = function(arg$, arg1$){
-      var xa, ya, xb, yb;
-      xa = arg$[0], ya = arg$[1];
-      xb = arg1$[0], yb = arg1$[1];
-      switch (false) {
-      case !(xa === xb && ya === yb):
-        return Math.PI / 2;
-      default:
-        return Math.atan2(yb - ya, xb - xa);
-      }
-    };
-    dragGTerms = d3.behavior.drag().origin(function(){
-      var t;
-      t = d3.select(this);
-      return {
-        x: t.attr('x'),
-        y: t.attr('y')
-      };
-    }).on('drag', function(d){
-      var angle;
-      angle = Math.atan2(d3.event.dx, d3.event.dy);
-      orientation.angle += angle;
-      return svgGroup.attr('transform', "translate(500, 500) rotate(" + orientation.angle * 180 / 2 + ")");
-    });
-    goTerms = svgGroup.selectAll('g.node').data(nodes).enter().append('g').attr('class', 'node').attr('id', compose$([
-      function(it){
-        return it.replace(/:/g, '_');
-      }, function(it){
-        return it.id;
-      }
-    ])).attr('transform', function(arg$){
-      var x, y;
-      x = arg$.x, y = arg$.y;
-      return "rotate(" + (x - 90) + ") translate(" + y + ")";
-    }).append('text').attr('class', 'chord-label').attr('dx', function(arg$){
-      var x;
-      x = arg$.x;
-      if (x < 180) {
-        return 8;
-      } else {
-        return -8;
-      }
-    }).attr('dy', '.31em').attr('text-anchor', function(arg$){
-      var x;
-      x = arg$.x;
-      if (x < 180) {
-        return 'start';
-      } else {
-        return 'end';
-      }
-    }).attr('transform', function(arg$){
-      var x;
-      x = arg$.x;
-      if (x < 180) {
-        return null;
-      } else {
-        return 'rotate(180)';
-      }
-    }).text(function(it){
-      return it.label;
-    }).classed('direct', compose$([
-      (function(it){
-        return in$(it, directNodes);
-      }), function(it){
-        return it.id;
-      }
-    ])).on('mouseover', showLinks).on('mouseout', hideLinks);
-    linkagePalette = d3.scale.category20b();
-    function showLinks(d, i, level){
-      level == null && (level = 1);
-      if (level > 20 || d.seen) {
-        return;
-      }
-      return svgGroup.selectAll('path.chord').attr('stroke', function(arg$){
-        var source, target, nextLevel, lowest;
-        source = arg$.source, target = arg$.target;
-        nextLevel = level + 1;
-        if (target === d) {
-          target.seen = level;
-          setTimeout(function(){
-            return showLinks(source, i, nextLevel);
-          }, 0);
-          return linkagePalette(level);
-        } else {
-          lowest = Math.max(target.seen || 0, source.seen || 0);
-          if (lowest) {
-            return linkagePalette(lowest);
-          } else {
-            return null;
-          }
-        }
-      });
-    }
-    function hideLinks(d){
-      var i$, ref$, len$, n;
-      for (i$ = 0, len$ = (ref$ = nodes).length; i$ < len$; ++i$) {
-        n = ref$[i$];
-        n.seen = false;
-      }
-      return setTimeout(function(){
-        return svgGroup.selectAll('path.chord').attr('stroke', '#555');
-      }, 0);
-    }
-    return hideLinks;
-  };
   function markSubtree(root, prop, val){
     var queue, moar, n;
     queue = [root];
@@ -529,10 +357,10 @@ if (typeof window == 'undefined' || window === null) {
     radius = getR(d);
     rootBump = isRoot(d) ? 150 : 0;
     edgeBump = 10 * d.edges.length;
-    markedBump = d.marked ? 150 : 0;
+    markedBump = d.marked ? 2 : 1;
     jiggleBump = queryParams.jiggle === 'strata' ? 20 : 0;
     k = 150;
-    return 1 - (k + radius + rootBump + edgeBump + markedBump);
+    return 1 - (k + radius + rootBump + edgeBump) * markedBump;
   };
   markDepth = function(node, depthAtNode, maxDepth){
     var nextDepth, i$, ref$, len$, target, results$ = [];
@@ -624,6 +452,12 @@ if (typeof window == 'undefined' || window === null) {
       jiggle: queryParams.jiggle || 'centre',
       spline: queryParams.spline || 'curved',
       graph: graph,
+      maxmarked: 20,
+      zoom: 1,
+      dimensions: {
+        w: $('body').width(),
+        h: $('body').height()
+      },
       elision: queryParams.elision ? +queryParams.elision : null,
       relationships: sort(unique(map(function(it){
         return it.label;
@@ -697,6 +531,9 @@ if (typeof window == 'undefined' || window === null) {
       return state.set('spline', $(this).val());
     });
     state.on('change:spline', flip(bind$($('#spline'), 'val')));
+    $('#force-reset').on('click', function(){
+      return state.trigger('graph:reset');
+    });
     x$ = rootSelector = $('#graph-root');
     x$.on('change', function(){
       state.set('root', nodeForIdent[$(this).val()]);
@@ -750,170 +587,201 @@ if (typeof window == 'undefined' || window === null) {
     });
     state.on('change:elision', flip(bind$(elisionSelector, 'val')));
     setTimeout(function(){
-      var heights, i$, len$, h, level;
+      var heights, i$, len$, h, text, level;
       annotateForHeight(allNodes);
       heights = sort(unique(map(function(it){
         return it.stepsFromLeaf;
       }, allNodes)));
       for (i$ = 0, len$ = heights.length; i$ < len$; ++i$) {
         h = heights[i$];
-        elisionSelector.append("<option value=\"" + h + "\">" + h + "</option>");
+        text = (fn$());
+        elisionSelector.append("<option value=\"" + h + "\">" + text + "</option>");
       }
       if (level = state.get('elision')) {
         elisionSelector.val(level);
         return elideGraph(state, level);
       }
-    }, 0);
-    state.on('change:graph', renderForce);
-    $('#force-stop').show().on('click', function(){
-      var nextState;
-      nextState = (function(){
-        switch (state.get('animating')) {
-        case 'waiting':
-          return 'running';
-        case 'running':
-          return 'paused';
-        case 'paused':
-          return 'running';
+      function fn$(){
+        switch (h) {
+        case 0:
+          return "Show all terms";
+        case 1:
+          return "Show only direct parents of annotations, and the root term";
+        default:
+          return "show all terms within " + h + " steps of a directly annotated term";
         }
-      }());
-      state.set('animating', nextState);
-    });
-    state.on('change:animating', function(s, currently){
-      switch (currently) {
-      case 'running':
-        return $('#force-stop').text('Pause animation');
-      case 'paused':
-        return $('#force-stop').text('Resume animation');
       }
-    });
+    }, 0);
+    setUpOntologyTable();
+    state.on('graph:marked', showOntologyTable);
+    state.on('change:graph', renderForce);
     for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
       n = ref$[i$];
       n.count = 1;
     }
     roots = filter(isRoot, allNodes);
-    for (i$ = 0, len$ = roots.length; i$ < len$; ++i$) {
-      r = roots[i$];
+    for (i$ = 0, len$ = (ref$ = roots.concat([{
+      id: null,
+      label: "All"
+    }])).length; i$ < len$; ++i$) {
+      r = ref$[i$];
       rootSelector.append("<option value=\"" + r.id + "\">" + r.label + "</option>");
     }
     if (queryParams.allRoots) {
-      return renderForce(state, graph);
+      renderForce(state, graph);
     } else {
-      return state.set('root', roots[0]);
+      state.set('root', roots[0]);
     }
-  };
-  renderForce = function(state, graph){
-    var dimensions, force, svg, svgGroup, throbber, getLabelFontSize, zoom, relationships, link, getLabelId, node, nG, legend, lg, tickCount, timer, basisLine, linkSpline, drawCurve, byX, widthRange, stratify, centrify, unfix;
-    if (graph.edges.length > 250 && !state.has('elision')) {
-      return state.set({
-        elision: 2
-      });
-    }
-    state.set({
-      zoom: 1,
-      dimensions: {
-        w: $('body').width(),
-        h: $('body').height()
-      }
-    });
-    dimensions = state.get('dimensions');
-    force = d3.layout.force().size([dimensions.w, dimensions.h]).charge(getCharge).gravity(0.04).linkStrength(0.8).linkDistance(linkDistance);
-    state.on('change:spline', function(){
-      return state.set({
-        animating: 'running'
-      });
-    });
-    state.on('change:jiggle', function(){
-      return state.set({
-        animating: 'running'
-      });
-    });
-    window.force = force;
-    state.on('change:animating', function(){
-      var currently;
-      currently = state.get('animating');
-      switch (currently) {
-      case 'running':
-        force.resume();
-        break;
-      case 'paused':
-        force.stop();
-      }
-    });
-    svg = d3.select('svg');
-    svg.selectAll('g.ontology').remove();
-    svg.selectAll('text.root-label').remove();
-    svgGroup = svg.append('g').attr('class', 'ontology').attr('transform', 'translate(5, 5)');
-    throbber = svg.append('use').attr('x', dimensions.w / 2 - 150).attr('y', dimensions.h / 2 - 150).attr('xlink:href', '#throbber');
-    state.on('change:zoom', function(s, currentZoom){
-      svgGroup.attr('transform', "translate(" + s.get('translate') + ") scale(" + currentZoom + ")");
-      return force.tick();
-    });
-    state.on('change:translate', function(s, currentTranslation){
-      svgGroup.attr('transform', "translate(" + currentTranslation + ") scale(" + s.get('zoom') + ")");
-      return force.tick();
-    });
-    getLabelFontSize = function(){
-      return Math.min(40, 20 / state.get('zoom'));
-    };
-    zoom = d3.behavior.zoom().on('zoom', function(){
-      return state.set({
-        zoom: d3.event.scale,
-        translate: d3.event.translate.slice()
-      });
-    });
-    svg.call(zoom);
-    relationships = state.get('relationships');
-    svg.attr('width', dimensions.w).attr('height', dimensions.h);
-    (function(roots){
-      var parts, rootLabel, i$, len$, word;
-      if (roots.length === 1) {
-        parts = roots[0].label.split('_');
-        rootLabel = svg.append('text').attr('class', 'root-label').attr('x', 0.25 * dimensions.w).attr('y', 0.35 * dimensions.h).attr('font-size', 0.2 * dimensions.h).attr('opacity', 0.08);
-        for (i$ = 0, len$ = parts.length; i$ < len$; ++i$) {
-          word = parts[i$];
-          rootLabel.append('tspan').text(word).attr('x', 0).attr('dx', '0.3em').attr('dy', '1em');
+    function setUpOntologyTable(){
+      var ref$, w, h, getLeft, x$, table;
+      ref$ = state.get('dimensions'), w = ref$.w, h = ref$.h;
+      getLeft = function(isOpen){
+        switch (false) {
+        case !isOpen:
+          return w - 50;
+        default:
+          return w - 60 - $('#ontology-table .marked-terms').outerWidth();
         }
+      };
+      x$ = table = $('#ontology-table');
+      x$.css({
+        top: 0.05 * h,
+        left: getLeft(true),
+        height: 0.9 * h,
+        width: 0.6 * w
+      });
+      return table.find('.slide-control').on('click', function(){
+        var isOpen;
+        isOpen = table.hasClass('open');
+        return table.toggleClass('open').animate({
+          left: getLeft(isOpen)
+        });
+      });
+    }
+    function showOntologyTable(){
+      var ref$, w, h, markedStatements, toRow, x$, $tbl;
+      ref$ = state.get('dimensions'), w = ref$.w, h = ref$.h;
+      markedStatements = filter(compose$([
+        function(it){
+          return it.marked;
+        }, function(it){
+          return it.source;
+        }
+      ]))(
+      function(it){
+        return it.edges;
+      }(
+      state.get('graph')));
+      toRow = function(it){
+        return "<tr>\n    <td>" + it.source.label + "</td>\n    <td>" + it.label + "</td>\n    <td>" + it.target.label + "</td>\n</tr>";
+      };
+      x$ = $tbl = $('#ontology-table .marked-terms');
+      x$.find('tbody').empty();
+      each(bind$($tbl, 'append'), map(toRow, markedStatements));
+      return $('#ontology-table').toggle(markedStatements.length > 0);
+    }
+    return showOntologyTable;
+  };
+  drawPauseBtn = curry$(function(dimensions, state, svg){
+    var ref$, cx, cy, radius, x, y, btn, drawPauseBars, symbolLine, toRadians, drawPlaySymbol;
+    ref$ = map((function(it){
+      return it * 0.9;
+    }), [dimensions.w, dimensions.h]), cx = ref$[0], cy = ref$[1];
+    radius = 0.075 * dimensions.h;
+    ref$ = map((function(it){
+      return it - radius;
+    }), [cx, cy]), x = ref$[0], y = ref$[1];
+    svg.selectAll('g.btn').remove();
+    btn = svg.append('g').attr('class', 'btn').attr('x', x).attr('y', y);
+    btn.append('circle').attr('r', radius).attr('cx', cx).attr('cy', cy).attr('stroke', 'black').attr('stroke-width', 5).attr('fill', '#ccc').attr('opacity', 0.2);
+    drawPauseBars = function(){
+      var pauseBar, i$, ref$, len$, f, results$ = [];
+      btn.selectAll('path.play-symbol').remove();
+      pauseBar = {
+        width: 0.025 * dimensions.h,
+        height: 0.08 * dimensions.h
+      };
+      for (i$ = 0, len$ = (ref$ = [-1.2, 0.2]).length; i$ < len$; ++i$) {
+        f = ref$[i$];
+        results$.push(btn.append('rect').attr('class', 'pause-bar').attr('width', pauseBar.width).attr('x', cx + f * pauseBar.width).attr('height', pauseBar.height).attr('y', cy - pauseBar.height / 2).attr('fill', '#555').attr('opacity', 0.2));
       }
-    }.call(this, filter(isRoot, graph.nodes)));
-    force.nodes(graph.nodes).links(graph.edges).on('tick', tick);
-    link = svgGroup.selectAll('.force-link').data(graph.edges);
-    link.enter().append(state.has('spline') ? 'path' : 'line').attr('class', 'force-link').attr('stroke-width', '1px').attr('stroke', linkStroke).attr('fill', linkFill).append('title', function(e){
-      return e.source.label + " " + e.label + " " + e.target.label;
+      return results$;
+    };
+    symbolLine = d3.svg.line().x(function(arg$){
+      var r, a;
+      r = arg$[0], a = arg$[1];
+      return cx + r * cos(a);
+    }).y(function(arg$){
+      var r, a;
+      r = arg$[0], a = arg$[1];
+      return cy + r * sin(a);
+    }).interpolate('linear');
+    toRadians = (function(it){
+      return it * Math.PI / 180;
     });
-    link.exit().remove();
-    getLabelId = compose$([
-      (function(it){
-        return 'label-' + it;
-      }), function(it){
-        return it.replace(/:/g, '-');
-      }, function(it){
-        return it.id;
+    drawPlaySymbol = function(){
+      var innerR, points, res$, i$, ref$, len$, angle;
+      btn.selectAll('.pause-bar').remove();
+      innerR = 0.75 * radius;
+      res$ = [];
+      for (i$ = 0, len$ = (ref$ = [0, 120, 240]).length; i$ < len$; ++i$) {
+        angle = ref$[i$];
+        res$.push([innerR, toRadians(angle)]);
       }
-    ]);
-    node = svgGroup.selectAll('.force-node').data(graph.nodes);
-    nG = node.enter().append('g').attr('class', 'force-node').call(force.drag).on('click', drawPathToRoot);
-    node.exit().remove();
-    nG.append('circle').attr('class', 'force-term').classed('root', isRoot).classed('direct', function(it){
-      return it.isDirect;
-    }).attr('fill', termColor).attr('cx', -dimensions.w).attr('cy', -dimensions.h).attr('r', getR);
-    nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('display', 'none').attr('x', -dimensions.w).attr('y', -dimensions.h).attr('dy', '0.3em');
-    nG.append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'white').attr('stroke-width', '0.1px').attr('display', function(it){
-      if (it.isDirect) {
-        return 'block';
-      } else {
-        return 'none';
+      points = res$;
+      return btn.append('path').attr('class', 'play-symbol').attr('fill', '#555').attr('opacity', 0.2).attr('d', (function(it){
+        return it + 'Z';
+      })(symbolLine(points)));
+    };
+    drawPlaySymbol();
+    state.on('change:animating', function(s, currently){
+      switch (currently) {
+      case 'paused':
+        return drawPlaySymbol();
+      case 'running':
+        return drawPauseBars();
       }
-    }).attr('id', getLabelId).attr('x', -dimensions.w).attr('y', -dimensions.h).text(function(it){
-      return it.label;
     });
-    nG.append('title').text(function(it){
-      return it.label;
+    return btn.on('click', function(){
+      switch (state.get('animating')) {
+      case 'paused':
+        return state.set({
+          animating: 'running'
+        });
+      case 'running':
+        return state.set({
+          animating: 'paused'
+        });
+      }
     });
+  });
+  drawRelationshipLegend = curry$(function(dimensions, relationships, palette, svg){
+    var height, padding, width, ref$, getX, getY, legend, lg;
+    height = 50;
+    padding = 25;
+    width = dimensions.h > dimensions.w ? (dimensions.w - padding * 2) / relationships.length : 180;
+    ref$ = (function(){
+      switch (false) {
+      case !(dimensions.h > dimensions.w):
+        return [
+          flip(function(it){
+            return padding + width * it;
+          }), function(){
+            return padding;
+          }
+        ];
+      default:
+        return [
+          function(){
+            return padding;
+          }, flip(function(it){
+            return padding + height * it;
+          })
+        ];
+      }
+    }()), getX = ref$[0], getY = ref$[1];
     legend = svg.selectAll('g.legend').data(relationships);
-    lg = legend.enter().append('g').attr('class', 'legend').attr('width', 140).attr('height', 50).attr('x', 25).attr('y', function(d, i){
-      return 25 + 50 * i;
-    }).on('click', function(rel){
+    lg = legend.enter().append('g').attr('class', 'legend').attr('width', width).attr('height', height).attr('x', getX).attr('y', getY).on('click', function(rel){
       var i$, ref$, len$, e, j$, ref1$, len1$, n;
       for (i$ = 0, len$ = (ref$ = state.get('graph').edges).length; i$ < len$; ++i$) {
         e = ref$[i$];
@@ -928,112 +796,28 @@ if (typeof window == 'undefined' || window === null) {
       return setTimeout(unmark, 10000);
     });
     legend.exit().remove();
-    lg.append('rect').attr('opacity', 0.6).attr('width', 180).attr('height', 50).attr('x', 25).attr('y', function(d, i){
-      return 50 * i;
-    }).attr('fill', relationshipPalette);
-    lg.append('text').attr('x', 25).attr('y', function(d, i){
-      return 25 + 50 * i;
-    }).attr('dy', '0.31em').attr('dx', '1em').text(id);
-    tickCount = 0;
-    force.start();
-    state.set('animating', 'running');
-    function isReady(){
-      return tickCount > minTicks * ln(length(graph.edges));
-    }
-    function drawPathToRoot(d, i){
-      var queue, moar, count, max, n, i$, ref$, len$, sn;
-      state.set('animating', 'running');
-      if (isRoot(d)) {
-        return toggleSubtree(d);
-      } else {
-        clearTimeout(timer);
-        queue = [d];
-        moar = function(it){
-          return unique(
-          reject(function(it){
-            return it.marked;
-          })(
-          map(function(it){
-            return it.target;
-          })(
-          it.edges)));
-        };
-        count = 0;
-        max = 15;
-        while (count++ < max && (n = queue.shift())) {
-          n.marked = true;
-          for (i$ = 0, len$ = (ref$ = moar(n)).length; i$ < len$; ++i$) {
-            sn = ref$[i$];
-            queue.push(sn);
-          }
-        }
-        updateMarked(true);
-        return timer = setTimeout(unmark, 25000);
-      }
-    }
-    function toggleSubtree(root){
-      markSubtree(root, 'muted', !root.muted);
-      return updateMarked();
-    }
-    function unmark(){
-      var i$, ref$, len$, n;
-      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
-        n = ref$[i$];
-        n.marked = n.muted = false;
-      }
-      return updateMarked();
-    }
-    function updateMarked(afterMark){
-      if (afterMark) {
-        state.set('animating', 'running');
-      }
-      return force.tick();
-    }
-    function showLabel(d, i){
-      var i$, ref$, len$, n;
-      for (i$ = 0, len$ = (ref$ = concatMap(fn$, d.edges)).length; i$ < len$; ++i$) {
-        n = ref$[i$];
-        d3.select('#' + getLabelId(n)).attr('display', 'block');
-      }
-      return setTimeout(function(){
-        return hideLabel(d, i);
-      }, 6000);
-      function fn$(it){
-        return [it.source, it.target];
-      }
-    }
-    function hideLabel(d, i){
-      var i$, ref$, len$, n, results$ = [];
-      for (i$ = 0, len$ = (ref$ = concatMap(fn$, d.edges)).length; i$ < len$; ++i$) {
-        n = ref$[i$];
-        results$.push(d3.select('#' + getLabelId(n)).attr('display', 'none'));
-      }
-      return results$;
-      function fn$(it){
-        return [it.source, it.target];
-      }
-    }
-    /* http://bl.ocks.org/sboak/2942559 */
-    /* http://bl.ocks.org/sboak/2942556 */
-    basisLine = d3.svg.line().interpolate('basis');
-    linkSpline = curry$(function(offsetScale, args){
-      var source, target, lineLength, endPoint, radiusS, cos90, sin90, meanX, meanY, offset, mp1X, mp1Y, mp2X, mp2Y;
-      source = args[0], target = args[1], lineLength = args[2], endPoint = args[3], radiusS = args[4], cos90 = args[5], sin90 = args[6];
-      meanX = mean(map(function(it){
-        return it.x;
-      }, [source, target]));
-      meanY = mean(map(function(it){
-        return it.y;
-      }, [source, target]));
-      offset = offsetScale * lineLength - radiusS / 4;
-      mp1X = meanX + offset * cos90;
-      mp1Y = meanY + offset * sin90;
-      mp2X = meanX + offset * cos90;
-      mp2Y = meanY + offset * sin90;
-      return [[source.x - radiusS * 0.9 * cos90, source.y - radiusS * 0.9 * sin90], [mp2X, mp2Y], endPoint, endPoint, [mp1X, mp1Y], [source.x + radiusS * 0.9 * cos90, source.y + radiusS * 0.9 * sin90]];
-    });
-    drawCurve = function(arg$){
-      var target, source, cos, sin, sqrt, atan2, pow, PI, slope, ref$, sinS, cosS, slopePlus90, sin90, cos90, radiusT, radiusS, lineLength, endPoint, args, points;
+    lg.append('rect').attr('opacity', 0.6).attr('width', width).attr('height', height).attr('x', getX).attr('y', getY).attr('fill', palette);
+    return lg.append('text').attr('x', getX).attr('y', getY).attr('dy', height / 2).attr('dx', '0.5em').text(id);
+  });
+  linkSpline = curry$(function(offsetScale, args){
+    var source, target, lineLength, endPoint, radiusS, cos90, sin90, meanX, meanY, offset, mp1X, mp1Y, mp2X, mp2Y;
+    source = args[0], target = args[1], lineLength = args[2], endPoint = args[3], radiusS = args[4], cos90 = args[5], sin90 = args[6];
+    meanX = mean(map(function(it){
+      return it.x;
+    }, [source, target]));
+    meanY = mean(map(function(it){
+      return it.y;
+    }, [source, target]));
+    offset = offsetScale * lineLength - radiusS / 4;
+    mp1X = meanX + offset * cos90;
+    mp1Y = meanY + offset * sin90;
+    mp2X = meanX + offset * cos90;
+    mp2Y = meanY + offset * sin90;
+    return [[source.x - radiusS * 0.9 * cos90, source.y - radiusS * 0.9 * sin90], [mp2X, mp2Y], endPoint, endPoint, [mp1X, mp1Y], [source.x + radiusS * 0.9 * cos90, source.y + radiusS * 0.9 * sin90]];
+  });
+  drawCurve = (function(line){
+    return function(arg$){
+      var target, source, cos, sin, sqrt, atan2, pow, PI, slope, ref$, sinS, cosS, slopePlus90, sin90, cos90, radiusT, radiusS, lineLength, endPoint, args;
       target = arg$.target, source = arg$.source;
       cos = Math.cos, sin = Math.sin, sqrt = Math.sqrt, atan2 = Math.atan2, pow = Math.pow, PI = Math.PI;
       slope = atan2(target.y - source.y, target.x - source.x);
@@ -1048,36 +832,27 @@ if (typeof window == 'undefined' || window === null) {
       lineLength = sqrt(pow(target.x - source.x, 2) + pow(target.y - source.y, 2));
       endPoint = [target.x - radiusT * 0.9 * cosS, target.y - radiusT * 0.9 * sinS];
       args = [source, target, lineLength, endPoint, radiusS, cos90, sin90];
-      points = (function(){
-        switch (state.get('spline')) {
-        case 'straight':
-          return linkSpline(0.0);
-        default:
-          return linkSpline(0.1);
-        }
-      }());
       return (function(it){
         return it + 'Z';
       })(
-      basisLine(
-      points(
+      line(
+      linkSpline(0.1)(
       args)));
     };
-    byX = compare(function(it){
-      return it.x;
-    });
-    widthRange = d3.scale.linear().range([0.1 * dimensions.w, 0.9 * dimensions.w]);
-    stratify = function(){
-      var roots, leaves, surface, currentFontSize, corners, quantile, i$, ref$, len$, n;
-      roots = sortBy(byX, filter(isRoot, graph.nodes));
-      leaves = sortBy(byX, filter(function(it){
+  }.call(this, d3.svg.line().interpolate('basis')));
+  stratify = (function(sortX){
+    return function(state){
+      var ref$, dimensions, graph, zoom, currentFontSize, roots, leaves, surface, widthRange, corners, quantile, i$, len$, n;
+      ref$ = state.toJSON(), dimensions = ref$.dimensions, graph = ref$.graph, zoom = ref$.zoom;
+      currentFontSize = Math.min(40, 20 / zoom);
+      roots = sortX(filter(isRoot, graph.nodes));
+      leaves = sortX(filter(function(it){
         return it.isDirect && it.isLeaf;
       }, graph.nodes));
       surface = fold(min, 0, map(function(it){
         return it.y;
       }, graph.nodes));
-      currentFontSize = getLabelFontSize();
-      widthRange.domain([0, leaves.length - 1]);
+      widthRange = d3.scale.linear().range([0.1 * dimensions.w, 0.9 * dimensions.w]).domain([0, leaves.length - 1]);
       corners = d3.scale.quantile().domain([0, dimensions.w]).range([0, dimensions.w]);
       quantile = (function(){
         switch (false) {
@@ -1111,7 +886,7 @@ if (typeof window == 'undefined' || window === null) {
           }, n);
         }
       }
-      leaves.forEach(function(n, i){
+      return leaves.forEach(function(n, i){
         var speed;
         speed = n.y < dimensions.h / 2 ? 0.05 : 0.005;
         if (n.y < dimensions.h * 0.9) {
@@ -1125,50 +900,222 @@ if (typeof window == 'undefined' || window === null) {
         }
       });
     };
-    centrify = function(){
-      var roots, meanD, half, ref$, centre, i$, len$, leaf;
-      roots = sortBy(compare(function(it){
-        return it.y;
-      }), filter(isRoot, graph.nodes));
-      meanD = mean(map(compose$([
-        (function(it){
-          return it * 2;
-        }), getR
-      ]), roots));
-      half = (function(it){
-        return it / 2;
+  }.call(this, sortBy(compare(function(it){
+    return it.x;
+  }))));
+  centrify = function(state){
+    var ref$, graph, dimensions, roots, meanD, half, centre, i$, len$, leaf, results$ = [];
+    ref$ = state.toJSON(), graph = ref$.graph, dimensions = ref$.dimensions;
+    roots = sortBy(compare(function(it){
+      return it.y;
+    }), filter(isRoot, graph.nodes));
+    meanD = mean(map(compose$([
+      (function(it){
+        return it * 2;
+      }), getR
+    ]), roots));
+    half = (function(it){
+      return it / 2;
+    });
+    if (roots.length === 1) {
+      ref$ = roots[0];
+      ref$.x = half(dimensions.w);
+      ref$.y = half(dimensions.h);
+      ref$.fixed = true;
+    } else {
+      roots.forEach(function(n, i){
+        var goal;
+        goal = {
+          x: half(dimensions.w),
+          y: half(dimensions.h) - meanD * roots.length / 2 + meanD * i
+        };
+        mvTowards(0.05, goal, n);
       });
-      if (roots.length === 1) {
-        ref$ = roots[0];
-        ref$.x = half(dimensions.w);
-        ref$.y = half(dimensions.h);
-        ref$.fixed = true;
-      } else {
-        roots.forEach(function(n, i){
-          var goal;
-          goal = {
-            x: half(dimensions.w),
-            y: half(dimensions.h) - meanD * roots.length / 2 + meanD * i
-          };
-          mvTowards(0.05, goal, n);
-        });
+    }
+    centre = {
+      x: half(dimensions.w),
+      y: half(dimensions.h)
+    };
+    for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+      leaf = ref$[i$];
+      if (isLeaf(leaf)) {
+        results$.push(mvTowards(-0.0005, centre, leaf));
       }
-      centre = {
-        x: half(dimensions.w),
-        y: half(dimensions.h)
-      };
-      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
-        leaf = ref$[i$];
-        if (isLeaf(leaf)) {
-          mvTowards(-0.001, centre, leaf);
+    }
+    return results$;
+  };
+  unfix = function(state){
+    each((function(it){
+      return it.fixed = false, it;
+    }))(
+    filter(isRoot)(
+    function(it){
+      return it.nodes;
+    }(
+    state.get('graph'))));
+  };
+  renderForce = function(state, graph){
+    var dimensions, force, svg, throbber, getLabelFontSize, zoom, relationships, svgGroup, link, getLabelId, node, nG, texts, tickCount;
+    if (graph.edges.length > 250 && !state.has('elision')) {
+      return state.set({
+        elision: 2
+      });
+    }
+    dimensions = state.get('dimensions');
+    force = d3.layout.force().size([dimensions.w, dimensions.h]).charge(getCharge).gravity(0.04).linkStrength(0.8).linkDistance(linkDistance);
+    state.on('change:spline', function(){
+      return state.set({
+        animating: 'running'
+      });
+    });
+    state.on('change:jiggle', function(){
+      return state.set({
+        animating: 'running'
+      });
+    });
+    state.on('graph:reset', unmark);
+    window.force = force;
+    state.on('change:animating', function(){
+      var currently;
+      currently = state.get('animating');
+      switch (currently) {
+      case 'running':
+        force.resume();
+        break;
+      case 'paused':
+        force.stop();
+      }
+    });
+    svg = d3.select('svg');
+    svg.selectAll('g.ontology').remove();
+    svg.selectAll('text.root-label').remove();
+    throbber = svg.append('use').attr('x', dimensions.w / 2 - 150).attr('y', dimensions.h / 2 - 150).attr('xlink:href', '#throbber');
+    state.on('change:zoom', function(s, currentZoom){
+      svgGroup.attr('transform', "translate(" + s.get('translate') + ") scale(" + currentZoom + ")");
+      return force.tick();
+    });
+    state.on('change:translate', function(s, currentTranslation){
+      svgGroup.attr('transform', "translate(" + currentTranslation + ") scale(" + s.get('zoom') + ")");
+      return force.tick();
+    });
+    getLabelFontSize = function(){
+      return Math.min(40, 20 / state.get('zoom'));
+    };
+    zoom = d3.behavior.zoom().on('zoom', function(){
+      return state.set({
+        zoom: d3.event.scale,
+        translate: d3.event.translate.slice()
+      });
+    });
+    svg.call(zoom);
+    relationships = state.get('relationships');
+    svg.attr('width', dimensions.w).attr('height', dimensions.h);
+    (function(roots){
+      var parts, rootLabel, i$, len$, word;
+      if (roots.length === 1) {
+        parts = roots[0].label.split('_');
+        rootLabel = svg.append('text').attr('class', 'root-label').attr('x', 0.25 * dimensions.w).attr('y', 0.35 * dimensions.h).attr('font-size', 0.2 * dimensions.h).attr('opacity', 0.08);
+        for (i$ = 0, len$ = parts.length; i$ < len$; ++i$) {
+          word = parts[i$];
+          rootLabel.append('tspan').text(word).attr('x', 0).attr('dx', '0.3em').attr('dy', '1em');
         }
       }
-    };
-    unfix = function(){
-      each((function(it){
-        return it.fixed = false, it;
-      }), filter(isRoot, graph.nodes));
-    };
+    }.call(this, filter(isRoot, graph.nodes)));
+    svg.call(drawPauseBtn(dimensions, state));
+    svgGroup = svg.append('g').attr('class', 'ontology').attr('transform', 'translate(5, 5)');
+    force.nodes(graph.nodes).links(graph.edges).on('tick', tick).on('end', function(){
+      state.set('animating', 'paused');
+      return tick();
+    });
+    link = svgGroup.selectAll('.force-link').data(graph.edges);
+    link.enter().append(state.has('spline') ? 'path' : 'line').attr('class', 'force-link').attr('stroke-width', '1px').attr('stroke', linkStroke).attr('fill', linkFill).append('title', function(e){
+      return e.source.label + " " + e.label + " " + e.target.label;
+    });
+    link.exit().remove();
+    getLabelId = compose$([
+      (function(it){
+        return 'label-' + it;
+      }), function(it){
+        return it.replace(/:/g, '-');
+      }, function(it){
+        return it.id;
+      }
+    ]);
+    node = svgGroup.selectAll('.force-node').data(graph.nodes);
+    nG = node.enter().append('g').attr('class', 'force-node').call(force.drag).on('click', drawPathToRoot);
+    node.exit().remove();
+    nG.append('circle').attr('class', 'force-term').classed('root', isRoot).classed('direct', function(it){
+      return it.isDirect;
+    }).attr('fill', termColor).attr('cx', -dimensions.w).attr('cy', -dimensions.h).attr('r', getR);
+    nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('display', 'none').attr('x', -dimensions.w).attr('y', -dimensions.h).attr('dy', '0.3em');
+    texts = svgGroup.selectAll('text.force-label').data(graph.nodes);
+    texts.enter().append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'white').attr('stroke-width', '0.1px').attr('text-rendering', 'optimizeLegibility').attr('display', function(it){
+      if (it.isDirect) {
+        return 'block';
+      } else {
+        return 'none';
+      }
+    }).attr('id', getLabelId).attr('x', -dimensions.w).attr('y', -dimensions.h).text(function(it){
+      return it.label;
+    }).on('click', drawPathToRoot);
+    nG.append('title').text(function(it){
+      return it.label;
+    });
+    svg.call(drawRelationshipLegend(dimensions, relationships, relationshipPalette));
+    tickCount = 0;
+    state.set('animating', 'running');
+    force.start();
+    function isReady(){
+      return state.get('animating') === 'paused' || tickCount > minTicks * ln(length(state.get('graph').edges));
+    }
+    function drawPathToRoot(d, i){
+      var queue, moar, count, max, n;
+      state.set('animating', 'running');
+      if (isRoot(d)) {
+        return toggleSubtree(d);
+      } else {
+        queue = [d];
+        moar = function(it){
+          return unique(
+          reject(function(it){
+            return it.marked;
+          })(
+          map(function(it){
+            return it.target;
+          })(
+          it.edges)));
+        };
+        count = 0;
+        max = state.get('maxmarked');
+        while (count++ < max && (n = queue.shift())) {
+          n.marked = true;
+          each(bind$(queue, 'push'), moar(n));
+        }
+        return updateMarked();
+      }
+    }
+    function toggleSubtree(root){
+      markSubtree(root, 'muted', !root.muted);
+      return updateMarked();
+    }
+    function unmark(){
+      var i$, ref$, len$, n;
+      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+        n = ref$[i$];
+        n.marked = n.muted = false;
+      }
+      return updateMarked();
+    }
+    function updateMarked(){
+      var currentAnimation;
+      state.trigger('graph:marked');
+      currentAnimation = state.get('animating');
+      state.set('animating', 'running');
+      force.start();
+      return setTimeout(function(){
+        return state.set('animating', currentAnimation);
+      }, 150);
+    }
     function tick(){
       var jiggle, currentFontSize, fontPlusPad, meanX, getHalf, texts, displayedTexts, circles;
       tickCount++;
@@ -1183,7 +1130,7 @@ if (typeof window == 'undefined' || window === null) {
         }
       }());
       if (jiggle) {
-        jiggle();
+        jiggle(state);
       }
       if (!isReady()) {
         return;
@@ -1197,7 +1144,7 @@ if (typeof window == 'undefined' || window === null) {
         return it.x;
       }, graph.nodes));
       getHalf = d3.scale.quantile().domain([0, dimensions.w]).range(['left', 'right']);
-      texts = node.selectAll('text.force-label');
+      texts = svgGroup.selectAll('text.force-label');
       displayedTexts = texts.filter(function(){
         return 'block' === d3.select(this).attr('display');
       });
@@ -1267,13 +1214,13 @@ if (typeof window == 'undefined' || window === null) {
           }
         ]));
       }
-      node.selectAll('text').attr('display', function(arg$){
+      svgGroup.selectAll('text').attr('display', function(arg$){
         var marked, id, edges, isDirect;
         marked = arg$.marked, id = arg$.id, edges = arg$.edges, isDirect = arg$.isDirect;
         switch (false) {
         case !(graph.nodes.length < state.get('smallGraphThreshold')):
           return 'block';
-        case !(state.get('zoom') > 2):
+        case !(state.get('zoom') > 1.2):
           return 'block';
         case !(marked || isDirect):
           return 'block';
@@ -1281,7 +1228,9 @@ if (typeof window == 'undefined' || window === null) {
           return 'none';
         }
       });
-      node.selectAll('text.count-label').attr('x', function(it){
+      node.selectAll('text.count-label').text(function(it){
+        return it.count;
+      }).attr('x', function(it){
         return it.x;
       }).attr('y', function(it){
         return it.y;
@@ -1298,10 +1247,8 @@ if (typeof window == 'undefined' || window === null) {
         default:
           return 'none';
         }
-      }).text(function(it){
-        return it.count;
       });
-      node.selectAll('text.force-label').attr('font-size', currentFontSize);
+      svgGroup.selectAll('text.force-label').attr('font-size', currentFontSize);
       link.attr('stroke-width', function(arg$){
         var target;
         target = arg$.target;
@@ -1321,23 +1268,23 @@ if (typeof window == 'undefined' || window === null) {
         return it.marked;
       }, graph.nodes)) {
         circles.attr('opacity', function(it){
-          if (it.marked) {
+          if (it.marked || it.isRoot) {
             return 1;
           } else {
             return 0.2;
           }
         });
         link.attr('opacity', function(arg$){
-          var source;
-          source = arg$.source;
+          var source, target;
+          source = arg$.source, target = arg$.target;
           switch (false) {
-          case !source.marked:
+          case !(source.marked && (target.marked || target.isRoot)):
             return 0.8;
           default:
             return 0.1;
           }
         });
-        return node.selectAll('text').attr('opacity', function(it){
+        return svgGroup.selectAll('text').attr('opacity', function(it){
           if (it.marked) {
             return 1;
           } else {
@@ -1366,7 +1313,7 @@ if (typeof window == 'undefined' || window === null) {
             return 0.9;
           }
         });
-        return node.selectAll('text').attr('opacity', function(it){
+        return svgGroup.selectAll('text').attr('opacity', function(it){
           if (it.muted) {
             return 0.3;
           } else {
@@ -2085,12 +2032,12 @@ if (typeof window == 'undefined' || window === null) {
   function bind$(obj, key, target){
     return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
+  function not$(x){ return !x; }
   function in$(x, arr){
     var i = -1, l = arr.length >>> 0;
     while (++i < l) if (x === arr[i] && i in arr) return true;
     return false;
   }
-  function not$(x){ return !x; }
   function import$(obj, src){
     var own = {}.hasOwnProperty;
     for (var key in src) if (own.call(src, key)) obj[key] = src[key];

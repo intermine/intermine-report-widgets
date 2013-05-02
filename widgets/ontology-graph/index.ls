@@ -7,7 +7,7 @@
 
 node-padding = 10
 
-min-ticks = 20
+min-ticks = 25
 
 # Get the ontology terms for a gene.
 direct-terms = ->
@@ -150,134 +150,6 @@ all-children = (tree) ->
             queue.push gc
     return values children
 
-draw-chord = (direct-nodes, edges, node-for-ident) ->
-    graph = make-graph ...
-
-    roots = find-roots graph
-
-    trees = map grow-tree, roots
-
-    ontology = label: \GO, children: [], id: \go-ontology
-
-    node-mapping = {}
-
-    for tree in trees
-        sub-ontology =
-            label: tree.label
-            id: tree.id
-            children: all-children tree
-        console.log sub-ontology
-        for term in sub-ontology.children
-            term.parent = sub-ontology
-            term.children = []
-            node-mapping[term.id] = term
-        sub-ontology.parent = ontology
-        ontology.children.push sub-ontology
-
-    get-mapped = -> node-mapping[it.id]
-
-    links = graph.edges
-            |> map ({source, target}) -> {source: (get-mapped source), target: (get-mapped target)}
-            |> filter ({source, target}) -> source and target
-
-    console.log links.length
-
-    svg = d3.select \svg
-
-    svg
-        .attr \width, 2000
-        .attr \height, 1000
-
-
-    svg-group = svg.append(\g).attr \transform, 'translate(500, 500)'
-
-    zoom = d3.behavior.zoom!
-        .on \zoom, -> svg-group.attr \transform, "translate(#{ d3.event.translate }) scale(#{ d3.event.scale })"
-
-    svg.call zoom
-
-    bundle = d3.layout.bundle!
-
-    cluster = d3.layout.cluster!
-        .size [360, 250]
-
-    line = d3.svg.line.radial!
-        .interpolate \bundle
-        .tension 0.85
-        .radius (.y)
-        .angle -> it.x / 180 * Math.PI
-
-    nodes = cluster.nodes ontology
-
-    console.log length all-children ontology
-    console.log nodes.length
-
-    splines = bundle links
-
-    path = svg-group.select-all \path.chord
-        .data links
-        .enter!
-            .append \path
-            .attr \class, \chord
-            .attr \stroke, \#555
-            .attr \d, (d, i) -> line splines[i]
-
-    angle-between = ([xa, ya], [xb, yb]) ->
-        | xa is xb and ya is yb => Math.PI / 2
-        | otherwise => Math.atan2 yb - ya, xb - xa
-
-    drag-g-terms = d3.behavior.drag!
-        .origin ->
-            t = d3.select @
-            {x: t.attr(\x), y: t.attr(\y)}
-        .on \drag (d) ->
-            angle = Math.atan2 d3.event.dx, d3.event.dy
-            orientation.angle += angle
-            svg-group.attr \transform, "translate(500, 500) rotate(#{ orientation.angle * 180 / 2 })"
-
-    go-terms = svg-group.select-all \g.node
-        .data nodes
-        .enter!
-            .append \g
-            .attr \class, \node
-            .attr \id, (.replace /:/g, \_) << (.id)
-            .attr \transform, ({x, y}) -> "rotate(#{ x - 90 }) translate(#{ y })"
-        .append \text
-            .attr \class, \chord-label
-            .attr \dx, ({x}) -> if x < 180 then 8 else -8
-            .attr \dy, \.31em
-            .attr \text-anchor, ({x}) -> if x < 180 then \start else \end
-            .attr \transform, ({x}) -> if x < 180 then null else 'rotate(180)'
-            .text (.label)
-            .classed \direct, (.id) >> (in direct-nodes)
-            .on \mouseover, show-links
-            .on \mouseout, hide-links
-            #.call drag-g-terms
-
-    linkage-palette = d3.scale.category20b!
-
-    function show-links d, i, level = 1
-        return if level > 20 or d.seen
-        svg-group.select-all \path.chord
-            .attr \stroke, ({source, target}) ->
-                next-level = level + 1
-                #if source is d
-                #    source.seen = level
-                #    setTimeout (-> show-links target, i, next-level), 0
-                #    linkage-palette level
-                if target is d
-                    target.seen = level
-                    set-timeout (-> show-links source, i, next-level), 0
-                    linkage-palette level
-                else
-                    lowest = Math.max (target.seen or 0), (source.seen or 0)
-                    if lowest then linkage-palette lowest else null
-
-    function hide-links d
-        for n in nodes
-            n.seen = false
-        set-timeout (-> svg-group.select-all \path.chord .attr \stroke, \#555), 0
-
 function mark-subtree root, prop, val
     queue = [root]
     moar = ({edges}) -> map (.source), edges |> reject (is val) << (.[prop])
@@ -314,10 +186,10 @@ get-charge = (d) ->
     radius = get-r d
     root-bump = if is-root d then 150 else 0
     edge-bump = 10 * d.edges.length
-    marked-bump = if d.marked then 150 else 0
+    marked-bump = if d.marked then 2 else 1
     jiggle-bump = if query-params.jiggle is \strata then 20 else 0
     k = 150
-    1 - (k + radius + root-bump + edge-bump + marked-bump)
+    1 - (k + radius + root-bump + edge-bump) * marked-bump
 
 mark-depth = (node, depth-at-node, max-depth) ->
     node.depths.push depth-at-node
@@ -371,6 +243,9 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         jiggle: (query-params.jiggle or \centre)
         spline: (query-params.spline or \curved)
         graph: graph
+        maxmarked: 20
+        zoom: 1
+        dimensions: {w: $(\body).width!, h: $(\body).height!}
         elision: if query-params.elision then +query-params.elision else null
         relationships: (sort unique map (.label), all-edges) ++ [\elision]
     }
@@ -411,6 +286,9 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     state.on \change:spline, flip $(\#spline)~val
 
+    $ \#force-reset
+        .on \click, -> state.trigger \graph:reset
+
     root-selector = $ \#graph-root
         ..on \change, !-> state.set \root, node-for-ident[ $(@).val! ]
 
@@ -435,36 +313,28 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         annotate-for-height all-nodes
         heights = sort unique map (.steps-from-leaf), all-nodes
         for h in heights
-            elision-selector.append """<option value="#{ h }">#{ h }</option>"""
+            text = switch h
+                | 0 => "Show all terms"
+                | 1 => "Show only direct parents of annotations, and the root term"
+                | otherwise => "show all terms within #{ h } steps of a directly annotated term"
+            elision-selector.append """<option value="#{ h }">#{ text }</option>"""
         if level = state.get \elision
             elision-selector.val level
             elide-graph state, level
     ), 0
 
+    set-up-ontology-table!
+
+    state.on \graph:marked, show-ontology-table
 
     state.on \change:graph, render-force
-
-    $ \#force-stop
-        .show!
-        .on \click !->
-            next-state = switch state.get \animating
-                | \waiting => \running
-                | \running => \paused
-                | \paused  => \running
-
-            state.set \animating, next-state
-
-    state.on \change:animating, (s, currently) ->
-        switch currently
-            | \running => $(\#force-stop).text 'Pause animation'
-            | \paused => $(\#force-stop).text 'Resume animation'
 
     for n in graph.nodes
         n.count = 1
 
     roots = filter is-root, all-nodes
 
-    for r in roots
+    for r in roots ++ [ { id: null, label:"All" } ]
         root-selector.append """<option value="#{ r.id }">#{ r.label }</option>"""
 
     if query-params.all-roots
@@ -472,15 +342,260 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     else
         state.set \root, roots[0]
 
+    function set-up-ontology-table
+        {w, h} = state.get \dimensions
+        get-left = (is-open) ->
+            | is-open => w - 50
+            | otherwise => w - 60 - $('#ontology-table .marked-terms').outer-width!
+        table = $ \#ontology-table
+            ..css top: (0.05 * h), left: (get-left true), height: (0.9 * h), width: (0.6 * w)
+
+        table.find \.slide-control
+            .on \click, ->
+                is-open = table.has-class \open
+                table.toggle-class \open .animate left: get-left is-open
+
+    function show-ontology-table
+        {w, h} = state.get \dimensions
+        marked-statements = state.get \graph |> (.edges) |> filter (.marked) . (.source)
+        to-row = -> """
+            <tr>
+                <td>#{ it.source.label }</td>
+                <td>#{ it.label }</td>
+                <td>#{ it.target.label }</td>
+            </tr>
+        """
+
+        $tbl = $ '#ontology-table .marked-terms'
+            ..find \tbody .empty!
+
+        each $tbl~append, map to-row, marked-statements
+
+        $ \#ontology-table .toggle marked-statements.length > 0
+
 # The following would make good tests...
 #console.log fold ((m, depth) -> m[depth] = (m[depth] or 0) + 1; m), {}, map minimum << (.depths), graph.nodes
+
+draw-pause-btn = (dimensions, state, svg) -->
+    [cx,cy] = map (* 0.9), [dimensions.w, dimensions.h]
+    radius = 0.075 * dimensions.h
+    [x, y] = map (- radius), [cx, cy]
+
+    svg.select-all \g.btn .remove!
+
+    btn = svg.append \g
+        .attr \class, \btn
+        .attr \x, x
+        .attr \y, y
+
+    btn.append \circle
+        .attr \r, radius
+        .attr \cx, cx
+        .attr \cy, cy
+        .attr \stroke, \black
+        .attr \stroke-width, 5px
+        .attr \fill \#ccc
+        .attr \opacity, 0.2
+
+    draw-pause-bars = ->
+
+        btn.select-all(\path.play-symbol).remove!
+
+        pause-bar =
+            width: 0.025 * dimensions.h
+            height: 0.08 * dimensions.h
+
+        for f in [-1.2, 0.2]
+            btn.append \rect
+                .attr \class, \pause-bar
+                .attr \width, pause-bar.width
+                .attr \x, cx + f * pause-bar.width
+                .attr \height, pause-bar.height
+                .attr \y, cy - pause-bar.height /2
+                .attr \fill, \#555
+                .attr \opacity, 0.2
+
+
+    symbol-line = d3.svg.line!
+        .x ([r, a]) -> cx + r * cos a
+        .y ([r, a]) -> cy + r * sin a
+        .interpolate \linear
+
+    to-radians = (* Math.PI / 180)
+
+    draw-play-symbol = ->
+
+        btn.select-all(\.pause-bar).remove!
+
+        inner-r = 0.75 * radius
+
+        points = [ [inner-r, to-radians angle] for angle in [0, 120, 240] ]
+
+        btn.append \path
+            .attr \class, \play-symbol
+            .attr \fill, \#555
+            .attr \opacity, 0.2
+            .attr \d, (+ \Z) symbol-line points
+
+    draw-play-symbol!
+
+    state.on \change:animating, (s, currently) -> switch currently
+        | \paused => draw-play-symbol!
+        | \running => draw-pause-bars!
+
+    btn.on \click, -> switch state.get \animating
+        | \paused => state.set animating: \running
+        | \running => state.set animating: \paused
+
+draw-relationship-legend = (dimensions, relationships, palette, svg) -->
+
+    height = 50
+    padding = 25
+    width = if dimensions.h > dimensions.w then (dimensions.w - padding * 2) / relationships.length else 180
+
+    [get-x, get-y] =
+        | dimensions.h > dimensions.w => [(flip -> padding + width * it), (-> padding)]
+        | otherwise => [ (-> padding), (flip -> padding + height * it)]
+
+    legend = svg.select-all \g.legend
+        .data relationships
+
+    lg = legend.enter!
+        .append \g
+        .attr \class, \legend
+        .attr \width, width
+        .attr \height, height
+        .attr \x, get-x
+        .attr \y, get-y
+        .on \click, (rel) ->
+            for e in state.get(\graph).edges when e.label is rel
+                for n in [e.source, e.target]
+                    n.marked = true
+            update-marked true
+            set-timeout unmark, 10_000ms
+    legend.exit!remove!
+
+    lg.append \rect
+        .attr \opacity, 0.6
+        .attr \width, width
+        .attr \height, height
+        .attr \x, get-x
+        .attr \y, get-y
+        .attr \fill, palette
+
+    lg.append \text
+        .attr \x, get-x
+        .attr \y, get-y
+        .attr \dy, height / 2
+        .attr \dx, \0.5em
+        .text id
+
+link-spline = (offset-scale, args) -->
+    [source, target, line-length, end-point, radius-s, cos90, sin90] = args
+    mean-x = mean map (.x), [source, target]
+    mean-y = mean map (.y), [source, target]
+
+    offset = (offset-scale * line-length) - (radius-s / 4)
+
+    mp1-x = mean-x + offset * cos90
+    mp1-y = mean-y + offset * sin90
+    mp2-x = mean-x + offset * cos90
+    mp2-y = mean-y + offset * sin90
+
+    [
+        [(source.x - radius-s * 0.9 * cos90), (source.y - radius-s * 0.9 * sin90)],
+        [mp2-x, mp2-y],
+        end-point,
+        end-point,
+        [mp1-x, mp1-y],
+        [(source.x + radius-s * 0.9 * cos90), (source.y + radius-s * 0.9 * sin90)]
+    ]
+
+# http://bl.ocks.org/sboak/2942559
+# http://bl.ocks.org/sboak/2942556
+draw-curve = let line = d3.svg.line!interpolate \basis
+    ({target, source}) ->
+        {cos, sin, sqrt, atan2, pow, PI} = Math
+        slope = atan2 (target.y - source.y), (target.x - source.x)
+        [sin-s, cos-s] = map (-> it slope), [sin, cos]
+        slope-plus90 = PI / 2 + slope
+        [sin90, cos90] = map (-> it slope-plus90), [sin, cos]
+
+        [radius-t, radius-s] = map get-r, [target, source]
+
+        line-length = sqrt pow(target.x - source.x, 2) + pow(target.y - source.y, 2)
+        end-point = [(target.x - radius-t * 0.9 * cos-s), (target.y - radius-t * 0.9 * sin-s)]
+
+        args = [source, target, line-length, end-point, radius-s, cos90, sin90]
+
+        args |> link-spline 0.1 |> line |> (+ \Z)
+
+stratify = let sort-x = sort-by compare (.x)
+    (state) ->
+        {dimensions, graph, zoom} = state.toJSON!
+        current-font-size = Math.min 40, 20 / zoom
+        roots = sort-x filter is-root, graph.nodes
+        leaves = sort-x filter (-> it.is-direct and it.is-leaf), graph.nodes
+        surface = fold min, 0, map (.y), graph.nodes
+        width-range = d3.scale.linear!
+            .range [0.1 * dimensions.w, 0.9 * dimensions.w]
+            .domain [0, leaves.length - 1]
+
+        corners = d3.scale.quantile!
+            .domain [0, dimensions.w]
+            .range [0, dimensions.w]
+        quantile =
+            | not roots.length => -> dimensions.w / 2
+            | otherwise =>
+                d3.scale.quantile!
+                    .domain [0, dimensions.w]
+                    .range [0 til roots.length]
+
+        roots.for-each (root, i) ->
+            root.fixed = false
+            mv-towards 0.01, {y: (surface - get-r root), x: root.x}, root #width-range i}, root
+
+        for n in graph.nodes when (not n.is-root) and (n.y + get-r n) < surface
+            mv-towards 0.001, {x: n.root.x, y: dimensions.h}, n
+
+        leaves.for-each (n, i) ->
+            speed = if n.y < (dimensions.h / 2) then 0.05 else 0.005
+            if n.y < dimensions.h * 0.9
+                mv-towards speed, {x: (width-range i), y: dimensions.h * 0.9}, n
+            if n.y >= dimensions.h * 0.85
+                n.y = dimensions.h * 0.9 + (current-font-size * 1.1 * i)
+
+centrify = (state) ->
+    {graph, dimensions} = state.toJSON!
+    roots = sort-by (compare (.y)), filter is-root, graph.nodes
+    mean-d = mean map (* 2) << get-r, roots
+    half = (/ 2)
+
+    # Put root nodes under a centripetal force.
+    if roots.length is 1
+        roots[0] <<< {x: (half dimensions.w), y: (half dimensions.h), fixed: true}
+    else
+        roots.for-each !(n, i) ->
+            goal =
+                x: half dimensions.w
+                y: (half dimensions.h) - (mean-d * roots.length / 2) + (mean-d * i)
+            mv-towards 0.05, goal, n
+
+    # Put leaf nodes under a centrifugal force. Must be very faint to avoid reaching terminal
+    # velocity.
+    centre =
+        x: half dimensions.w
+        y: half dimensions.h
+    for leaf in graph.nodes when is-leaf leaf
+        mv-towards -0.0005, centre, leaf
+
+unfix = !(state) -> state.get \graph |> (.nodes) |> filter is-root |> each (<<< fixed: false)
+
 
 render-force = (state, graph) ->
 
     if graph.edges.length > 250 and not state.has(\elision)
         return state.set elision: 2
-
-    state.set zoom: 1, dimensions: {w: $(\body).width!, h: $(\body).height!}
 
 
     dimensions = state.get \dimensions
@@ -494,6 +609,7 @@ render-force = (state, graph) ->
 
     state.on \change:spline, -> state.set animating: \running
     state.on \change:jiggle, -> state.set animating: \running
+    state.on \graph:reset, unmark
 
     window.force = force
 
@@ -507,10 +623,6 @@ render-force = (state, graph) ->
 
     svg.select-all(\g.ontology).remove!
     svg.select-all(\text.root-label).remove!
-
-    svg-group = svg.append(\g)
-        .attr \class, \ontology
-        .attr \transform, 'translate(5, 5)'
 
     throbber = svg.append \use
         .attr \x, dimensions.w / 2 - 150
@@ -554,9 +666,18 @@ render-force = (state, graph) ->
                     .attr \dx, \0.3em
                     .attr \dy, \1em
 
+    svg.call draw-pause-btn dimensions, state
+
+    svg-group = svg.append(\g)
+        .attr \class, \ontology
+        .attr \transform, 'translate(5, 5)'
+
     force.nodes graph.nodes
         .links graph.edges
         .on \tick, tick
+        .on \end, ->
+            state.set \animating, \paused
+            tick! # Run the last tick.
 
     link = svg-group.select-all \.force-link
         .data graph.edges
@@ -597,78 +718,51 @@ render-force = (state, graph) ->
         .attr \y, -dimensions.h
         .attr \dy, \0.3em
 
-    n-g.append \text
+    texts = svg-group.select-all \text.force-label
+        .data graph.nodes
+
+    texts.enter!
+        .append \text
         .attr \class, \force-label
         .attr \text-anchor, \start
         .attr \fill, \#555
         .attr \stroke, \white
         .attr \stroke-width, \0.1px
+        .attr \text-rendering, \optimizeLegibility
         .attr \display, -> if it.is-direct then \block else \none
         .attr \id, get-label-id
         .attr \x, -dimensions.w
         .attr \y, -dimensions.h
         .text (.label)
+        .on \click, draw-path-to-root
 
     n-g.append \title
         .text (.label)
 
-    legend = svg.select-all \g.legend
-        .data relationships
-    lg = legend.enter!
-        .append \g
-        .attr \class, \legend
-        .attr \width, 140
-        .attr \height, 50
-        .attr \x, 25
-        .attr \y, (d, i) -> 25 + 50 * i
-        .on \click, (rel) ->
-            for e in state.get(\graph).edges when e.label is rel
-                for n in [e.source, e.target]
-                    n.marked = true
-            update-marked true
-            set-timeout unmark, 10_000ms
-    legend.exit!remove!
+    svg.call draw-relationship-legend dimensions, relationships, relationship-palette
 
-    lg.append \rect
-        .attr \opacity, 0.6
-        .attr \width, 180
-        .attr \height, 50
-        .attr \x, 25
-        .attr \y, (d, i) -> 50 * i
-        .attr \fill, relationship-palette
-
-    lg.append \text
-        .attr \x, 25
-        .attr \y, (d, i) -> 25 + 50 * i
-        .attr \dy, \0.31em
-        .attr \dx, \1em
-        .text id
 
     tick-count = 0
 
-    force.start!
     state.set \animating, \running
+    force.start!
 
-    var timer
-
-    function is-ready then tick-count > min-ticks * ln length graph.edges
+    function is-ready
+        state.get(\animating) is \paused or tick-count > min-ticks * ln length state.get(\graph).edges
 
     function draw-path-to-root d, i
         state.set \animating, \running
         if is-root d
             toggle-subtree d
         else
-            clear-timeout timer
             queue = [d]
             moar = -> it.edges |> map (.target) |> reject (.marked) |> unique
             count = 0
-            max = 15 # don't overwhelm things
+            max = state.get \maxmarked # don't overwhelm things
             while (count++ < max) and n = queue.shift!
                 n.marked = true
-                for sn in moar n
-                    queue.push sn
-            update-marked true
-            timer := set-timeout unmark , 25000ms
+                each queue~push, moar n
+            update-marked!
 
     function toggle-subtree root
         mark-subtree root, \muted, not root.muted
@@ -679,128 +773,12 @@ render-force = (state, graph) ->
             n.marked = n.muted = false
         update-marked!
 
-    function update-marked after-mark
-        if after-mark
-            state.set \animating, \running
-        force.tick!
-
-    function show-label d, i
-        for n in concat-map (-> [it.source, it.target]), d.edges
-            d3.select(\# + get-label-id n).attr \display, \block
-        set-timeout (-> hide-label d, i), 6000ms
-
-    function hide-label d, i
-        for n in concat-map (-> [it.source, it.target]), d.edges
-            d3.select(\# + get-label-id n).attr \display, \none
-
-    /* http://bl.ocks.org/sboak/2942559 */
-    /* http://bl.ocks.org/sboak/2942556 */
-    basis-line = d3.svg.line!
-            .interpolate \basis
-
-    link-spline = (offset-scale, args) -->
-        [source, target, line-length, end-point, radius-s, cos90, sin90] = args
-        mean-x = mean map (.x), [source, target]
-        mean-y = mean map (.y), [source, target]
-
-        offset = (offset-scale * line-length) - (radius-s / 4)
-
-        mp1-x = mean-x + offset * cos90
-        mp1-y = mean-y + offset * sin90
-        mp2-x = mean-x + offset * cos90
-        mp2-y = mean-y + offset * sin90
-
-        [
-            [(source.x - radius-s * 0.9 * cos90), (source.y - radius-s * 0.9 * sin90)],
-            [mp2-x, mp2-y],
-            end-point,
-            end-point,
-            [mp1-x, mp1-y],
-            [(source.x + radius-s * 0.9 * cos90), (source.y + radius-s * 0.9 * sin90)]
-        ]
-
-
-    draw-curve = ({target, source}) ->
-        {cos, sin, sqrt, atan2, pow, PI} = Math
-        slope = atan2 (target.y - source.y), (target.x - source.x)
-        [sin-s, cos-s] = map (-> it slope), [sin, cos]
-        slope-plus90 = PI / 2 + slope
-        [sin90, cos90] = map (-> it slope-plus90), [sin, cos]
-
-        [radius-t, radius-s] = map get-r, [target, source]
-
-        line-length = sqrt pow(target.x - source.x, 2) + pow(target.y - source.y, 2)
-        end-point = [(target.x - radius-t * 0.9 * cos-s), (target.y - radius-t * 0.9 * sin-s)]
-
-        args = [source, target, line-length, end-point, radius-s, cos90, sin90]
-
-        points = switch state.get \spline
-            | \straight => link-spline 0.0
-            | otherwise => link-spline 0.1
-
-        args |> points |> basis-line |> (+ \Z)
-
-
-    by-x = compare (.x)
-    width-range = d3.scale.linear!
-        .range [0.1 * dimensions.w, 0.9 * dimensions.w]
-
-    stratify = !->
-        roots = sort-by by-x, filter is-root, graph.nodes
-        leaves = sort-by by-x, filter (-> it.is-direct and it.is-leaf), graph.nodes
-        surface = fold min, 0, map (.y), graph.nodes
-        current-font-size = get-label-font-size!
-        width-range.domain [0, leaves.length - 1]
-
-        corners = d3.scale.quantile!
-            .domain [0, dimensions.w]
-            .range [0, dimensions.w]
-        quantile =
-            | not roots.length => -> dimensions.w / 2
-            | otherwise =>
-                d3.scale.quantile!
-                    .domain [0, dimensions.w]
-                    .range [0 til roots.length]
-
-        roots.for-each (root, i) ->
-            root.fixed = false
-            mv-towards 0.01, {y: (surface - get-r root), x: root.x}, root #width-range i}, root
-
-        for n in graph.nodes when (not n.is-root) and (n.y + get-r n) < surface
-            mv-towards 0.001, {x: n.root.x, y: dimensions.h}, n
-
-        leaves.for-each (n, i) ->
-            speed = if n.y < (dimensions.h / 2) then 0.05 else 0.005
-            if n.y < dimensions.h * 0.9
-                mv-towards speed, {x: (width-range i), y: dimensions.h * 0.9}, n
-            if n.y >= dimensions.h * 0.85
-                n.y = dimensions.h * 0.9 + (current-font-size * 1.1 * i)
-
-    centrify = !->
-        roots = sort-by (compare (.y)), filter is-root, graph.nodes
-        mean-d = mean map (* 2) << get-r, roots
-        half = (/ 2)
-
-        # Put root nodes under a centripetal force.
-        if roots.length is 1
-            roots[0] <<< {x: (half dimensions.w), y: (half dimensions.h), fixed: true}
-        else
-            roots.for-each !(n, i) ->
-                goal =
-                    x: half dimensions.w
-                    y: (half dimensions.h) - (mean-d * roots.length / 2) + (mean-d * i)
-                mv-towards 0.05, goal, n
-
-        # Put leaf nodes under a centrifugal force. Must be very faint to avoid reaching terminal
-        # velocity.
-        centre =
-            x: half dimensions.w
-            y: half dimensions.h
-        for leaf in graph.nodes when is-leaf leaf
-            mv-towards -0.001, centre, leaf
-
-    unfix = !->
-        each (<<< fixed: false), filter is-root, graph.nodes
+    function update-marked
+        state.trigger \graph:marked
+        current-animation = state.get \animating
+        state.set \animating, \running
+        force.start! # needed to recalculate charges
+        set-timeout (-> state.set \animating, current-animation), 150
 
     function tick
 
@@ -811,7 +789,7 @@ render-force = (state, graph) ->
             | \centre => centrify
             | otherwise => unfix
 
-        do jiggle if jiggle
+        jiggle state if jiggle
 
         return unless is-ready!
         throbber?.remove!
@@ -826,7 +804,7 @@ render-force = (state, graph) ->
             .domain [0, dimensions.w]
             .range [\left, \right]
 
-        texts = node.select-all \text.force-label
+        texts = svg-group.select-all \text.force-label
         displayed-texts = texts.filter -> \block is d3.select(@).attr \display
         displayed-texts.each (d1, i) ->
             ys = []
@@ -842,7 +820,6 @@ render-force = (state, graph) ->
             .attr \y, (.y)
             .attr \dx, -> if it.x < mean-x then 1 - get-r it else get-r it
 
-
         if state.has(\spline)
             link.attr \d, draw-curve
         else
@@ -851,23 +828,23 @@ render-force = (state, graph) ->
                 .attr \x2, (.x) << (.target)
                 .attr \y2, (.y) << (.target)
 
-        node.select-all \text
+        svg-group.select-all \text
             .attr \display ({marked, id, edges, is-direct}) ->
                 | graph.nodes.length < state.get(\smallGraphThreshold) => \block
-                | state.get(\zoom) > 2 => \block
+                | state.get(\zoom) > 1.2 => \block
                 | (marked or is-direct) => \block
                 | otherwise => \none
 
         node.select-all \text.count-label
+            .text (.count)
             .attr \x, (.x)
             .attr \y, (.y)
             .attr \font-size, (/ 1.5) << get-r
             .attr \display ({marked, is-root, is-direct}) ->
                 | marked or is-direct or is-root => \block
                 | otherwise => \none
-            .text (.count)
 
-        node.select-all \text.force-label
+        svg-group.select-all \text.force-label
             .attr \font-size, current-font-size
 
         link.attr \stroke-width, ({target}) ->
@@ -880,11 +857,11 @@ render-force = (state, graph) ->
             .attr \cy, (.y)
 
         if any (.marked), graph.nodes
-            circles.attr \opacity, -> if it.marked then 1 else 0.2
-            link.attr \opacity, ({source}) ->
-                | source.marked => 0.8
+            circles.attr \opacity, -> if it.marked or it.is-root then 1 else 0.2
+            link.attr \opacity, ({source, target}) ->
+                | source.marked and (target.marked or target.is-root) => 0.8
                 | otherwise => 0.1
-            node.select-all \text
+            svg-group.select-all \text
                 .attr \opacity, -> if it.marked then 1 else 0.2
         else
             link.attr \opacity, ({source: {muted}}) -> if muted then 0.3 else 0.5
@@ -892,7 +869,7 @@ render-force = (state, graph) ->
                 | muted => 0.3
                 | is-direct => 1
                 | otherwise => 0.9
-            node.select-all \text
+            svg-group.select-all \text
                 .attr \opacity, -> if it.muted then 0.3 else 1
 
 draw-dag = (direct-nodes, edges, node-for-ident) ->
