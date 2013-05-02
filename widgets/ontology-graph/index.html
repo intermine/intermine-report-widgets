@@ -6,9 +6,11 @@
         <script src="http://cdn.intermine.org/js/d3/3.0.8/d3.js" charset="UTF-8"></script>
         <script src="http://cdn.intermine.org/js/backbone.js/0.9.2/backbone-min.js"></script>
         <script src="http://cdn.intermine.org/js/prelude-ls/latest/prelude-browser-min.js"></script>
+        <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.js"></script>
+        <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.forms.js"></script>
         <script src="dagre.js"></script>
         <script src="index.js"></script>
-        <link rel="stylesheet" href="http://cdn.intermine.org/css/foundation/3.1.1/stylesheets/foundation.css">
+        <link rel="stylesheet" href="http://cdn.intermine.org/css/foundation/4.0/css/foundation.css">
         <link rel="stylesheet" href="http://cdn.intermine.org/css/font-awesome/3.0.2/css/font-awesome.css">
     </head>
     <body>
@@ -45,20 +47,32 @@
                 </defs>
             </svg>
         </div>
-        <select id="jiggle" class="graph-control">
-            <option value="none">Force Directed Layout</option>
-            <option value="strata">Move Roots to Top</option>
-            <option value="centre">Move Roots to Centre</option>
-        </select>
-        <select id="spline" class="graph-control">
-            <option value="curved">Curved Links</option>
-            <option value="straight">Straight Links</option>
-        </select>
-        <button id="force-reset" class="graph-control">Reset</button>
-        <select id="graph-root" class="graph-control">
-        </select>
-        <select id="elision" class="graph-control">
-        </select>
+        <form class="graph-control custom">
+            <div class="row collapse">
+                <div class="small-8 columns">
+                    <input type="text" placeholder="bsk">
+                </div>
+                <div class="small-4 columns">
+                    <a href="#" class="button prefix">Search</a>
+                </div>
+            </div>
+            <div class="switch round">
+                <input id="switch-view-dag" name="switch-view" type="radio" checked>
+                <label for="switch-view-dag" onclick="">DAG</label>
+                <input id="switch-view-force" name="switch-view" type="radio" checked>
+                <label for="switch-view-force" onclick="">Force Directed</label>
+            </div>
+            <select id="jiggle">
+                <option value="none">Force Directed Layout</option>
+                <option value="strata">Move Roots to Top</option>
+                <option value="centre">Move Roots to Centre</option>
+            </select>
+            <select id="graph-root" >
+            </select>
+            <select id="elision" >
+            </select>
+            <button id="force-reset" >Reset</button>
+        </form>
         <div id="ontology-table">
             <div class="slide-control">
                 <i class="icon-chevron-left"></i>
@@ -75,6 +89,11 @@
                 </table>
             </div>
         </div>
+        <script>
+        $(function(){
+            $(document).foundation();    
+        })
+        </script>
     </body>
     <style>
 
@@ -104,25 +123,14 @@
             height: 100%;
         }
         .graph-control {
+            background: #eee;
             width: 200px;
             display: none;
             position: absolute;
-            left: 50px;
-        }
-        #jiggle {
+            left: 25px;
             bottom: 25px;
-        }
-        #spline {
-            bottom: 50px;
-        }
-        #force-reset {
-            bottom: 125px;
-        }
-        #graph-root {
-            bottom: 75px;
-        }
-        #elision {
-            bottom: 100px;
+            border: 1px solid #ccc;
+            padding: 1.5em;
         }
 
         svg {

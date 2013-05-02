@@ -387,8 +387,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 #console.log fold ((m, depth) -> m[depth] = (m[depth] or 0) + 1; m), {}, map minimum << (.depths), graph.nodes
 
 draw-pause-btn = (dimensions, state, svg) -->
-    cy = 0.9  * dimensions.h
-    cx = 0.25 * dimensions.w
+    [cx, cy] = map (* 0.9), [dimensions.w, dimensions.h]
     radius = 0.075 * dimensions.h
     [x, y] = map (- radius), [cx, cy]
 
@@ -682,7 +681,11 @@ render-force = (state, graph) ->
                     .attr \x, 0
                     .attr \dx, \0.3em
                     .attr \dy, if i then \1em else 0
-            root-g.attr \transform, "translate(25,#{ 200 + 50 * relationships.length })"
+
+            {width:text-width, height: text-height} = root-label.node!getBBox!
+            tx = dimensions.w - 1.1 * text-width
+            ty = 60 + text-height / 2
+            root-g.attr \transform, "translate(#{ tx },#{ ty })"
 
     svg.call draw-pause-btn dimensions, state
 

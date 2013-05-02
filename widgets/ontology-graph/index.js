@@ -695,9 +695,10 @@ if (typeof window == 'undefined' || window === null) {
     return showOntologyTable;
   };
   drawPauseBtn = curry$(function(dimensions, state, svg){
-    var cy, cx, radius, ref$, x, y, btn, drawPauseBars, symbolLine, toRadians, drawPlaySymbol;
-    cy = 0.9 * dimensions.h;
-    cx = 0.25 * dimensions.w;
+    var ref$, cx, cy, radius, x, y, btn, drawPauseBars, symbolLine, toRadians, drawPlaySymbol;
+    ref$ = map((function(it){
+      return it * 0.9;
+    }), [dimensions.w, dimensions.h]), cx = ref$[0], cy = ref$[1];
     radius = 0.075 * dimensions.h;
     ref$ = map((function(it){
       return it - radius;
@@ -1028,7 +1029,7 @@ if (typeof window == 'undefined' || window === null) {
     relationships = state.get('relationships');
     svg.attr('width', dimensions.w).attr('height', dimensions.h);
     (function(roots){
-      var parts, rootG, rootLabel, i$, len$, i, word;
+      var parts, rootG, rootLabel, i$, len$, i, word, ref$, textWidth, textHeight, tx, ty;
       if (roots.length === 1) {
         parts = roots[0].label.split('_');
         rootG = svg.append('g').attr('class', 'root-label');
@@ -1038,7 +1039,10 @@ if (typeof window == 'undefined' || window === null) {
           word = parts[i$];
           rootLabel.append('tspan').text(word).attr('x', 0).attr('dx', '0.3em').attr('dy', i ? '1em' : 0);
         }
-        rootG.attr('transform', "translate(25," + (200 + 50 * relationships.length) + ")");
+        ref$ = rootLabel.node().getBBox(), textWidth = ref$.width, textHeight = ref$.height;
+        tx = dimensions.w - 1.1 * textWidth;
+        ty = 60 + textHeight / 2;
+        rootG.attr('transform', "translate(" + tx + "," + ty + ")");
       }
     }.call(this, filter(isRoot, graph.nodes)));
     svg.call(drawPauseBtn(dimensions, state));
