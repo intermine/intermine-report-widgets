@@ -292,12 +292,19 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     root-selector = $ \#graph-root
         ..on \change, !-> state.set \root, node-for-ident[ $(@).val! ]
 
-    state.on \change:root, flip root-selector~val << (.id)
+    state.on \change:root, (s, root) ->
+        | root => root-selector.val root.id
+        | otherwise => root-selector.val \null
 
     state.on \change:root, (s, current-root) ->
-        console.log "Filtering to #{ current-root.label }"
-        nodes = filter (is current-root) << (.root), all-nodes
-        edges = filter (is current-root) << (.root) << (.target), all-edges
+        if current-root
+            console.log "Filtering to #{ current-root.label }"
+            nodes = filter (is current-root) << (.root), all-nodes
+            edges = filter (is current-root) << (.root) << (.target), all-edges
+        else
+            nodes = all-nodes.slice!
+            edges = all-edges.slice!
+
         level = state.get \elision
         graph =
             | level and any (.steps-from-leaf), nodes => trim-graph-to-height {nodes, edges}, level
@@ -334,7 +341,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     roots = filter is-root, all-nodes
 
-    for r in roots ++ [ { id: null, label:"All" } ]
+    for r in roots ++ [ { id: \null, label:"All" } ]
         root-selector.append """<option value="#{ r.id }">#{ r.label }</option>"""
 
     if query-params.all-roots
@@ -352,8 +359,11 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
         table.find \.slide-control
             .on \click, ->
-                is-open = table.has-class \open
-                table.toggle-class \open .animate left: get-left is-open
+                was-open = table.has-class \open
+                table.toggle-class \open .animate left: get-left was-open
+                icon = $ \i, @
+                    ..remove-class 'icon-chevron-right icon-chevron-left'
+                    ..add-class if was-open then \icon-chevron-left else \icon-chevron-right
 
     function show-ontology-table
         {w, h} = state.get \dimensions
@@ -377,7 +387,8 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 #console.log fold ((m, depth) -> m[depth] = (m[depth] or 0) + 1; m), {}, map minimum << (.depths), graph.nodes
 
 draw-pause-btn = (dimensions, state, svg) -->
-    [cx,cy] = map (* 0.9), [dimensions.w, dimensions.h]
+    cy = 0.9  * dimensions.h
+    cx = 0.25 * dimensions.w
     radius = 0.075 * dimensions.h
     [x, y] = map (- radius), [cx, cy]
 
@@ -447,8 +458,8 @@ draw-pause-btn = (dimensions, state, svg) -->
         | \paused => state.set animating: \running
         | \running => state.set animating: \paused
 
-draw-relationship-legend = (dimensions, relationships, palette, svg) -->
-
+draw-relationship-legend = (state, palette, svg) -->
+    {dimensions, relationships} = state.toJSON!
     height = 50
     padding = 25
     width = if dimensions.h > dimensions.w then (dimensions.w - padding * 2) / relationships.length else 180
@@ -467,12 +478,17 @@ draw-relationship-legend = (dimensions, relationships, palette, svg) -->
         .attr \height, height
         .attr \x, get-x
         .attr \y, get-y
+        .on \mouseover, (d, i) ->
+            state.trigger \relationship:highlight, d
+            d3.select(@).select-all(\rect).attr \fill, brighten . palette
+        .on \mouseout, ->
+            state.trigger \relationship:highlight, null
+            d3.select(@).select-all(\rect).attr \fill, palette
         .on \click, (rel) ->
             for e in state.get(\graph).edges when e.label is rel
                 for n in [e.source, e.target]
                     n.marked = true
-            update-marked true
-            set-timeout unmark, 10_000ms
+            state.trigger \nodes:marked
     legend.exit!remove!
 
     lg.append \rect
@@ -622,7 +638,7 @@ render-force = (state, graph) ->
     svg = d3.select \svg
 
     svg.select-all(\g.ontology).remove!
-    svg.select-all(\text.root-label).remove!
+    svg.select-all(\g.root-label).remove!
 
     throbber = svg.append \use
         .attr \x, dimensions.w / 2 - 150
@@ -653,18 +669,20 @@ render-force = (state, graph) ->
     let roots = filter is-root, graph.nodes
         if roots.length is 1
             parts = roots[0].label.split \_
-            root-label = svg.append \text
+            root-g = svg.append \g
                 .attr \class, \root-label
-                .attr \x, 0.25 * dimensions.w
-                .attr \y, 0.35 * dimensions.h
+            root-label = root-g.append \text
+                .attr \x, 0
+                .attr \y, 0
                 .attr \font-size, 0.2 * dimensions.h
                 .attr \opacity, 0.08
-            for word in parts
+            for word, i in parts
                 root-label.append \tspan
                     .text word
                     .attr \x, 0
                     .attr \dx, \0.3em
-                    .attr \dy, \1em
+                    .attr \dy, if i then \1em else 0
+            root-g.attr \transform, "translate(25,#{ 200 + 50 * relationships.length })"
 
     svg.call draw-pause-btn dimensions, state
 
@@ -739,13 +757,20 @@ render-force = (state, graph) ->
     n-g.append \title
         .text (.label)
 
-    svg.call draw-relationship-legend dimensions, relationships, relationship-palette
-
+    svg.call draw-relationship-legend state, relationship-palette
 
     tick-count = 0
 
     state.set \animating, \running
     force.start!
+
+    state.on \relationship:highlight, (rel) ->
+        link.attr \fill, (d) ->
+            col-filt = if d.label is rel then brighten else id
+            col-filt link-fill d
+        link.classed \highlit, (is rel) . (.label)
+
+    state.on \nodes:marked, update-marked
 
     function is-ready
         state.get(\animating) is \paused or tick-count > min-ticks * ln length state.get(\graph).edges

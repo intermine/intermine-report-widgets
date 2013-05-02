@@ -9,6 +9,7 @@
         <script src="dagre.js"></script>
         <script src="index.js"></script>
         <link rel="stylesheet" href="http://cdn.intermine.org/css/foundation/3.1.1/stylesheets/foundation.css">
+        <link rel="stylesheet" href="http://cdn.intermine.org/css/font-awesome/3.0.2/css/font-awesome.css">
     </head>
     <body>
         <div id="dag">
@@ -60,7 +61,7 @@
         </select>
         <div id="ontology-table">
             <div class="slide-control">
-                show rows
+                <i class="icon-chevron-left"></i>
             </div>
             <div class="ontology-table-container">
                 <table class="marked-terms">
@@ -81,7 +82,8 @@
             border: 1px solid #ccc;
         }
         #ontology-table {
-            position: absolute;
+            overflow: hidden;
+            position: fixed;
             display: none;
             z-index: 1000;
             background: #fff;
@@ -93,6 +95,9 @@
             border-top: none;
             border-left: none;
             border-bottom: none;
+            font-size: 40px;
+            padding-left: 5px;
+            padding-top: 5px;
         }
         #dag {
             width: 100%;
@@ -212,6 +217,12 @@
         }
         text.force-label {
             cursor: pointer;
+        }
+        path.force-link.highlit {
+            stroke-width: 15px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke: rgba(218, 226, 23, 0.4);
         }
         circle.force-term {
             cursor: pointer;

@@ -538,30 +538,38 @@ if (typeof window == 'undefined' || window === null) {
     x$.on('change', function(){
       state.set('root', nodeForIdent[$(this).val()]);
     });
-    state.on('change:root', flip(compose$([
-      bind$(rootSelector, 'val'), function(it){
-        return it.id;
+    state.on('change:root', function(s, root){
+      switch (false) {
+      case !root:
+        return rootSelector.val(root.id);
+      default:
+        return rootSelector.val('null');
       }
-    ])));
+    });
     state.on('change:root', function(s, currentRoot){
       var nodes, edges, level, graph;
-      console.log("Filtering to " + currentRoot.label);
-      nodes = filter(compose$([
-        (function(it){
-          return it === currentRoot;
-        }), function(it){
-          return it.root;
-        }
-      ]), allNodes);
-      edges = filter(compose$([
-        (function(it){
-          return it === currentRoot;
-        }), function(it){
-          return it.root;
-        }, function(it){
-          return it.target;
-        }
-      ]), allEdges);
+      if (currentRoot) {
+        console.log("Filtering to " + currentRoot.label);
+        nodes = filter(compose$([
+          (function(it){
+            return it === currentRoot;
+          }), function(it){
+            return it.root;
+          }
+        ]), allNodes);
+        edges = filter(compose$([
+          (function(it){
+            return it === currentRoot;
+          }), function(it){
+            return it.root;
+          }, function(it){
+            return it.target;
+          }
+        ]), allEdges);
+      } else {
+        nodes = allNodes.slice();
+        edges = allEdges.slice();
+      }
       level = state.get('elision');
       graph = (function(){
         switch (false) {
@@ -621,7 +629,7 @@ if (typeof window == 'undefined' || window === null) {
     }
     roots = filter(isRoot, allNodes);
     for (i$ = 0, len$ = (ref$ = roots.concat([{
-      id: null,
+      id: 'null',
       label: "All"
     }])).length; i$ < len$; ++i$) {
       r = ref$[i$];
@@ -651,11 +659,15 @@ if (typeof window == 'undefined' || window === null) {
         width: 0.6 * w
       });
       return table.find('.slide-control').on('click', function(){
-        var isOpen;
-        isOpen = table.hasClass('open');
-        return table.toggleClass('open').animate({
-          left: getLeft(isOpen)
+        var wasOpen, x$, icon;
+        wasOpen = table.hasClass('open');
+        table.toggleClass('open').animate({
+          left: getLeft(wasOpen)
         });
+        x$ = icon = $('i', this);
+        x$.removeClass('icon-chevron-right icon-chevron-left');
+        x$.addClass(wasOpen ? 'icon-chevron-left' : 'icon-chevron-right');
+        return x$;
       });
     }
     function showOntologyTable(){
@@ -683,10 +695,9 @@ if (typeof window == 'undefined' || window === null) {
     return showOntologyTable;
   };
   drawPauseBtn = curry$(function(dimensions, state, svg){
-    var ref$, cx, cy, radius, x, y, btn, drawPauseBars, symbolLine, toRadians, drawPlaySymbol;
-    ref$ = map((function(it){
-      return it * 0.9;
-    }), [dimensions.w, dimensions.h]), cx = ref$[0], cy = ref$[1];
+    var cy, cx, radius, ref$, x, y, btn, drawPauseBars, symbolLine, toRadians, drawPlaySymbol;
+    cy = 0.9 * dimensions.h;
+    cx = 0.25 * dimensions.w;
     radius = 0.075 * dimensions.h;
     ref$ = map((function(it){
       return it - radius;
@@ -755,8 +766,9 @@ if (typeof window == 'undefined' || window === null) {
       }
     });
   });
-  drawRelationshipLegend = curry$(function(dimensions, relationships, palette, svg){
-    var height, padding, width, ref$, getX, getY, legend, lg;
+  drawRelationshipLegend = curry$(function(state, palette, svg){
+    var ref$, dimensions, relationships, height, padding, width, getX, getY, legend, lg;
+    ref$ = state.toJSON(), dimensions = ref$.dimensions, relationships = ref$.relationships;
     height = 50;
     padding = 25;
     width = dimensions.h > dimensions.w ? (dimensions.w - padding * 2) / relationships.length : 180;
@@ -781,7 +793,13 @@ if (typeof window == 'undefined' || window === null) {
       }
     }()), getX = ref$[0], getY = ref$[1];
     legend = svg.selectAll('g.legend').data(relationships);
-    lg = legend.enter().append('g').attr('class', 'legend').attr('width', width).attr('height', height).attr('x', getX).attr('y', getY).on('click', function(rel){
+    lg = legend.enter().append('g').attr('class', 'legend').attr('width', width).attr('height', height).attr('x', getX).attr('y', getY).on('mouseover', function(d, i){
+      state.trigger('relationship:highlight', d);
+      return d3.select(this).selectAll('rect').attr('fill', compose$([brighten, palette]));
+    }).on('mouseout', function(){
+      state.trigger('relationship:highlight', null);
+      return d3.select(this).selectAll('rect').attr('fill', palette);
+    }).on('click', function(rel){
       var i$, ref$, len$, e, j$, ref1$, len1$, n;
       for (i$ = 0, len$ = (ref$ = state.get('graph').edges).length; i$ < len$; ++i$) {
         e = ref$[i$];
@@ -792,8 +810,7 @@ if (typeof window == 'undefined' || window === null) {
           }
         }
       }
-      updateMarked(true);
-      return setTimeout(unmark, 10000);
+      return state.trigger('nodes:marked');
     });
     legend.exit().remove();
     lg.append('rect').attr('opacity', 0.6).attr('width', width).attr('height', height).attr('x', getX).attr('y', getY).attr('fill', palette);
@@ -988,7 +1005,7 @@ if (typeof window == 'undefined' || window === null) {
     });
     svg = d3.select('svg');
     svg.selectAll('g.ontology').remove();
-    svg.selectAll('text.root-label').remove();
+    svg.selectAll('g.root-label').remove();
     throbber = svg.append('use').attr('x', dimensions.w / 2 - 150).attr('y', dimensions.h / 2 - 150).attr('xlink:href', '#throbber');
     state.on('change:zoom', function(s, currentZoom){
       svgGroup.attr('transform', "translate(" + s.get('translate') + ") scale(" + currentZoom + ")");
@@ -1011,14 +1028,17 @@ if (typeof window == 'undefined' || window === null) {
     relationships = state.get('relationships');
     svg.attr('width', dimensions.w).attr('height', dimensions.h);
     (function(roots){
-      var parts, rootLabel, i$, len$, word;
+      var parts, rootG, rootLabel, i$, len$, i, word;
       if (roots.length === 1) {
         parts = roots[0].label.split('_');
-        rootLabel = svg.append('text').attr('class', 'root-label').attr('x', 0.25 * dimensions.w).attr('y', 0.35 * dimensions.h).attr('font-size', 0.2 * dimensions.h).attr('opacity', 0.08);
+        rootG = svg.append('g').attr('class', 'root-label');
+        rootLabel = rootG.append('text').attr('x', 0).attr('y', 0).attr('font-size', 0.2 * dimensions.h).attr('opacity', 0.08);
         for (i$ = 0, len$ = parts.length; i$ < len$; ++i$) {
+          i = i$;
           word = parts[i$];
-          rootLabel.append('tspan').text(word).attr('x', 0).attr('dx', '0.3em').attr('dy', '1em');
+          rootLabel.append('tspan').text(word).attr('x', 0).attr('dx', '0.3em').attr('dy', i ? '1em' : 0);
         }
+        rootG.attr('transform', "translate(25," + (200 + 50 * relationships.length) + ")");
       }
     }.call(this, filter(isRoot, graph.nodes)));
     svg.call(drawPauseBtn(dimensions, state));
@@ -1061,10 +1081,25 @@ if (typeof window == 'undefined' || window === null) {
     nG.append('title').text(function(it){
       return it.label;
     });
-    svg.call(drawRelationshipLegend(dimensions, relationships, relationshipPalette));
+    svg.call(drawRelationshipLegend(state, relationshipPalette));
     tickCount = 0;
     state.set('animating', 'running');
     force.start();
+    state.on('relationship:highlight', function(rel){
+      link.attr('fill', function(d){
+        var colFilt;
+        colFilt = d.label === rel ? brighten : id;
+        return colFilt(linkFill(d));
+      });
+      return link.classed('highlit', compose$([
+        (function(it){
+          return it === rel;
+        }), function(it){
+          return it.label;
+        }
+      ]));
+    });
+    state.on('nodes:marked', updateMarked);
     function isReady(){
       return state.get('animating') === 'paused' || tickCount > minTicks * ln(length(state.get('graph').edges));
     }
