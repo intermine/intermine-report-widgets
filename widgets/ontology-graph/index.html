@@ -3,14 +3,15 @@
         <script src="http://cdn.intermine.org/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
         <script src="http://cdn.intermine.org/js/underscore.js/latest/underscore.js"></script>
         <script src="http://cdn.intermine.org/js/intermine/imjs/latest/im.js"></script>
-        <script src="http://cdn.intermine.org/js/d3/3.0.6/d3.v3.min.js"></script>
+        <script src="http://cdn.intermine.org/js/d3/3.0.8/d3.js" charset="UTF-8"></script>
+        <script src="http://cdn.intermine.org/js/backbone.js/0.9.2/backbone-min.js"></script>
         <script src="http://cdn.intermine.org/js/prelude-ls/latest/prelude-browser-min.js"></script>
         <script src="dagre.js"></script>
         <script src="index.js"></script>
     </head>
     <body>
         <div id="dag">
-            <svg width="2000" height="2000">
+            <svg>
                 <defs>
                     <marker id="arrowhead"
                             viewBox="0 0 12 12"
@@ -30,23 +31,39 @@
                         orient="auto">
                         <path d="M 0 0 L 10 5 L 0 10 z" />
                     </marker>
+                    <path id="throbber" d="M 150,0
+                            a 150,150 0 0,1 106.066,256.066
+                            l -35.355,-35.355
+                            a -100,-100 0 0,0 -70.711,-170.711 z"
+                            fill="#3d7fe6">
+                        <animateTransform attributeName="transform" attributeType="XML"
+                            type="rotate" from="0 150 150" to="360 150 150"
+                            begin="0s" dur="1s" fill="freeze" repeatCount="indefinite" />
+                    </path>
                 </defs>
             </svg>
         </div>
-        <select id="jiggle">
+        <select id="jiggle" class="graph-control">
             <option value="none">Force Directed Layout</option>
             <option value="strata">Move Roots to Top</option>
             <option value="centre">Move Roots to Centre</option>
         </select>
-        <select id="spline">
+        <select id="spline" class="graph-control">
             <option value="curved">Curved Links</option>
             <option value="straight">Straight Links</option>
         </select>
-        <button id="force-stop">Pause animation</button>
+        <button id="force-stop" class="graph-control">Start animation</button>
+        <select id="graph-root" class="graph-control">
+        </select>
+        <label id="elision-label" class="graph-control">
+            Elide after n links from directly annotated term:
+            <select id="elision" >
+            </select>
+        </label>
     </body>
     <style>
 
-        #jiggle, #spline, #force-stop {
+        .graph-control {
             display: none;
             position: absolute;
             left: 50px;
@@ -58,29 +75,34 @@
             bottom: 50px;
         }
         #force-stop {
+            bottom: 125px;
+        }
+        #graph-root {
             bottom: 75px;
+        }
+        #elision-label {
+            bottom: 100px;
         }
 
         svg {
             background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAdCAMAAACKeiw+AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAAZQTFRF////9fb3h/JDwQAAABtJREFUeNpiYMQLGBgZ8IJR6VHpUWnKpAECDACcGgA72QxfPgAAAABJRU5ErkJggg==);
         }
         .node rect {
+            white-space: normal;
             stroke-width: 1.5px;
             stroke: #333;
-            fill: #1c93d6;
         }
         .node rect.direct {
             fill: red;
         }
         .node rect.focus {
-            fill: #7e21c7;
         }
         text {
             font-family: "Helvetica Neue", "Helvetica", "Droid Sans", "Ubuntu";
         }
-        .node text {
+        .node text.dag-label {
             stroke-width: 3px;
-            fill: #333;
+            fill: #fff;
         }
         .node text.focus,
         .node text.direct {
@@ -92,15 +114,11 @@
         .node:hover {
             cursor: pointer;
         }
-        .node:hover rect {
-            fill: #1CD6D6;
-        }
         .edge rect {
             fill: #fff;
         }
         .edge path {
             fill: none;
-            stroke-width: 5px;
         }
         .link {
             fill: none;
@@ -120,9 +138,12 @@
             stroke-width: 3px;
         }
         .edge .label text {
-            font: 300 16px "Helvetica Neue", "Helvetica", "Droid Sans", "Ubuntu";
             stroke: none;
             fill: #333;
+        }
+        .edge .label text,
+        text.dag-label {
+            font-family: "Ubuntu mono", "Droid Sans Mono", "Inconsolata", "Consolas", "Monospaced";
         }
         .chord-label {
             font-size: 8px;
@@ -154,14 +175,13 @@
         }
         text.force-label {
             cursor: pointer;
-            font-size: 20px;
         }
         circle.force-term {
             cursor: pointer;
-            fill: steelblue;
             stroke: white;
             stroke-width: 1;
         }
+        rect.root,
         circle.root {
             fill: rgb(120, 31, 180);
         }
