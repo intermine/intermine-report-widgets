@@ -1,17 +1,18 @@
 <html>
     <head>
+        <link rel="stylesheet" href="http://cdn.intermine.org/css/foundation/4.0/css/foundation.css">
+        <link rel="stylesheet" href="http://cdn.intermine.org/css/font-awesome/3.0.2/css/font-awesome.css">
+
         <script src="http://cdn.intermine.org/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
         <script src="http://cdn.intermine.org/js/underscore.js/latest/underscore.js"></script>
         <script src="http://cdn.intermine.org/js/intermine/imjs/latest/im.js"></script>
         <script src="http://cdn.intermine.org/js/d3/3.0.8/d3.js" charset="UTF-8"></script>
-        <script src="http://cdn.intermine.org/js/backbone.js/0.9.2/backbone-min.js"></script>
+        <script src="http://cdn.intermine.org/js/backbone.js/0.9.9/backbone-min.js"></script>
         <script src="http://cdn.intermine.org/js/prelude-ls/latest/prelude-browser-min.js"></script>
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.js"></script>
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.forms.js"></script>
         <script src="dagre.js"></script>
         <script src="index.js"></script>
-        <link rel="stylesheet" href="http://cdn.intermine.org/css/foundation/4.0/css/foundation.css">
-        <link rel="stylesheet" href="http://cdn.intermine.org/css/font-awesome/3.0.2/css/font-awesome.css">
     </head>
     <body>
         <div id="dag">
@@ -48,30 +49,41 @@
             </svg>
         </div>
         <form class="graph-control custom">
-            <div class="row collapse">
-                <div class="small-8 columns">
-                    <input type="text" placeholder="bsk">
-                </div>
-                <div class="small-4 columns">
-                    <a href="#" class="button prefix">Search</a>
-                </div>
+            <i class="resizer icon-resize-small"></i>
+            <div class="row">
+                <h6>Display Options</h6>
             </div>
-            <div class="switch round">
-                <input id="switch-view-dag" name="switch-view" type="radio" checked>
-                <label for="switch-view-dag" onclick="">DAG</label>
-                <input id="switch-view-force" name="switch-view" type="radio" checked>
-                <label for="switch-view-force" onclick="">Force Directed</label>
+            <div class="hidable">
+                <div class="switch round">
+                    <input id="switch-view-dag" name="switch-view" type="radio" checked>
+                    <label for="switch-view-dag" onclick="">DAG</label>
+                    <input id="switch-view-force" name="switch-view" type="radio" checked>
+                    <label for="switch-view-force" onclick="">Force Directed</label>
+                </div>
+                <div class="row collapse">
+                    <div class="small-8 columns">
+                        <input type="text" placeholder="bsk">
+                    </div>
+                    <div class="small-4 columns">
+                        <a href="#" class="button prefix">Search</a>
+                    </div>
+                </div>
+                <div>
+                    Add annotations from homologues in:
+                    <ul class="button-group" id="interop-sources">
+                    </ul>
+                </div>
+                <select id="jiggle">
+                    <option value="none">Force Directed Layout</option>
+                    <option value="strata">Move Roots to Top</option>
+                    <option value="centre">Move Roots to Centre</option>
+                </select>
+                <select id="graph-root" >
+                </select>
+                <select id="elision" >
+                </select>
+                <button id="force-reset" >Reset</button>
             </div>
-            <select id="jiggle">
-                <option value="none">Force Directed Layout</option>
-                <option value="strata">Move Roots to Top</option>
-                <option value="centre">Move Roots to Centre</option>
-            </select>
-            <select id="graph-root" >
-            </select>
-            <select id="elision" >
-            </select>
-            <button id="force-reset" >Reset</button>
         </form>
         <div id="ontology-table">
             <div class="slide-control">
@@ -124,13 +136,21 @@
         }
         .graph-control {
             background: #eee;
-            width: 200px;
+            width: 250px;
             display: none;
             position: absolute;
             left: 25px;
             bottom: 25px;
             border: 1px solid #ccc;
             padding: 1.5em;
+        }
+        .graph-control .resizer {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+        }
+        #ontology-table tr.highlit td {
+            background: #5fc0ce;
         }
 
         svg {
@@ -146,6 +166,7 @@
         }
         .node rect.focus {
         }
+        body,
         text {
             font-family: "Helvetica Neue", "Helvetica", "Droid Sans", "Ubuntu";
         }

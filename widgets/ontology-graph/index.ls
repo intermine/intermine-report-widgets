@@ -5,6 +5,24 @@
 # The Service#rows function
 {rows, query} = new Service root: 'www.flymine.org/query'
 
+interop =
+    * taxonId: 4932
+      root: \yeastmine-test.yeastgenome.org/yeastmine-dev
+      name: \SGD
+    * taxonId: 7955
+      root: \zmine.zfin.org/zebrafishmine
+      name: \ZFin
+    * taxonId: 10090
+      root: \http://www.mousemine.org/mousemine
+      name: \MGI
+    * taxonId: 10116
+      root: \http://ratmine.mcw.edu/ratmine
+      name: \RGD
+
+interop-mines = list-to-obj map (({root, taxon-id}) -> [taxon-id, new Service {root}]), interop
+
+non-curated-evidence-codes = <[ IBA IBD IEA IGC IKR ISA ISO ISS RCA ]>
+
 node-padding = 10
 
 min-ticks = 25
@@ -15,12 +33,34 @@ direct-terms = ->
     from: \Gene
     where: {symbol: [it]}
 
+get-homology-where-clause = (genes) ->
+    primaryIdentifier: genes
+    'goAnnotation.evidence.code.code': {'NONE OF': non-curated-evidence-codes}
+
+direct-homology-terms = (genes) ->
+    select: <[ goAnnotation.ontologyTerm.identifier ]>
+    from: \Gene
+    where: get-homology-where-clause genes
+
 all-go-terms = (symbol) ->
+    name: \ALL-TERMS
     select: <[ goAnnotation.ontologyTerm.identifier goAnnotation.ontologyTerm.parents.identifier ]>
     from: \Gene
     where: {symbol}
 
+flatten = concat-map id
+
+flat-rows = (get-rows, q) --> get-rows(q).then unique . flatten
+
+#all-homology-terms = (genes) -> all-go-terms! |> (<<< where: get-homology-where-clause genes)
+all-homology-terms = (children) ->
+    name: \ALL-HOMOLOGY
+    select: <[ parents.identifier ]>
+    from: \OntologyTerm
+    where: {identifier:children}
+
 whole-graph-q = (terms) ->
+    name: \EDGES
     select: <[ childTerm.identifier relationship parentTerm.identifier ]>
     from: \OntologyRelation
     where:
@@ -33,16 +73,23 @@ count-query = (terms) ->
     where:
         'goAnnotation.ontologyTerm.parents.identifier': terms
 
+homologue-query = (symbol, targetOrganism) -->
+  select: <[ homologues.homologue.primaryIdentifier ]>
+  from: \Gene
+  where:
+    symbol: [symbol]
+    "homologues.homologue.organism.taxonId": targetOrganism
+
 #'relations.relationship': \is_a
 
 # Get all the names for our ontology terms in one fell swoop, and build a mapping.
-fetch-names = (identifier) ->
+fetch-names = (get-rows, identifier) -->
     q =
         select: <[ identifier name ]>
         from: \OntologyTerm
         where: {identifier}
 
-    rows(q).then (listToObj << (map ([ident, label]) -> [ident, {label, id: ident, edges: []}]))
+    get-rows(q).then list-to-obj << map ([id, label]) -> [ id, {label, id, edges: []} ]
 
 do-line = d3.svg.line!
         .x (.x)
@@ -204,6 +251,8 @@ annotate-for-height = (nodes, level = 50) ->
         mark-depth leaf, 0, level
     each (-> it <<< steps-from-leaf: minimum it.depths), nodes
 
+objectify = (key, value) -> list-to-obj << map (-> [(key it), (value it)])
+
 #console.log list-to-obj [["#{ node.id }: #{ node.label }", node.steps-from-leaf] for node in graph.nodes]
 
 trim-graph-to-height = ({nodes, edges}, level) ->
@@ -229,7 +278,7 @@ trim-graph-to-height = ({nodes, edges}, level) ->
 
     return filtered
 
-draw-force =  (direct-nodes, edges, node-for-ident) ->
+draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
 
     graph = make-graph ...
 
@@ -237,6 +286,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     all-edges = graph.edges.slice!
 
     state = new Backbone.Model {
+        symbol: symbol
         small-graph-threshold: 20
         animating: \waiting
         root: null
@@ -245,6 +295,7 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
         graph: graph
         maxmarked: 20
         zoom: 1
+        translate: [5, 5]
         dimensions: {w: $(\body).width!, h: $(\body).height!}
         elision: if query-params.elision then +query-params.elision else null
         relationships: (sort unique map (.label), all-edges) ++ [\elision]
@@ -266,13 +317,15 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     (node-for-ident |> keys |> count-query |> query)
         .then (.summarise \goAnnotation.ontologyTerm.parents.identifier)
-        .then list-to-obj << map ({count, item}) -> [item, count]
-        .then (summary) ->
-            for n in all-nodes
-                n.count = summary[n.id]
+        .then objectify (.item), (.count)
+        .then (summary) -> each (-> it.count = summary[it.id]), all-nodes
 
     $ \.graph-control
         .show!
+        .on \submit, -> it.prevent-default!
+        .find \.resizer .click ->
+            $(@).toggle-class 'icon-resize-small icon-resize-full'
+                .siblings \.hidable .slide-toggle!
 
     $ \#jiggle
         .val state.get \jiggle
@@ -325,16 +378,22 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
                 | 1 => "Show only direct parents of annotations, and the root term"
                 | otherwise => "show all terms within #{ h } steps of a directly annotated term"
             elision-selector.append """<option value="#{ h }">#{ text }</option>"""
+        state.trigger \controls:changed
         if level = state.get \elision
             elision-selector.val level
             elide-graph state, level
     ), 0
 
     set-up-ontology-table!
+    set-up-interop!
+
+    get-homologues = homologue-query symbol
 
     state.on \graph:marked, show-ontology-table
 
     state.on \change:graph, render-force
+
+    state.on \controls:changed -> $ document .foundation!
 
     for n in graph.nodes
         n.count = 1
@@ -343,11 +402,40 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
 
     for r in roots ++ [ { id: \null, label:"All" } ]
         root-selector.append """<option value="#{ r.id }">#{ r.label }</option>"""
+    state.trigger \controls:changed
 
     if query-params.all-roots
         render-force state, graph
     else
         state.set \root, roots[0]
+
+    function set-up-interop
+        $ul = $ \#interop-sources
+        to-option = (group) ->
+            $li = $ """
+                <li><a href="#" class="small button">#{ group.name }</a></li>
+            """
+            $li.on \click, -> add-homologues group.taxon-id
+
+        each $ul~append, map to-option, interop
+
+    function add-homologues source
+        service = interop-mines[source]
+        rs = flat-rows service~rows
+
+        getting-homologues = get-homologues source |> flat-rows rows
+
+        getting-direct = getting-homologues.then rs . direct-homology-terms
+        getting-all = getting-direct.then rs . all-homology-terms
+        getting-names = getting-all.then fetch-names service~rows
+        getting-edges = getting-all
+            .then service~rows << whole-graph-q
+            .then map row-to-node
+
+        making-graph = (.then make-graph) $.when getting-direct, getting-edges, getting-names
+
+        making-graph.done (g) ->
+            console.log g
 
     function set-up-ontology-table
         {w, h} = state.get \dimensions
@@ -368,13 +456,17 @@ draw-force =  (direct-nodes, edges, node-for-ident) ->
     function show-ontology-table
         {w, h} = state.get \dimensions
         marked-statements = state.get \graph |> (.edges) |> filter (.marked) . (.source)
-        to-row = -> """
-            <tr>
-                <td>#{ it.source.label }</td>
-                <td>#{ it.label }</td>
-                <td>#{ it.target.label }</td>
-            </tr>
-        """
+        evt = \relationship:highlight
+        to-row = (link) ->
+            $row = $ """
+                <tr>
+                    <td>#{ link.source.label }</td>
+                    <td>#{ link.label }</td>
+                    <td>#{ link.target.label }</td>
+                </tr>
+            """
+            $row.on \mouseout, -> $row.toggle-class(\highlit, false); state.trigger evt, null
+                .on \mouseover, -> $row.toggle-class(\highlit, true); state.trigger evt, link
 
         $tbl = $ '#ontology-table .marked-terms'
             ..find \tbody .empty!
@@ -644,17 +736,18 @@ render-force = (state, graph) ->
         .attr \y, dimensions.h / 2 - 150
         .attr \xlink:href, \#throbber
 
-    state.on \change:zoom, (s, current-zoom) ->
-        svg-group.attr \transform, "translate(#{ s.get(\translate) }) scale(#{ current-zoom })"
-        force.tick!
-
     state.on \change:translate, (s, current-translation) ->
         svg-group.attr \transform, "translate(#{ current-translation }) scale(#{ s.get \zoom })"
+        force.tick!
+
+    state.on \change:zoom, (s, current-zoom) ->
+        svg-group.attr \transform, "translate(#{ s.get(\translate) }) scale(#{ current-zoom })"
         force.tick!
 
     get-label-font-size = -> Math.min 40, 20 / state.get \zoom
 
     zoom = d3.behavior.zoom!
+        .scale state.get \zoom
         .on \zoom, -> state.set {zoom: d3.event.scale, translate: d3.event.translate.slice!}
 
     svg.call zoom
@@ -768,15 +861,45 @@ render-force = (state, graph) ->
     force.start!
 
     state.on \relationship:highlight, (rel) ->
-        link.attr \fill, (d) ->
-            col-filt = if d.label is rel then brighten else id
-            col-filt link-fill d
-        link.classed \highlit, (is rel) . (.label)
+        test =
+            | rel and rel.label => (-> it is rel)
+            | rel               => (-> it.label is rel)
+            | otherwise         => (-> false)
+        col-filt = -> if test it then brighten else id
+
+        link.attr \fill, (d) -> link-fill d |> col-filt d
+        link.classed \highlit, test
 
     state.on \nodes:marked, update-marked
 
+    state.once \force:ready, centre-and-zoom
+
+    get-min-max-size = (f, coll) ->
+        map f, coll |> -> {min: (minimum it), max: (maximum it)} |> -> it <<< size: it.max - it.min
+
+    function centre-and-zoom
+        [x, y] = [ get-min-max-size f, graph.nodes for f in [(.x), (.y)] ]
+
+        dim = if dimensions.h < dimensions.w then \h
+        [dim, val] = if dimensions.h < dimensions.w then [\h, y.size] else [\w, x.size]
+        console.log "Current zoom level: #{ state.get \zoom }"
+        console.log "y.size = #{ y.size }, height = #{ dimensions.h }"
+        console.log "We really need a #{ dim } of at least #{ val }"
+        scale = dimensions[dim] / (val + 300)
+        console.log "Ideal fit zoom is #{ scale }"
+        translate = switch dim
+            | \w => [ 5, y.min + y.size / 2]
+            | \h => [ (dimensions.w - x.size)  / 2, 5]
+        if scale < 1
+            zoom.scale scale
+            zoom.translate translate
+            state.set {zoom: scale, translate}
+
     function is-ready
-        state.get(\animating) is \paused or tick-count > min-ticks * ln length state.get(\graph).edges
+        ready = state.get(\animating) is \paused or tick-count > min-ticks * ln length state.get(\graph).edges
+        if ready
+            state.trigger \force:ready
+        return ready
 
     function draw-path-to-root d, i
         state.set \animating, \running
@@ -917,7 +1040,9 @@ make-graph = (direct-nodes, edges, node-for-ident) ->
     # Add edges to nodes. Edges belong to both the source and the target.
     for e in edges
         for prop in <[ source target ]>
-            node-for-ident[e[prop]].edges.push e
+            node = node-for-ident[e[prop]]
+            throw new Error("Could not find node: #{ e[prop] }, the #{ prop } of #{ if prop is \source then e.target else e.source }") unless node?
+            node.edges.push e
 
     # Lift idents to nodes
     for e in edges
@@ -1304,8 +1429,6 @@ render-dag = (svg, svg-group, {nodes, edges, reset}) -->
     nodes-enter.call node-drag
     edges-enter.call edge-drag
 
-flatten = concat-map id
-
 row-to-node = ([source, label, target]) -> {target, label, source}
 
 query-params =
@@ -1319,19 +1442,18 @@ current-symbol = -> query-params.symbol or \bsk
 
 main = (symbol) ->
     console.log "Drawing graph for #{ symbol }"
+    fetch-flat = flat-rows rows
 
-    getting-direct = symbol |> direct-terms |> rows |> (.then flatten)
-    getting-all = symbol |> all-go-terms |> rows
-    getting-names = getting-all.then (fetch-names << flatten)
-    getting-edges = getting-all.then(rows << whole-graph-q << flatten).then map row-to-node
+    getting-direct = symbol |> direct-terms |> fetch-flat
+    getting-all = symbol |> all-go-terms |> fetch-flat
+    getting-names = getting-all.then fetch-names rows
+    getting-edges = getting-all.then(rows << whole-graph-q).then map row-to-node
 
     draw = switch query-params.view
-        | \radial => draw-radial
-        | \chord  => draw-chord
         | \force => draw-force
         | otherwise => draw-dag
 
-    $.when(getting-direct, getting-edges, getting-names).then draw
+    $.when(getting-direct, getting-edges, getting-names, symbol).then draw
 
 # Let's go!
 main current-symbol!
