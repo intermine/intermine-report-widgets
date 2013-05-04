@@ -5,7 +5,7 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, interop, interopMines, nonCuratedEvidenceCodes, nodePadding, minTicks, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, objectify, trimGraphToHeight, drawForce, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, renderForce, drawDag, makeGraph, doUpdate, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY;
+  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, interopMines, nonCuratedEvidenceCodes, nodePadding, minTicks, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, newNode, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, objectify, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, drawForce, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, renderForce, drawDag, makeGraph, doUpdate, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
@@ -13,31 +13,36 @@ if (typeof window == 'undefined' || window === null) {
   interop = [
     {
       taxonId: 4932,
-      root: 'yeastmine.yeastgenome.org/yeastmine',
+      root: 'yeastmine-test.yeastgenome.org/yeastmine-dev',
       name: 'SGD'
     }, {
+      taxonId: 10090,
+      root: 'http://beta.mousemine.org/mousemine',
+      name: 'MGI'
+    }
+  ];
+  interopLaterMaybeWhenTheyUpgrade = [
+    {
       taxonId: 7955,
       root: 'zmine.zfin.org/zebrafishmine',
       name: 'ZFin'
-    }, {
-      taxonId: 10090,
-      root: 'http://www.mousemine.org/mousemine',
-      name: 'MGI'
     }, {
       taxonId: 10116,
       root: 'http://ratmine.mcw.edu/ratmine',
       name: 'RGD'
     }
   ];
-  interopMines = listToObj(map(function(arg$){
-    var root, taxonId;
-    root = arg$.root, taxonId = arg$.taxonId;
+  interopMines = listToObj(
+  map(function(arg$){
+    var taxonId, root, name, ref$;
+    taxonId = arg$.taxonId, root = arg$.root, name = arg$.name;
     return [
-      taxonId, new Service({
+      taxonId, (ref$ = new Service({
         root: root
-      })
+      }), ref$.name = name, ref$)
     ];
-  }, interop));
+  })(
+  interop));
   nonCuratedEvidenceCodes = ['IBA', 'IBD', 'IEA', 'IGC', 'IKR', 'ISA', 'ISO', 'ISS', 'RCA'];
   nodePadding = 10;
   minTicks = 25;
@@ -119,8 +124,17 @@ if (typeof window == 'undefined' || window === null) {
       }
     };
   });
-  fetchNames = curry$(function(getRows, identifier){
-    var q;
+  newNode = curry$(function(source, id, label){
+    return {
+      label: label,
+      id: id,
+      count: 1,
+      edges: [],
+      sources: [source]
+    };
+  });
+  fetchNames = curry$(function(source, getRows, identifier){
+    var q, node;
     q = {
       select: ['identifier', 'name'],
       from: 'OntologyTerm',
@@ -128,19 +142,12 @@ if (typeof window == 'undefined' || window === null) {
         identifier: identifier
       }
     };
-    return getRows(q).then(compose$([
-      listToObj, map(function(arg$){
-        var id, label;
-        id = arg$[0], label = arg$[1];
-        return [
-          id, {
-            label: label,
-            id: id,
-            edges: []
-          }
-        ];
-      })
-    ]));
+    node = newNode(source);
+    return getRows(q).then(objectify(function(it){
+      return it[0];
+    }, function(it){
+      return node.apply(null, it);
+    }));
   });
   doLine = d3.svg.line().x(function(it){
     return it.x;
@@ -517,6 +524,114 @@ if (typeof window == 'undefined' || window === null) {
       return it.target;
     }
   };
+  setInto = function(m, k, v){
+    return import$(m, listToObj([[k, v]]));
+  };
+  cacheFunc = function(arg$){
+    var mapping, keyFunc, ref$;
+    mapping = arg$[0], keyFunc = (ref$ = arg$[1]) != null ? ref$ : id;
+    return compose$([objToFunc(mapping), keyFunc]);
+  };
+  mergeGraphs = curry$(function(left, right){
+    var eKey, addNodeToMapping, addEdgeToMapping, f, attr, ref$, nodesById, edgesByKey, realNodes, realEdges, i$, len$, ref1$, n, real, e, source, target, ret;
+    console.log("Starting with " + length(left.nodes) + " nodes and " + length(left.edges) + " edges");
+    console.log("Currently there are " + length(filter(function(it){
+      return it.isDirect;
+    }, left.nodes)) + " direct nodes");
+    eKey = function(e){
+      return e.source.id + e.label + e.target.id;
+    };
+    addNodeToMapping = function(m, n){
+      if (m[n.id]) {
+        return m;
+      } else {
+        return setInto(m, n.id, n);
+      }
+    };
+    addEdgeToMapping = function(m, e){
+      var key;
+      key = eKey(e);
+      if (m[key]) {
+        return m;
+      } else {
+        return setInto(m, key, e);
+      }
+    };
+    ref$ = (function(){
+      var i$, ref$, len$, ref1$, results$ = [];
+      for (i$ = 0, len$ = (ref$ = [[addNodeToMapping, fn$], [addEdgeToMapping, fn1$]]).length; i$ < len$; ++i$) {
+        ref1$ = ref$[i$], f = ref1$[0], attr = ref1$[1];
+        results$.push(fold(f, {}, concatMap(attr, [left, right])));
+      }
+      return results$;
+      function fn$(it){
+        return it.nodes;
+      }
+      function fn1$(it){
+        return it.edges;
+      }
+    }()), nodesById = ref$[0], edgesByKey = ref$[1];
+    ref$ = map(cacheFunc, [
+      [
+        nodesById, function(it){
+          return it.id;
+        }
+      ], [edgesByKey, eKey]
+    ]), realNodes = ref$[0], realEdges = ref$[1];
+    for (i$ = 0, len$ = (ref$ = zip(right.nodes, map(realNodes, right.nodes))).length; i$ < len$; ++i$) {
+      ref1$ = ref$[i$], n = ref1$[0], real = ref1$[1];
+      if (n === real) {
+        real.root = realNodes(real.root);
+        real.edges = map(realEdges, real.edges);
+      } else {
+        real.sources = real.sources.concat(n.sources);
+        real.isDirect || (real.isDirect = n.isDirect);
+        real.edges = unique(real.edges.concat(map(realEdges, n.edges)));
+      }
+    }
+    for (i$ = 0, len$ = (ref$ = zip(right.edges, map(realEdges, right.edges))).length; i$ < len$; ++i$) {
+      ref1$ = ref$[i$], e = ref1$[0], real = ref1$[1];
+      if (e === real) {
+        ref1$ = map(compose$([realNodes, fn$]), [fn1$, fn2$]), source = ref1$[0], target = ref1$[1];
+        e.source = source;
+        e.target = target;
+      }
+    }
+    ret = {
+      nodes: values(nodesById),
+      edges: values(edgesByKey)
+    };
+    annotateForHeight(ret.nodes);
+    console.log("Merged graph has " + length(ret.nodes) + " nodes and " + length(ret.edges) + " edges");
+    console.log("now there are " + length(filter(function(it){
+      return it.isDirect;
+    }, ret.nodes)) + " direct nodes");
+    for (i$ = 0, len$ = (ref$ = ret.nodes).length; i$ < len$; ++i$) {
+      n = ref$[i$];
+      if (n.isDirect && n.sources.length === 1) {
+        console.log(n.id + ":" + n.label + " (" + n.root.label + ") is from " + n.sources);
+      }
+    }
+    console.log("There are " + length(filter(compose$([
+      (function(it){
+        return it > 1;
+      }), function(it){
+        return it.length;
+      }, function(it){
+        return it.sources;
+      }
+    ]), ret.nodes)) + " merged nodes");
+    return ret;
+    function fn$(it){
+      return it(e);
+    }
+    function fn1$(it){
+      return it.source;
+    }
+    function fn2$(it){
+      return it.target;
+    }
+  });
   drawForce = function(directNodes, edges, nodeForIdent, symbol){
     var graph, allNodes, allEdges, state, elideGraph, x$, rootSelector, y$, elisionSelector, getHomologues, i$, ref$, len$, n, roots, r;
     graph = makeGraph.apply(this, arguments);
@@ -738,20 +853,26 @@ if (typeof window == 'undefined' || window === null) {
       return each(bind$($ul, 'append'), map(toOption, interop));
     }
     function addHomologues(source){
-      var service, rs, gettingHomologues, gettingDirect, gettingAll, gettingNames, gettingEdges, makingGraph;
+      var service, rs, mergeGraph, gettingHomologues, gettingDirect, gettingAll, gettingNames, gettingEdges;
       service = interopMines[source];
       rs = flatRows(bind$(service, 'rows'));
+      mergeGraph = mergeGraphs({
+        nodes: allNodes,
+        edges: allEdges
+      });
       gettingHomologues = flatRows(rows)(
-      getHomologues(source));
+      getHomologues(
+      source));
       gettingDirect = gettingHomologues.then(compose$([rs, directHomologyTerms]));
       gettingAll = gettingDirect.then(compose$([rs, allHomologyTerms]));
-      gettingNames = gettingAll.then(fetchNames(bind$(service, 'rows')));
+      gettingNames = gettingAll.then(fetchNames(service.name, bind$(service, 'rows')));
       gettingEdges = gettingAll.then(compose$([bind$(service, 'rows'), wholeGraphQ])).then(map(rowToNode));
-      makingGraph = function(it){
-        return it.then(makeGraph);
-      }($.when(gettingDirect, gettingEdges, gettingNames));
-      return makingGraph.done(function(g){
-        return console.log(g);
+      return $.when(gettingDirect, gettingEdges, gettingNames).then(compose$([mergeGraph, makeGraph])).done(function(arg$){
+        var nodes, edges;
+        nodes = arg$.nodes, edges = arg$.edges;
+        allNodes = nodes.slice();
+        allEdges = edges.slice();
+        return elideGraph(state, state.get('elision'));
       });
     }
     function setUpOntologyTable(){
@@ -1193,7 +1314,14 @@ if (typeof window == 'undefined' || window === null) {
     node.exit().remove();
     nG.append('circle').attr('class', 'force-term').classed('root', isRoot).classed('direct', function(it){
       return it.isDirect;
-    }).attr('fill', termColor).attr('cx', -dimensions.w).attr('cy', -dimensions.h).attr('r', getR);
+    }).attr('fill', function(n){
+      if (n.sources.length > 1) {
+        console.log(n.label, 'has multiple attributions');
+        return darken(termColor.apply(this, arguments));
+      } else {
+        return termColor.apply(this, arguments);
+      }
+    }).attr('cx', -dimensions.w).attr('cy', -dimensions.h).attr('r', getR);
     nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('display', 'none').attr('x', -dimensions.w).attr('y', -dimensions.h).attr('dy', '0.3em');
     texts = svgGroup.selectAll('text.force-label').data(graph.nodes);
     texts.enter().append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'white').attr('stroke-width', '0.1px').attr('text-rendering', 'optimizeLegibility').attr('display', function(it){
@@ -2160,7 +2288,7 @@ if (typeof window == 'undefined' || window === null) {
     gettingAll = fetchFlat(
     allGoTerms(
     symbol));
-    gettingNames = gettingAll.then(fetchNames(rows));
+    gettingNames = gettingAll.then(fetchNames('flymine', rows));
     gettingEdges = gettingAll.then(compose$([rows, wholeGraphQ])).then(map(rowToNode));
     draw = (function(){
       switch (queryParams.view) {
@@ -2271,14 +2399,14 @@ if (typeof window == 'undefined' || window === null) {
     return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
   function not$(x){ return !x; }
-  function in$(x, arr){
-    var i = -1, l = arr.length >>> 0;
-    while (++i < l) if (x === arr[i] && i in arr) return true;
-    return false;
-  }
   function import$(obj, src){
     var own = {}.hasOwnProperty;
     for (var key in src) if (own.call(src, key)) obj[key] = src[key];
     return obj;
+  }
+  function in$(x, arr){
+    var i = -1, l = arr.length >>> 0;
+    while (++i < l) if (x === arr[i] && i in arr) return true;
+    return false;
   }
 }).call(this);

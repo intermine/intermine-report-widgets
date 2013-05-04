@@ -9,17 +9,21 @@ interop =
     * taxonId: 4932
       root: \yeastmine-test.yeastgenome.org/yeastmine-dev
       name: \SGD
+    * taxonId: 10090
+      root: \http://beta.mousemine.org/mousemine
+      name: \MGI
+
+interop-later-maybe-when-they-upgrade =
     * taxonId: 7955
       root: \zmine.zfin.org/zebrafishmine
       name: \ZFin
-    * taxonId: 10090
-      root: \http://www.mousemine.org/mousemine
-      name: \MGI
     * taxonId: 10116
       root: \http://ratmine.mcw.edu/ratmine
       name: \RGD
 
-interop-mines = list-to-obj map (({root, taxon-id}) -> [taxon-id, new Service {root}]), interop
+interop-mines = interop
+    |> map ({taxon-id, root, name}) -> [taxon-id, (new Service {root}) <<< {name} ]
+    |> list-to-obj
 
 non-curated-evidence-codes = <[ IBA IBD IEA IGC IKR ISA ISO ISS RCA ]>
 
@@ -82,14 +86,18 @@ homologue-query = (symbol, targetOrganism) -->
 
 #'relations.relationship': \is_a
 
+new-node = (source, id, label) --> {label, id, count: 1,  edges: [], sources: [source]}
+
 # Get all the names for our ontology terms in one fell swoop, and build a mapping.
-fetch-names = (get-rows, identifier) -->
+fetch-names = (source, get-rows, identifier) -->
     q =
         select: <[ identifier name ]>
         from: \OntologyTerm
         where: {identifier}
 
-    get-rows(q).then list-to-obj << map ([id, label]) -> [ id, {label, id, edges: []} ]
+    node = new-node source
+
+    get-rows(q).then objectify (.0), (-> node ...it)
 
 do-line = d3.svg.line!
         .x (.x)
@@ -278,6 +286,49 @@ trim-graph-to-height = ({nodes, edges}, level) ->
 
     return filtered
 
+set-into = (m, k, v) -> m <<< list-to-obj [ [k, v] ]
+
+cache-func = ([mapping, key-func = id]) -> (obj-to-func mapping) << key-func
+
+merge-graphs = (left, right) -->
+    console.log "Starting with #{ length left.nodes} nodes and #{ length left.edges } edges"
+    console.log "Currently there are #{ length filter (.is-direct), left.nodes } direct nodes"
+
+    e-key = (e) -> e.source.id + e.label + e.target.id
+    add-node-to-mapping = (m, n) -> if m[n.id] then m else set-into m, n.id, n
+    add-edge-to-mapping = (m, e) ->
+        key = e-key e
+        if m[key] then m else set-into m, key, e
+
+    [nodes-by-id, edges-by-key] = [ fold f, {}, concat-map attr, [left, right] for [f, attr]
+        in [ [add-node-to-mapping, (.nodes)], [add-edge-to-mapping, (.edges)] ] ]
+    [real-nodes, real-edges] = map cache-func, [[nodes-by-id, (.id)], [edges-by-key, e-key]]
+
+    # Merge in properties of nodes that exist in both graphs,
+    for [n, real] in zip right.nodes, map real-nodes, right.nodes
+        if n is real
+            real.root = real-nodes real.root
+            real.edges = map real-edges, real.edges
+        else
+            real.sources .= concat n.sources
+            real.is-direct or= n.is-direct
+            real.edges = unique(real.edges ++ map real-edges, n.edges)
+
+    # Ensure that new edges refer to nodes in the real graph.
+    for [e, real] in zip right.edges, map real-edges, right.edges when e is real
+        [source, target] = map real-nodes << (-> it e), [(.source), (.target)]
+        e <<< {source, target}
+
+    ret = {nodes: (values nodes-by-id), edges: (values edges-by-key)}
+    annotate-for-height ret.nodes
+
+    console.log "Merged graph has #{ length ret.nodes} nodes and #{ length ret.edges } edges"
+    console.log "now there are #{ length filter (.is-direct), ret.nodes } direct nodes"
+    for n in ret.nodes when n.is-direct and n.sources.length is 1
+        console.log "#{ n.id }:#{ n.label } (#{ n.root.label }) is from #{ n.sources }"
+    console.log "There are #{ length filter (> 1) . (.length) . (.sources), ret.nodes } merged nodes"
+    return ret
+
 draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
 
     graph = make-graph ...
@@ -422,20 +473,23 @@ draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
     function add-homologues source
         service = interop-mines[source]
         rs = flat-rows service~rows
+        merge-graph = merge-graphs {nodes: all-nodes, edges: all-edges}
 
-        getting-homologues = get-homologues source |> flat-rows rows
+        getting-homologues = source |> get-homologues |> flat-rows rows
 
         getting-direct = getting-homologues.then rs . direct-homology-terms
         getting-all = getting-direct.then rs . all-homology-terms
-        getting-names = getting-all.then fetch-names service~rows
+        getting-names = getting-all.then fetch-names service.name, service~rows
         getting-edges = getting-all
-            .then service~rows << whole-graph-q
+            .then service~rows . whole-graph-q
             .then map row-to-node
 
-        making-graph = (.then make-graph) $.when getting-direct, getting-edges, getting-names
-
-        making-graph.done (g) ->
-            console.log g
+        $.when getting-direct, getting-edges, getting-names
+            .then make-graph >> merge-graph
+            .done ({nodes, edges}) ->
+                all-nodes := nodes.slice!
+                all-edges := edges.slice!
+                elide-graph state, state.get \elision
 
     function set-up-ontology-table
         {w, h} = state.get \dimensions
@@ -818,7 +872,12 @@ render-force = (state, graph) ->
         .attr \class, \force-term
         .classed \root, is-root
         .classed \direct, (.is-direct)
-        .attr \fill, term-color
+        .attr \fill, (n) ->
+            if n.sources.length > 1
+                console.log n.label, 'has multiple attributions'
+                darken term-color ...
+            else
+                term-color ...
         .attr \cx, -dimensions.w
         .attr \cy, -dimensions.h
         .attr \r, get-r
@@ -1446,7 +1505,7 @@ main = (symbol) ->
 
     getting-direct = symbol |> direct-terms |> fetch-flat
     getting-all = symbol |> all-go-terms |> fetch-flat
-    getting-names = getting-all.then fetch-names rows
+    getting-names = getting-all.then fetch-names \flymine, rows
     getting-edges = getting-all.then(rows << whole-graph-q).then map row-to-node
 
     draw = switch query-params.view
