@@ -5,7 +5,7 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, interopMines, nonCuratedEvidenceCodes, nodePadding, minTicks, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, newNode, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, objectify, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, drawForce, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, renderForce, drawDag, makeGraph, doUpdate, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY;
+  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, objectify, error, notify, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, annotateForCounts, draw, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, renderForce, drawDag, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
@@ -32,20 +32,36 @@ if (typeof window == 'undefined' || window === null) {
       name: 'RGD'
     }
   ];
-  interopMines = listToObj(
-  map(function(arg$){
-    var taxonId, root, name, ref$;
-    taxonId = arg$.taxonId, root = arg$.root, name = arg$.name;
-    return [
-      taxonId, (ref$ = new Service({
-        root: root
-      }), ref$.name = name, ref$)
-    ];
-  })(
-  interop));
   nonCuratedEvidenceCodes = ['IBA', 'IBD', 'IEA', 'IGC', 'IKR', 'ISA', 'ISO', 'ISS', 'RCA'];
   nodePadding = 10;
   minTicks = 25;
+  objectify = curry$(function(key, value, list){
+    return compose$([
+      listToObj, map(function(it){
+        return [key(it), value(it)];
+      })
+    ])(
+    list);
+  });
+  error = function(msg){
+    return $.Deferred(function(){
+      return this.reject(msg);
+    });
+  };
+  notify = function(it){
+    return alert(it);
+  };
+  interopMines = objectify(function(it){
+    return it.taxonId;
+  }, function(arg$){
+    var root, name;
+    root = arg$.root, name = arg$.name;
+    return (function(it){
+      return it.name = name, it;
+    })(new Service({
+      root: root
+    }));
+  }, interop);
   directTerms = function(it){
     return {
       select: ['goAnnotation.ontologyTerm.identifier'],
@@ -124,14 +140,42 @@ if (typeof window == 'undefined' || window === null) {
       }
     };
   });
-  newNode = curry$(function(source, id, label){
-    return {
-      label: label,
-      id: id,
-      count: 1,
-      edges: [],
-      sources: [source]
+  Node = (function(){
+    Node.displayName = 'Node';
+    var prototype = Node.prototype, constructor = Node;
+    function Node(label, id, origin){
+      var this$ = this instanceof ctor$ ? this : new ctor$;
+      this$.label = label;
+      this$.id = id;
+      this$.counts = [];
+      this$.sources = [origin];
+      this$.edges = [];
+      this$.depths = [];
+      return this$;
+    } function ctor$(){} ctor$.prototype = prototype;
+    prototype.marked = false;
+    prototype.muted = false;
+    prototype.isLeaf = false;
+    prototype.isRoot = false;
+    prototype.isDirect = false;
+    prototype.radius = function(){
+      var k, countPortion, markedFac;
+      k = 5;
+      countPortion = empty(this.counts)
+        ? 0
+        : 1.5 * ln(sum(this.counts));
+      markedFac = this.marked ? 2 : 1;
+      return (k + countPortion) * markedFac;
     };
+    prototype.addCount = function(c){
+      if (c != null) {
+        return this.counts.push(c);
+      }
+    };
+    return Node;
+  }());
+  newNode = curry$(function(source, id, label){
+    return Node(label, id, source);
   });
   fetchNames = curry$(function(source, getRows, identifier){
     var q, node;
@@ -410,7 +454,7 @@ if (typeof window == 'undefined' || window === null) {
     return it.isLeaf;
   };
   getR = function(it){
-    return (1.5 * ln(it.count) + 5) * (it.marked ? 2 : 1);
+    return it.radius();
   };
   linkDistance = function(arg$){
     var source, target, ns, edges, markedBump, mutedPenalty, radii;
@@ -462,9 +506,7 @@ if (typeof window == 'undefined' || window === null) {
     level == null && (level = 50);
     leaves = filter(function(it){
       return it.isDirect;
-    }, map((function(it){
-      return it.depths = [], it;
-    }), nodes));
+    }, nodes);
     for (i$ = 0, len$ = leaves.length; i$ < len$; ++i$) {
       leaf = leaves[i$];
       markDepth(leaf, 0, level);
@@ -472,13 +514,6 @@ if (typeof window == 'undefined' || window === null) {
     return each(function(it){
       return it.stepsFromLeaf = minimum(it.depths), it;
     }, nodes);
-  };
-  objectify = function(key, value){
-    return compose$([
-      listToObj, map(function(it){
-        return [key(it), value(it)];
-      })
-    ]);
   };
   trimGraphToHeight = function(arg$, level){
     var nodes, edges, f, filtered, i$, ref$, len$, n, elision;
@@ -632,12 +667,31 @@ if (typeof window == 'undefined' || window === null) {
       return it.target;
     }
   });
-  drawForce = function(directNodes, edges, nodeForIdent, symbol){
-    var graph, allNodes, allEdges, state, elideGraph, x$, rootSelector, y$, elisionSelector, getHomologues, i$, ref$, len$, n, roots, r;
+  annotateForCounts = function(makeQuery, nodes){
+    var makingQ, summarising;
+    makingQ = makeQuery(countQuery(map(function(it){
+      return it.id;
+    }, nodes)));
+    summarising = makingQ.then(function(it){
+      return it.summarise('goAnnotation.ontologyTerm.parents.identifier');
+    }).then(objectify(function(it){
+      return it.item;
+    }, function(it){
+      return it.count;
+    }));
+    return summarising.done(function(summary){
+      return each(function(it){
+        return it.addCount(summary[it.id]);
+      }, nodes);
+    });
+  };
+  draw = function(directNodes, edges, nodeForIdent, symbol){
+    var graph, allNodes, allEdges, state, elideGraph, x$, rootSelector, y$, elisionSelector, getHomologues, roots, i$, ref$, len$, r;
     graph = makeGraph.apply(this, arguments);
     allNodes = graph.nodes.slice();
     allEdges = graph.edges.slice();
     state = new Backbone.Model({
+      view: queryParams.view || 'force',
       symbol: symbol,
       smallGraphThreshold: 20,
       animating: 'waiting',
@@ -697,20 +751,13 @@ if (typeof window == 'undefined' || window === null) {
       }, level));
     };
     state.on('change:elision', elideGraph);
-    query(
-    countQuery(
-    keys(
-    nodeForIdent))).then(function(it){
-      return it.summarise('goAnnotation.ontologyTerm.parents.identifier');
-    }).then(objectify(function(it){
-      return it.item;
-    }, function(it){
-      return it.count;
-    })).then(function(summary){
-      return each(function(it){
-        return it.count = summary[it.id];
-      }, allNodes);
+    state.on('change:view', function(){
+      return state.set('graph', {
+        nodes: allNodes,
+        edges: allEdges
+      });
     });
+    annotateForCounts(query, allNodes);
     $('.graph-control').show().on('submit', function(it){
       return it.preventDefault();
     }).find('.resizer').click(function(){
@@ -718,6 +765,20 @@ if (typeof window == 'undefined' || window === null) {
     });
     $('#jiggle').val(state.get('jiggle')).on('change', function(){
       return state.set('jiggle', $(this).val());
+    });
+    $('#switch-view-dag').change(function(evt){
+      if ($(this).is(':checked')) {
+        return state.set({
+          view: 'dag'
+        });
+      }
+    });
+    $('#switch-view-force').change(function(evt){
+      if ($(this).is(':checked')) {
+        return state.set({
+          view: 'force'
+        });
+      }
     });
     state.on('change:jiggle', flip(bind$($('#jiggle'), 'val')));
     $('#spline').val(state.get('spline')).on('change', function(){
@@ -818,14 +879,17 @@ if (typeof window == 'undefined' || window === null) {
     setUpInterop();
     getHomologues = homologueQuery(symbol);
     state.on('graph:marked', showOntologyTable);
-    state.on('change:graph', renderForce);
+    state.on('change:graph', function(){
+      switch (false) {
+      case state.get('view') !== 'force':
+        return renderForce.apply(this, arguments);
+      default:
+        return renderDag.apply(this, arguments);
+      }
+    });
     state.on('controls:changed', function(){
       return $(document).foundation();
     });
-    for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
-      n = ref$[i$];
-      n.count = 1;
-    }
     roots = filter(isRoot, allNodes);
     for (i$ = 0, len$ = (ref$ = roots.concat([{
       id: 'null',
@@ -846,7 +910,13 @@ if (typeof window == 'undefined' || window === null) {
       toOption = function(group){
         var $li;
         $li = $("<li><a href=\"#\" class=\"small button\">" + group.name + "</a></li>");
-        return $li.on('click', function(){
+        return $li.find('a').on('click', function(){
+          var $this;
+          $this = $(this);
+          if ($this.hasClass('disabled')) {
+            return;
+          }
+          $this.addClass('disabled');
           return addHomologues(group.taxonId);
         });
       };
@@ -860,19 +930,28 @@ if (typeof window == 'undefined' || window === null) {
         nodes: allNodes,
         edges: allEdges
       });
-      gettingHomologues = flatRows(rows)(
-      getHomologues(
-      source));
+      gettingHomologues = function(it){
+        return it.then(function(it){
+          if (empty(it)) {
+            return error("No homologues found");
+          } else {
+            return it;
+          }
+        });
+      }(
+      flatRows(rows)(
+      getHomologues(source)));
       gettingDirect = gettingHomologues.then(compose$([rs, directHomologyTerms]));
       gettingAll = gettingDirect.then(compose$([rs, allHomologyTerms]));
       gettingNames = gettingAll.then(fetchNames(service.name, bind$(service, 'rows')));
       gettingEdges = gettingAll.then(compose$([bind$(service, 'rows'), wholeGraphQ])).then(map(rowToNode));
-      return $.when(gettingDirect, gettingEdges, gettingNames).then(compose$([mergeGraph, makeGraph])).done(function(arg$){
+      return $.when(gettingDirect, gettingEdges, gettingNames).then(compose$([mergeGraph, makeGraph])).fail(notify).done(function(arg$){
         var nodes, edges;
         nodes = arg$.nodes, edges = arg$.edges;
         allNodes = nodes.slice();
         allEdges = edges.slice();
-        return elideGraph(state, state.get('elision'));
+        elideGraph(state, state.get('elision'));
+        return annotateForCounts(bind$(service, 'query'), allNodes);
       });
     }
     function setUpOntologyTable(){
@@ -1217,7 +1296,7 @@ if (typeof window == 'undefined' || window === null) {
     state.get('graph'))));
   };
   renderForce = function(state, graph){
-    var dimensions, force, svg, throbber, getLabelFontSize, zoom, relationships, svgGroup, link, getLabelId, node, nG, texts, tickCount, getMinMaxSize;
+    var dimensions, force, svg, throbber, getLabelFontSize, zoom, relationships, svgGroup, link, getLabelId, node, nG, texts, tickCount;
     if (graph.edges.length > 250 && !state.has('elision')) {
       return state.set({
         elision: 2
@@ -1372,61 +1451,13 @@ if (typeof window == 'undefined' || window === null) {
       return link.classed('highlit', test);
     });
     state.on('nodes:marked', updateMarked);
-    state.once('force:ready', centreAndZoom);
-    getMinMaxSize = function(f, coll){
-      return function(it){
-        return function(it){
-          return it.size = it.max - it.min, it;
-        }(
-        {
-          min: minimum(it),
-          max: maximum(it)
-        });
-      }(
-      map(f, coll));
-    };
-    function centreAndZoom(){
-      var f, ref$, x, y, dim, val, scale, translate;
-      ref$ = (function(){
-        var i$, ref$, len$, results$ = [];
-        for (i$ = 0, len$ = (ref$ = [fn$, fn1$]).length; i$ < len$; ++i$) {
-          f = ref$[i$];
-          results$.push(getMinMaxSize(f, graph.nodes));
-        }
-        return results$;
-        function fn$(it){
-          return it.x;
-        }
-        function fn1$(it){
-          return it.y;
-        }
-      }()), x = ref$[0], y = ref$[1];
-      dim = dimensions.h < dimensions.w ? 'h' : void 8;
-      ref$ = dimensions.h < dimensions.w
-        ? ['h', y.size]
-        : ['w', x.size], dim = ref$[0], val = ref$[1];
-      console.log("Current zoom level: " + state.get('zoom'));
-      console.log("y.size = " + y.size + ", height = " + dimensions.h);
-      console.log("We really need a " + dim + " of at least " + val);
-      scale = dimensions[dim] / (val + 300);
-      console.log("Ideal fit zoom is " + scale);
-      translate = (function(){
-        switch (dim) {
-        case 'w':
-          return [5, y.min + y.size / 2];
-        case 'h':
-          return [(dimensions.w - x.size) / 2, 5];
-        }
-      }());
-      if (scale < 1) {
-        zoom.scale(scale);
-        zoom.translate(translate);
-        return state.set({
-          zoom: scale,
-          translate: translate
-        });
-      }
-    }
+    state.once('force:ready', function(){
+      return centreAndZoom(function(it){
+        return it.x;
+      }, function(it){
+        return it.y;
+      }, state, zoom);
+    });
     function isReady(){
       var ready;
       ready = state.get('animating') === 'paused' || tickCount > minTicks * ln(length(state.get('graph').edges));
@@ -1595,9 +1626,11 @@ if (typeof window == 'undefined' || window === null) {
           return 'none';
         }
       });
-      node.selectAll('text.count-label').text(function(it){
-        return it.count;
-      }).attr('x', function(it){
+      node.selectAll('text.count-label').text(compose$([
+        sum, function(it){
+          return it.counts;
+        }
+      ])).attr('x', function(it){
         return it.x;
       }).attr('y', function(it){
         return it.y;
@@ -1785,22 +1818,85 @@ if (typeof window == 'undefined' || window === null) {
       return "translate(" + x + "," + y + ")";
     });
   };
-  renderDag = curry$(function(svg, svgGroup, arg$){
-    var nodes, edges, reset, reRender, update, svgBBox, currentZoom, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, rects, dragCp, lineWrap, labels, applyLayout, maxY, zoom, asZoom, maxX, dx, deDup, toCombos, getOverlapping, getDescale, separateColliding, drawCollisions, explodify, fixDagBoxCollisions, focusEdges, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
-    nodes = arg$.nodes, edges = arg$.edges, reset = arg$.reset;
-    reRender = renderDag(svg, svgGroup);
+  getMinMaxSize = function(f, coll){
+    return function(it){
+      return function(it){
+        return it.size = it.max - it.min, it;
+      }(
+      {
+        min: minimum(it),
+        max: maximum(it)
+      });
+    }(
+    map(f, coll));
+  };
+  centreAndZoom = function(xf, yf, state, zoom){
+    var graph, dimensions, f, ref$, x, y, dim, val, scale, translate;
+    graph = state.get('graph');
+    dimensions = state.get('dimensions');
+    ref$ = (function(){
+      var i$, ref$, len$, results$ = [];
+      for (i$ = 0, len$ = (ref$ = [xf, yf]).length; i$ < len$; ++i$) {
+        f = ref$[i$];
+        results$.push(getMinMaxSize(f, graph.nodes));
+      }
+      return results$;
+    }()), x = ref$[0], y = ref$[1];
+    dim = dimensions.h < dimensions.w ? 'h' : void 8;
+    ref$ = (function(){
+      switch (false) {
+      case !(x.size > dimensions.w && x.size > y.size):
+        return ['w', x.size];
+      case !(dimensions.h < dimensions.w):
+        return ['h', y.size];
+      default:
+        return ['w', x.size];
+      }
+    }()), dim = ref$[0], val = ref$[1];
+    console.log("Current zoom level: " + state.get('zoom'));
+    console.log("y.size = " + y.size + ", height = " + dimensions.h);
+    console.log("We really need a " + dim + " of at least " + val);
+    scale = dimensions[dim] / (val + 300);
+    console.log("Ideal fit zoom is " + scale);
+    translate = (function(){
+      switch (dim) {
+      case 'w':
+        return [5, y.min + y.size / 2];
+      case 'h':
+        return [x.min + x.size / 2, 5];
+      }
+    }());
+    if (scale < 1) {
+      zoom.scale(scale);
+      zoom.translate(translate);
+      return state.set({
+        zoom: scale,
+        translate: translate
+      });
+    }
+  };
+  renderDag = function(state, arg$){
+    var reset, nodes, edges, svg, svgGroup, update, reRender, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, rects, dragCp, lineWrap, labels, applyLayout, maxY, zoom, deDup, toCombos, getOverlapping, getDescale, separateColliding, drawCollisions, explodify, fixDagBoxCollisions, focusEdges, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
+    reset = arg$.reset, nodes = arg$.nodes, edges = arg$.edges;
+    svg = d3.select('svg');
+    svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
+    d3.selectAll(svg.node()).attr('width', $('body').width()).attr('height', $('body').height());
+    svg.selectAll('g.node').remove();
+    svg.selectAll('g.edge').remove();
     update = function(){
       return doUpdate(svgGroup);
     };
+    reRender = function(it){
+      return renderDag(state, it);
+    };
     reset == null && (reset = function(){
-      return reRender({
+      return state.set('graph', {
         nodes: nodes,
         edges: edges
       });
     });
     console.log("Rendering " + length(nodes) + " nodes and " + length(edges) + " edges");
     svgBBox = svg.node().getBBox();
-    currentZoom = 1;
     mvEdge = translateEdge(svg);
     svgGroup.selectAll('*').remove();
     svgEdges = svgGroup.selectAll('g .edge').data(edges);
@@ -1904,25 +2000,32 @@ if (typeof window == 'undefined' || window === null) {
     maxY = fold(max, 0, map(function(it){
       return it.dagre.y;
     }, nodes));
-    zoom = d3.behavior.zoom().on('zoom', function(){
-      currentZoom = d3.event.scale;
-      return svgGroup.attr('transform', "translate(" + d3.event.translate + ") scale(" + currentZoom + ")");
+    zoom = d3.behavior.zoom().scale(state.get('zoom')).on('zoom', function(){
+      return state.set({
+        zoom: d3.event.scale,
+        translate: d3.event.translate.slice()
+      });
     });
-    asZoom = ($('body').height() - 100) / maxY;
-    console.log(maxY);
-    if (asZoom < 1) {
-      currentZoom = asZoom;
-      zoom.scale(currentZoom);
-      svgGroup.attr('transform', "translate(5,5) scale(" + currentZoom + ")");
-    }
-    maxX = 200 + currentZoom * fold(max, 0, map(function(it){
-      return it.dagre.x;
-    }, nodes));
-    if (maxX < $('body').width()) {
-      dx = ($('body').width() - maxX) / 2;
-      zoom.translate([dx, 5]);
-      svgGroup.attr('transform', "translate(" + dx + ",5) scale(" + currentZoom + ")");
-    }
+    state.on('change:translate', function(s, currentTranslation){
+      return svgGroup.attr('transform', "translate(" + currentTranslation + ") scale(" + s.get('zoom') + ")");
+    });
+    state.on('change:zoom', function(s, currentZoom){
+      return svgGroup.attr('transform', "translate(" + s.get('translate') + ") scale(" + currentZoom + ")");
+    });
+    svg.call(zoom);
+    centreAndZoom(compose$([
+      function(it){
+        return it.x;
+      }, function(it){
+        return it.dagre;
+      }
+    ]), compose$([
+      function(it){
+        return it.y;
+      }, function(it){
+        return it.dagre;
+      }
+    ]), state, zoom);
     deDup = function(f){
       return fold(function(ls, e){
         if (any((function(it){
@@ -1956,7 +2059,7 @@ if (typeof window == 'undefined' || window === null) {
       }()));
     };
     getDescale = function(){
-      return 1 / currentZoom;
+      return 1 / state.get('zoom');
     };
     separateColliding = function(left, right){
       var ref$, ptA, ptB, speed;
@@ -2252,7 +2355,7 @@ if (typeof window == 'undefined' || window === null) {
     svg.call(zoom);
     nodesEnter.call(nodeDrag);
     return edgesEnter.call(edgeDrag);
-  });
+  };
   rowToNode = function(arg$){
     var source, label, target;
     source = arg$[0], label = arg$[1], target = arg$[2];
@@ -2279,7 +2382,7 @@ if (typeof window == 'undefined' || window === null) {
     return queryParams.symbol || 'bsk';
   };
   main = function(symbol){
-    var fetchFlat, gettingDirect, gettingAll, gettingNames, gettingEdges, draw;
+    var fetchFlat, gettingDirect, gettingAll, gettingNames, gettingEdges;
     console.log("Drawing graph for " + symbol);
     fetchFlat = flatRows(rows);
     gettingDirect = fetchFlat(
@@ -2290,14 +2393,6 @@ if (typeof window == 'undefined' || window === null) {
     symbol));
     gettingNames = gettingAll.then(fetchNames('flymine', rows));
     gettingEdges = gettingAll.then(compose$([rows, wholeGraphQ])).then(map(rowToNode));
-    draw = (function(){
-      switch (queryParams.view) {
-      case 'force':
-        return drawForce;
-      default:
-        return drawDag;
-      }
-    }());
     return $.when(gettingDirect, gettingEdges, gettingNames, symbol).then(draw);
   };
   main(currentSymbol());

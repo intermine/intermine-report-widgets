@@ -21,15 +21,21 @@ interop-later-maybe-when-they-upgrade =
       root: \http://ratmine.mcw.edu/ratmine
       name: \RGD
 
-interop-mines = interop
-    |> map ({taxon-id, root, name}) -> [taxon-id, (new Service {root}) <<< {name} ]
-    |> list-to-obj
-
 non-curated-evidence-codes = <[ IBA IBD IEA IGC IKR ISA ISO ISS RCA ]>
 
 node-padding = 10
 
 min-ticks = 25
+
+objectify = (key, value, list) --> list |> list-to-obj << map (-> [(key it), (value it)])
+
+error = (msg) -> $.Deferred -> @reject msg
+
+# Two reasons: a) alert needs wrapping to prevent rebinding of this, and b) we can swap
+# out alert for a better notification system later.
+notify = -> alert it
+
+interop-mines = objectify (.taxon-id), (({root, name}) -> (<<< {name}) new Service {root}), interop
 
 # Get the ontology terms for a gene.
 direct-terms = ->
@@ -86,7 +92,28 @@ homologue-query = (symbol, targetOrganism) -->
 
 #'relations.relationship': \is_a
 
-new-node = (source, id, label) --> {label, id, count: 1,  edges: [], sources: [source]}
+class Node
+    (@label, @id, origin) ~>
+        @counts = []
+        @sources = [origin]
+        @edges = []
+        @depths = []
+
+    marked: false
+    muted: false
+    is-leaf: false
+    is-root: false
+    is-direct: false
+
+    radius: ->
+        k = 5
+        count-portion = if empty @counts then 0 else 1.5 * ln sum @counts
+        marked-fac = if @marked then 2 else 1
+        (k + count-portion) * marked-fac
+
+    add-count: (c) -> @counts.push c if c?
+
+new-node = (source, id, label) --> Node label, id, source
 
 # Get all the names for our ontology terms in one fell swoop, and build a mapping.
 fetch-names = (source, get-rows, identifier) -->
@@ -227,7 +254,7 @@ BRIGHTEN = brighten << brighten
 
 is-root = (.is-root)
 is-leaf = (.is-leaf)
-get-r = -> ((1.5 * ln it.count) + 5) * (if it.marked then 2 else 1)
+get-r = (.radius!)
 
 link-distance = ({source, target}) ->
     ns = [source, target]
@@ -254,12 +281,11 @@ mark-depth = (node, depth-at-node, max-depth) ->
         mark-depth target, next-depth, max-depth
 
 annotate-for-height = (nodes, level = 50) ->
-    leaves = filter (.is-direct), map (<<< depths: []), nodes
+    leaves = filter (.is-direct), nodes
     for leaf in leaves
         mark-depth leaf, 0, level
     each (-> it <<< steps-from-leaf: minimum it.depths), nodes
 
-objectify = (key, value) -> list-to-obj << map (-> [(key it), (value it)])
 
 #console.log list-to-obj [["#{ node.id }: #{ node.label }", node.steps-from-leaf] for node in graph.nodes]
 
@@ -329,7 +355,15 @@ merge-graphs = (left, right) -->
     console.log "There are #{ length filter (> 1) . (.length) . (.sources), ret.nodes } merged nodes"
     return ret
 
-draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
+annotate-for-counts = (make-query, nodes) ->
+    making-q = make-query count-query map (.id), nodes
+    summarising = making-q
+        .then (.summarise \goAnnotation.ontologyTerm.parents.identifier)
+        .then objectify (.item), (.count)
+
+    summarising.done (summary) -> each (-> it.add-count summary[it.id]), nodes
+
+draw =  (direct-nodes, edges, node-for-ident, symbol) ->
 
     graph = make-graph ...
 
@@ -337,6 +371,7 @@ draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
     all-edges = graph.edges.slice!
 
     state = new Backbone.Model {
+        view: (query-params.view or \force)
         symbol: symbol
         small-graph-threshold: 20
         animating: \waiting
@@ -365,11 +400,9 @@ draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
         s.set \graph, trim-graph-to-height {nodes, edges}, level
 
     state.on \change:elision, elide-graph
+    state.on \change:view, -> state.set \graph, {nodes: all-nodes, edges: all-edges}
 
-    (node-for-ident |> keys |> count-query |> query)
-        .then (.summarise \goAnnotation.ontologyTerm.parents.identifier)
-        .then objectify (.item), (.count)
-        .then (summary) -> each (-> it.count = summary[it.id]), all-nodes
+    annotate-for-counts query, all-nodes
 
     $ \.graph-control
         .show!
@@ -381,6 +414,11 @@ draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
     $ \#jiggle
         .val state.get \jiggle
         .on \change, -> state.set \jiggle, $(@).val!
+
+    $ \#switch-view-dag
+        .change (evt) -> state.set view: \dag if $(@).is \:checked
+    $ \#switch-view-force
+        .change (evt) -> state.set view: \force if $(@).is \:checked
 
     state.on \change:jiggle, flip $(\#jiggle)~val
 
@@ -442,12 +480,11 @@ draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
 
     state.on \graph:marked, show-ontology-table
 
-    state.on \change:graph, render-force
+    state.on \change:graph, ->
+        | state.get(\view) is \force => render-force ...
+        | otherwise => render-dag ...
 
     state.on \controls:changed -> $ document .foundation!
-
-    for n in graph.nodes
-        n.count = 1
 
     roots = filter is-root, all-nodes
 
@@ -466,7 +503,11 @@ draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
             $li = $ """
                 <li><a href="#" class="small button">#{ group.name }</a></li>
             """
-            $li.on \click, -> add-homologues group.taxon-id
+            $li.find(\a).on \click, ->
+                $this = $ @
+                return if $this.has-class \disabled
+                $this.add-class \disabled
+                add-homologues group.taxon-id
 
         each $ul~append, map to-option, interop
 
@@ -475,7 +516,9 @@ draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
         rs = flat-rows service~rows
         merge-graph = merge-graphs {nodes: all-nodes, edges: all-edges}
 
-        getting-homologues = source |> get-homologues |> flat-rows rows
+        getting-homologues = get-homologues source
+            |> flat-rows rows
+            |> (.then -> if empty it then error "No homologues found" else it)
 
         getting-direct = getting-homologues.then rs . direct-homology-terms
         getting-all = getting-direct.then rs . all-homology-terms
@@ -486,10 +529,12 @@ draw-force =  (direct-nodes, edges, node-for-ident, symbol) ->
 
         $.when getting-direct, getting-edges, getting-names
             .then make-graph >> merge-graph
+            .fail notify
             .done ({nodes, edges}) ->
                 all-nodes := nodes.slice!
                 all-edges := edges.slice!
                 elide-graph state, state.get \elision
+                annotate-for-counts service~query, all-nodes
 
     function set-up-ontology-table
         {w, h} = state.get \dimensions
@@ -758,7 +803,6 @@ render-force = (state, graph) ->
     if graph.edges.length > 250 and not state.has(\elision)
         return state.set elision: 2
 
-
     dimensions = state.get \dimensions
 
     force = d3.layout.force!
@@ -931,28 +975,7 @@ render-force = (state, graph) ->
 
     state.on \nodes:marked, update-marked
 
-    state.once \force:ready, centre-and-zoom
-
-    get-min-max-size = (f, coll) ->
-        map f, coll |> -> {min: (minimum it), max: (maximum it)} |> -> it <<< size: it.max - it.min
-
-    function centre-and-zoom
-        [x, y] = [ get-min-max-size f, graph.nodes for f in [(.x), (.y)] ]
-
-        dim = if dimensions.h < dimensions.w then \h
-        [dim, val] = if dimensions.h < dimensions.w then [\h, y.size] else [\w, x.size]
-        console.log "Current zoom level: #{ state.get \zoom }"
-        console.log "y.size = #{ y.size }, height = #{ dimensions.h }"
-        console.log "We really need a #{ dim } of at least #{ val }"
-        scale = dimensions[dim] / (val + 300)
-        console.log "Ideal fit zoom is #{ scale }"
-        translate = switch dim
-            | \w => [ 5, y.min + y.size / 2]
-            | \h => [ (dimensions.w - x.size)  / 2, 5]
-        if scale < 1
-            zoom.scale scale
-            zoom.translate translate
-            state.set {zoom: scale, translate}
+    state.once \force:ready, -> centre-and-zoom (.x), (.y), state, zoom
 
     function is-ready
         ready = state.get(\animating) is \paused or tick-count > min-ticks * ln length state.get(\graph).edges
@@ -1046,7 +1069,7 @@ render-force = (state, graph) ->
                 | otherwise => \none
 
         node.select-all \text.count-label
-            .text (.count)
+            .text sum << (.counts)
             .attr \x, (.x)
             .attr \y, (.y)
             .attr \font-size, (/ 1.5) << get-r
@@ -1125,6 +1148,7 @@ make-graph = (direct-nodes, edges, node-for-ident) ->
     {nodes, edges}
 
 do-update = (group) ->
+
     group.select-all \circle.cp
         .attr \r, 10
         .attr \cx, (.x)
@@ -1142,19 +1166,53 @@ do-update = (group) ->
             y = mean map (.y), points
             "translate(#{ x },#{ y })"
 
-render-dag = (svg, svg-group, {nodes, edges, reset}) -->
+get-min-max-size = (f, coll) ->
+    map f, coll |> -> {min: (minimum it), max: (maximum it)} |> -> it <<< size: it.max - it.min
 
-    re-render = render-dag svg, svg-group
+centre-and-zoom = (xf, yf, state, zoom) ->
+    graph = state.get \graph
+    dimensions = state.get \dimensions
+    [x, y] = [ get-min-max-size f, graph.nodes for f in [xf, yf] ]
+
+    dim = if dimensions.h < dimensions.w then \h
+    [dim, val] =
+        | x.size > dimensions.w and x.size > y.size => [\w, x.size]
+        | dimensions.h < dimensions.w => [\h, y.size]
+        | otherwise => [\w, x.size]
+    console.log "Current zoom level: #{ state.get \zoom }"
+    console.log "y.size = #{ y.size }, height = #{ dimensions.h }"
+    console.log "We really need a #{ dim } of at least #{ val }"
+    scale = dimensions[dim] / (val + 300)
+    console.log "Ideal fit zoom is #{ scale }"
+    translate = switch dim
+        | \w => [ 5, y.min + y.size / 2]
+        | \h => [ x.min + x.size / 2, 5]
+    if scale < 1
+        zoom.scale scale
+        zoom.translate translate
+        state.set {zoom: scale, translate}
+
+render-dag = (state, {reset, nodes, edges}) ->
+
+    svg = d3.select \svg
+    svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
+
+    d3.select-all(svg.node!)
+        .attr \width, $(\body).width()
+        .attr \height, $(\body).height()
+
+    svg.select-all(\g.node).remove!
+    svg.select-all(\g.edge).remove!
 
     update = -> do-update svg-group
 
-    reset ?= -> re-render {nodes, edges}
+    re-render = -> render-dag state, it
+
+    reset ?= -> state.set \graph, {nodes, edges}
 
     console.log "Rendering #{ length nodes } nodes and #{ length edges } edges"
 
     svgBBox = svg.node!getBBox!
-
-    current-zoom = 1
 
     mv-edge = translate-edge svg
 
@@ -1267,22 +1325,18 @@ render-dag = (svg, svg-group, {nodes, edges, reset}) -->
     max-y = fold max, 0, map (-> it.dagre.y), nodes
 
     zoom = d3.behavior.zoom!
-        .on \zoom, ->
-            current-zoom := d3.event.scale
-            svg-group.attr \transform, "translate(#{ d3.event.translate }) scale(#{ current-zoom })"
+        .scale state.get \zoom
+        .on \zoom, -> state.set {zoom: d3.event.scale, translate: d3.event.translate.slice!}
 
-    as-zoom = ($(\body).height! - 100) / max-y
-    console.log max-y
-    if as-zoom < 1
-        current-zoom = as-zoom
-        zoom.scale current-zoom
-        svg-group.attr \transform, "translate(5,5) scale(#{ current-zoom })"
+    state.on \change:translate, (s, current-translation) ->
+        svg-group.attr \transform, "translate(#{ current-translation }) scale(#{ s.get \zoom })"
 
-    max-x = 200 + current-zoom * fold max, 0, map (-> it.dagre.x), nodes
-    if max-x < $(\body).width()
-        dx = ($(\body).width() - max-x) / 2
-        zoom.translate [dx, 5]
-        svg-group.attr \transform, "translate(#{ dx },5) scale(#{ current-zoom })"
+    state.on \change:zoom, (s, current-zoom) ->
+        svg-group.attr \transform, "translate(#{ s.get(\translate) }) scale(#{ current-zoom })"
+
+    svg.call zoom
+
+    centre-and-zoom ((.x) << (.dagre)), ((.y) << (.dagre)), state, zoom
 
     de-dup = (f) -> fold ((ls, e) -> if (any (is f e), map f, ls) then ls.slice! else ls ++ [e]), []
     to-combos = de-dup (join \-) << sort << (map (.id))
@@ -1290,7 +1344,7 @@ render-dag = (svg, svg-group, {nodes, edges, reset}) -->
     get-overlapping = (things) ->
         to-combos [ [t, tt] for t in things for tt in things when t isnt tt and overlaps t, tt]
 
-    get-descale = -> 1/ current-zoom #Math.min 4, 1 / current-zoom
+    get-descale = -> 1/ state.get \zoom
 
     separate-colliding = (left, right) ->
         [pt-a, pt-b] = map (to-xywh << (.bounds)), [left, right]
@@ -1507,10 +1561,6 @@ main = (symbol) ->
     getting-all = symbol |> all-go-terms |> fetch-flat
     getting-names = getting-all.then fetch-names \flymine, rows
     getting-edges = getting-all.then(rows << whole-graph-q).then map row-to-node
-
-    draw = switch query-params.view
-        | \force => draw-force
-        | otherwise => draw-dag
 
     $.when(getting-direct, getting-edges, getting-names, symbol).then draw
 

@@ -48,17 +48,18 @@
                 </defs>
             </svg>
         </div>
-        <form class="graph-control custom">
+        <form class="graph-control">
             <i class="resizer icon-resize-full"></i>
             <div class="row">
                 <h6>Display Options</h6>
             </div>
             <div class="hidable">
                 <div class="switch round">
-                    <input id="switch-view-dag" name="switch-view" type="radio" checked>
+                    <input id="switch-view-dag" name="switch-view" type="radio" checked >
                     <label for="switch-view-dag" onclick="">DAG</label>
-                    <input id="switch-view-force" name="switch-view" type="radio" checked>
+                    <input id="switch-view-force" name="switch-view" type="radio" >
                     <label for="switch-view-force" onclick="">Force Directed</label>
+                    <span></span>
                 </div>
                 <div class="row collapse">
                     <div class="small-8 columns">
@@ -203,7 +204,7 @@
         }
         .edge path.highlight,
         .edge:hover path {
-            stroke: rgba(136, 204, 0, 0.55);
+            stroke: rgba(151, 23, 164, 0.6);
             stroke-width: 14px;
         }
         .highlight #arrowhead,
@@ -254,7 +255,8 @@
             stroke-width: 15px;
             stroke-linecap: round;
             stroke-linejoin: round;
-            stroke: rgba(218, 226, 23, 0.4);
+            /* stroke: rgba(218, 226, 23, 0.4); */
+            stroke: rgba(151, 23, 164, 0.6);
         }
         circle.force-term {
             cursor: pointer;
