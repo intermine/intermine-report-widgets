@@ -1105,18 +1105,6 @@ render-force = (state, graph) ->
             svg-group.select-all \text
                 .attr \opacity, -> if it.muted then 0.3 else 1
 
-draw-dag = (direct-nodes, edges, node-for-ident) ->
-    graph = make-graph ...
-
-    svg = d3.select \svg
-    svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
-
-    d3.select-all(svg.node)
-        .attr \width, $(\body).width()
-        .attr \height, $(\body).height()
-
-    render-dag svg, svg-group, graph
-
 make-graph = (direct-nodes, edges, node-for-ident) ->
 
     # Add edges to nodes. Edges belong to both the source and the target.
@@ -1195,14 +1183,13 @@ centre-and-zoom = (xf, yf, state, zoom) ->
 render-dag = (state, {reset, nodes, edges}) ->
 
     svg = d3.select \svg
+    svg.select-all(\g).remove!
     svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
 
     d3.select-all(svg.node!)
         .attr \width, $(\body).width()
         .attr \height, $(\body).height()
 
-    svg.select-all(\g.node).remove!
-    svg.select-all(\g.edge).remove!
 
     update = -> do-update svg-group
 
@@ -1344,7 +1331,7 @@ render-dag = (state, {reset, nodes, edges}) ->
     get-overlapping = (things) ->
         to-combos [ [t, tt] for t in things for tt in things when t isnt tt and overlaps t, tt]
 
-    get-descale = -> 1/ state.get \zoom
+    get-descale = -> 1 / state.get \zoom
 
     separate-colliding = (left, right) ->
         [pt-a, pt-b] = map (to-xywh << (.bounds)), [left, right]
@@ -1368,8 +1355,6 @@ render-dag = (state, {reset, nodes, edges}) ->
 
                 separate-colliding left, right
 
-            #draw-collisions collisions
-
             collisions = get-overlapping highlit
 
         if collisions.length and i < max-rounds
@@ -1392,25 +1377,32 @@ render-dag = (state, {reset, nodes, edges}) ->
 
         max-rounds = 50
         round = 0
-        rounds-per-run = 5
+        rounds-per-run = 3
+
+        focussed-nodes = nodes-enter.filter is-focussed
 
         explodify highlit, round, rounds-per-run, max-rounds, ->
-            nodes-enter.each (n, i) ->
-                fill = n |> term-color |> if n.is-centre then brighten else id
-                node-selection = d3.select @
-                if is-focussed n
-                    {x, y} = to-xywh n.bounds
-                    node-selection.transition!
-                        .duration 100ms
-                        .attr \transform, "translate(#{ x },#{ y }) scale(#{ scale })"
-                node-selection.select-all \rect
-                                .attr \fill, fill
+            focussed-nodes.attr \transform, (n) ->
+                {x, y} = to-xywh n.bounds
+                "translate(#{ x },#{ y }) scale(#{ scale })"
+            focussed-nodes.select-all \rect .attr \fill, (n) ->
+                n |> term-color |> if n.is-centre then brighten else id
+
+    var cooldown
 
     focus-edges = ->
         some-lit = any (.highlight), edges
 
+        unless some-lit
+            clear-timeout cooldown
+
+        delay = if some-lit then 250ms else 0
+
+        cooldown := set-timeout (animate-focus some-lit), delay
+
+    animate-focus = (some-lit) -> ->
+
         duration = 100ms
-        delay = 200ms
         de-scale = Math.max 1, get-descale!
         max-i = nodes.length - 1
 
@@ -1418,7 +1410,6 @@ render-dag = (state, {reset, nodes, edges}) ->
 
         nodes-enter.transition!
             .duration duration * 2
-            .delay delay
             .attr \transform, ->
                 | not-focussed it => "translate(#{ it.dagre.x },#{ it.dagre.y })"
                 | otherwise => "translate(#{ it.dagre.x },#{ it.dagre.y }) scale(#{ de-scale })"
@@ -1430,7 +1421,6 @@ render-dag = (state, {reset, nodes, edges}) ->
 
         svg-edges.select-all \path
             .transition!
-                .delay delay
                 .duration duration
                 .attr \stroke-width, -> if it.highlight then 15px else 5px
                 .attr \stroke, ->
@@ -1447,7 +1437,6 @@ render-dag = (state, {reset, nodes, edges}) ->
         svg-edges.select-all \text
             .transition!
                 .duration duration
-                .delay delay
                 .attr \font-weight, -> if it.highlight then \bold else \normal
                 .attr \font-size, -> if it.highlight then 28px else 14px
 

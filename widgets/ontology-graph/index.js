@@ -5,7 +5,7 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, objectify, error, notify, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, annotateForCounts, draw, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, renderForce, drawDag, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY;
+  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, objectify, error, notify, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, spline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, annotateForCounts, draw, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
@@ -1724,14 +1724,6 @@ if (typeof window == 'undefined' || window === null) {
     }
     return tick;
   };
-  drawDag = function(directNodes, edges, nodeForIdent){
-    var graph, svg, svgGroup;
-    graph = makeGraph.apply(this, arguments);
-    svg = d3.select('svg');
-    svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
-    d3.selectAll(svg.node).attr('width', $('body').width()).attr('height', $('body').height());
-    return renderDag(svg, svgGroup, graph);
-  };
   makeGraph = function(directNodes, edges, nodeForIdent){
     var i$, len$, e, j$, ref$, len1$, prop, node, nodes, isRoot, isLeaf, n;
     for (i$ = 0, len$ = edges.length; i$ < len$; ++i$) {
@@ -1876,13 +1868,12 @@ if (typeof window == 'undefined' || window === null) {
     }
   };
   renderDag = function(state, arg$){
-    var reset, nodes, edges, svg, svgGroup, update, reRender, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, rects, dragCp, lineWrap, labels, applyLayout, maxY, zoom, deDup, toCombos, getOverlapping, getDescale, separateColliding, drawCollisions, explodify, fixDagBoxCollisions, focusEdges, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
+    var reset, nodes, edges, svg, svgGroup, update, reRender, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, rects, dragCp, lineWrap, labels, applyLayout, maxY, zoom, deDup, toCombos, getOverlapping, getDescale, separateColliding, drawCollisions, explodify, fixDagBoxCollisions, cooldown, focusEdges, animateFocus, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
     reset = arg$.reset, nodes = arg$.nodes, edges = arg$.edges;
     svg = d3.select('svg');
+    svg.selectAll('g').remove();
     svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
     d3.selectAll(svg.node()).attr('width', $('body').width()).attr('height', $('body').height());
-    svg.selectAll('g.node').remove();
-    svg.selectAll('g.edge').remove();
     update = function(){
       return doUpdate(svgGroup);
     };
@@ -2113,7 +2104,7 @@ if (typeof window == 'undefined' || window === null) {
       }
     };
     fixDagBoxCollisions = curry$(function(maxI, d, i){
-      var scale, halfPad, isFocussed, highlit, maxRounds, round, roundsPerRun;
+      var scale, halfPad, isFocussed, highlit, maxRounds, round, roundsPerRun, focussedNodes;
       if (i < maxI) {
         return;
       }
@@ -2138,100 +2129,108 @@ if (typeof window == 'undefined' || window === null) {
       }
       maxRounds = 50;
       round = 0;
-      roundsPerRun = 5;
+      roundsPerRun = 3;
+      focussedNodes = nodesEnter.filter(isFocussed);
       return explodify(highlit, round, roundsPerRun, maxRounds, function(){
-        return nodesEnter.each(function(n, i){
-          var fill, nodeSelection, ref$, x, y;
-          fill = (n.isCentre ? brighten : id)(
+        focussedNodes.attr('transform', function(n){
+          var ref$, x, y;
+          ref$ = toXywh(n.bounds), x = ref$.x, y = ref$.y;
+          return "translate(" + x + "," + y + ") scale(" + scale + ")";
+        });
+        return focussedNodes.selectAll('rect').attr('fill', function(n){
+          return (n.isCentre ? brighten : id)(
           termColor(
           n));
-          nodeSelection = d3.select(this);
-          if (isFocussed(n)) {
-            ref$ = toXywh(n.bounds), x = ref$.x, y = ref$.y;
-            nodeSelection.transition().duration(100).attr('transform', "translate(" + x + "," + y + ") scale(" + scale + ")");
-          }
-          return nodeSelection.selectAll('rect').attr('fill', fill);
         });
       });
     });
     focusEdges = function(){
-      var someLit, duration, delay, deScale, maxI, notFocussed;
+      var someLit, delay;
       someLit = any(function(it){
         return it.highlight;
       }, edges);
-      duration = 100;
-      delay = 200;
-      deScale = Math.max(1, getDescale());
-      maxI = nodes.length - 1;
-      notFocussed = function(it){
-        return !someLit || !any(function(it){
-          return it.highlight;
-        }, it.edges);
-      };
-      nodesEnter.transition().duration(duration * 2).delay(delay).attr('transform', function(it){
-        switch (false) {
-        case !notFocussed(it):
-          return "translate(" + it.dagre.x + "," + it.dagre.y + ")";
-        default:
-          return "translate(" + it.dagre.x + "," + it.dagre.y + ") scale(" + deScale + ")";
-        }
-      }).attr('opacity', function(it){
-        switch (false) {
-        case !!someLit:
-          return 1;
-        case !any(function(it){
+      if (!someLit) {
+        clearTimeout(cooldown);
+      }
+      delay = someLit ? 250 : 0;
+      return cooldown = setTimeout(animateFocus(someLit), delay);
+    };
+    animateFocus = function(someLit){
+      return function(){
+        var duration, deScale, maxI, notFocussed;
+        duration = 100;
+        deScale = Math.max(1, getDescale());
+        maxI = nodes.length - 1;
+        notFocussed = function(it){
+          return !someLit || !any(function(it){
             return it.highlight;
-          }, it.edges):
-          return 1;
-        default:
-          return 0.3;
-        }
-      }).each('end', someLit && deScale > 1
-        ? fixDagBoxCollisions(maxI)
-        : function(){});
-      svgEdges.selectAll('path').transition().delay(delay).duration(duration).attr('stroke-width', function(it){
-        if (it.highlight) {
-          return 15;
-        } else {
-          return 5;
-        }
-      }).attr('stroke', function(it){
-        switch (false) {
-        case !it.highlight:
-          return BRIGHTEN(linkStroke(it));
-        default:
-          return linkStroke(it);
-        }
-      }).attr('fill', function(it){
-        switch (false) {
-        case !it.highlight:
-          return BRIGHTEN(linkFill(it));
-        default:
-          return linkFill(it);
-        }
-      }).attr('opacity', function(it){
-        switch (false) {
-        case !(!someLit || it.highlight):
-          return 0.8;
-        case !someLit:
-          return 0.2;
-        default:
-          return 0.5;
-        }
-      });
-      return svgEdges.selectAll('text').transition().duration(duration).delay(delay).attr('font-weight', function(it){
-        if (it.highlight) {
-          return 'bold';
-        } else {
-          return 'normal';
-        }
-      }).attr('font-size', function(it){
-        if (it.highlight) {
-          return 28;
-        } else {
-          return 14;
-        }
-      });
+          }, it.edges);
+        };
+        nodesEnter.transition().duration(duration * 2).attr('transform', function(it){
+          switch (false) {
+          case !notFocussed(it):
+            return "translate(" + it.dagre.x + "," + it.dagre.y + ")";
+          default:
+            return "translate(" + it.dagre.x + "," + it.dagre.y + ") scale(" + deScale + ")";
+          }
+        }).attr('opacity', function(it){
+          switch (false) {
+          case !!someLit:
+            return 1;
+          case !any(function(it){
+              return it.highlight;
+            }, it.edges):
+            return 1;
+          default:
+            return 0.3;
+          }
+        }).each('end', someLit && deScale > 1
+          ? fixDagBoxCollisions(maxI)
+          : function(){});
+        svgEdges.selectAll('path').transition().duration(duration).attr('stroke-width', function(it){
+          if (it.highlight) {
+            return 15;
+          } else {
+            return 5;
+          }
+        }).attr('stroke', function(it){
+          switch (false) {
+          case !it.highlight:
+            return BRIGHTEN(linkStroke(it));
+          default:
+            return linkStroke(it);
+          }
+        }).attr('fill', function(it){
+          switch (false) {
+          case !it.highlight:
+            return BRIGHTEN(linkFill(it));
+          default:
+            return linkFill(it);
+          }
+        }).attr('opacity', function(it){
+          switch (false) {
+          case !(!someLit || it.highlight):
+            return 0.8;
+          case !someLit:
+            return 0.2;
+          default:
+            return 0.5;
+          }
+        });
+        return svgEdges.selectAll('text').transition().duration(duration).attr('font-weight', function(it){
+          if (it.highlight) {
+            return 'bold';
+          } else {
+            return 'normal';
+          }
+        }).attr('font-size', function(it){
+          if (it.highlight) {
+            return 28;
+          } else {
+            return 14;
+          }
+        });
+      };
     };
     highlightTargets = function(node){
       var moar, queue, maxMarked, marked, n;
