@@ -25,7 +25,7 @@ non-curated-evidence-codes = <[ IBA IBD IEA IGC IKR ISA ISO ISS RCA ]>
 
 node-padding = 10
 
-min-ticks = 25
+min-ticks = 20
 
 objectify = (key, value, list) --> list |> list-to-obj << map (-> [(key it), (value it)])
 
@@ -34,6 +34,10 @@ error = (msg) -> $.Deferred -> @reject msg
 # Two reasons: a) alert needs wrapping to prevent rebinding of this, and b) we can swap
 # out alert for a better notification system later.
 notify = -> alert it
+
+# Simple alias that makes for cleaner fmapping
+do-to = (f, x) -> f x
+or-fs = (fs, x) --> orList map (`do-to` x), fs
 
 interop-mines = objectify (.taxon-id), (({root, name}) -> (<<< {name}) new Service {root}), interop
 
@@ -129,18 +133,18 @@ fetch-names = (source, get-rows, identifier) -->
 do-line = d3.svg.line!
         .x (.x)
         .y (.y)
-        .interpolate \bundle
+        .interpolate \basis
 
-spline = ({source: {dagre:source}, target:{dagre:target}, dagre: {points}}) ->
+calculate-spline = (dir, {source: {dagre:source}, target:{dagre:target}, dagre: {points}}) -->
     p0 =
-        x: source.x + source.width / 2
-        y: source.y
-    # dagre.util.intersect-rect e.source.dagre, points[0]
+        | dir is \LR => x: (source.x + source.width / 2), y: source.y
+        | otherwise => x: target.x, y: (target.y + 10px + target.height / 2)
     pN =
-        x: target.x - 15px - target.width / 2
-        y: target.y
-    #dagre.util.intersect-rect e.target.dagre, points[* - 1]
-    do-line [p0] ++ points ++ [pN]
+        | dir is \LR => x: (target.x - 15px - target.width / 2), y: target.y
+        | otherwise => x: source.x, y: (source.y - source.height / 2)
+    ps = [p0] ++ points ++ [pN]
+
+    do-line if dir is \LR then ps else reverse ps
 
 translate-edge = (svg, e, dx, dy) -->
     for p in e.dagre.points
@@ -270,7 +274,7 @@ get-charge = (d) ->
     edge-bump = 10 * d.edges.length
     marked-bump = if d.marked then 2 else 1
     jiggle-bump = if query-params.jiggle is \strata then 20 else 0
-    k = 150
+    k = 250
     1 - (k + radius + root-bump + edge-bump) * marked-bump
 
 mark-depth = (node, depth-at-node, max-depth) ->
@@ -294,17 +298,14 @@ trim-graph-to-height = ({nodes, edges}, level) ->
 
     console.log "Trimming graph to #{ level }"
 
-    f = (.steps-from-leaf) >> (<= level)
+    at-or-below-height = (.steps-from-leaf) >> (<= level)
+    acceptable = or-fs [is-root, at-or-below-height]
 
     filtered =
-        nodes: filter f, nodes
-        edges: filter (-> all f, [it.source, it.target]), edges
+        nodes: filter acceptable, nodes
+        edges: filter (-> all acceptable, [it.source, it.target]), edges
 
-    console.log filtered.nodes.length, nodes.length
-
-    each filtered.nodes~push, filter is-root, nodes
-
-    for n in filtered.nodes when (not n.is-root) and any (not) . f, map (.target), n.edges
+    for n in filtered.nodes when (not n.is-root) and any (not) . acceptable, map (.target), n.edges
         elision = {source: n, target: n.root, label: \elision}
         filtered.edges.push elision
 
@@ -363,46 +364,66 @@ annotate-for-counts = (make-query, nodes) ->
 
     summarising.done (summary) -> each (-> it.add-count summary[it.id]), nodes
 
-draw =  (direct-nodes, edges, node-for-ident, symbol) ->
+class GraphState extends Backbone.Model
 
-    graph = make-graph ...
+    initialize: ->
+        @on 'annotated:height change:elision change:root change:all', @~update-graph
+        @update-graph!
 
-    all-nodes = graph.nodes.slice!
-    all-edges = graph.edges.slice!
-
-    state = new Backbone.Model {
-        view: (query-params.view or \force)
-        symbol: symbol
-        small-graph-threshold: 20
-        animating: \waiting
-        root: null
-        jiggle: (query-params.jiggle or \centre)
-        spline: (query-params.spline or \curved)
-        graph: graph
-        maxmarked: 20
-        zoom: 1
-        translate: [5, 5]
-        dimensions: {w: $(\body).width!, h: $(\body).height!}
-        elision: if query-params.elision then +query-params.elision else null
-        relationships: (sort unique map (.label), all-edges) ++ [\elision]
-    }
-
-    elide-graph = (s, level) ->
-        console.log "Eliding graph to #{ level }"
-        current-root = s.get \root
+    update-graph: ->
+        level = @get \elision
+        current-root = @get \root
+        {nodes:all-nodes, edges:all-edges} = @get \all
         nodes =
             | current-root => filter (is current-root) << (.root), all-nodes
             | otherwise => all-nodes.slice!
         edges =
             | current-root => filter (is current-root) << (.root) << (.target), all-edges
             | otherwise => all-edges.slice!
+        graph =
+            | level and any (.steps-from-leaf), nodes => trim-graph-to-height {nodes, edges}, level
+            | otherwise => {nodes, edges}
+        @set {graph}
 
-        s.set \graph, trim-graph-to-height {nodes, edges}, level
+# Take a set of promises, and report the proportion (as a number 0 .. 1)
+# of them that are completed, when they each finish, and report
+# that all are complete (ie. 1) if any of them fail.
+monitor-progress = (report, stages) -->
+    n-stages = stages.length
+    complete = 0
+    stage-complete = -> report ++complete / n-stages
+    on-error = -> report 1
 
-    state.on \change:elision, elide-graph
-    state.on \change:view, -> state.set \graph, {nodes: all-nodes, edges: all-edges}
+    report complete
+    each (.done stage-complete), stages
+    each (.fail on-error), stages
 
-    annotate-for-counts query, all-nodes
+draw =  (direct-nodes, edges, node-for-ident, symbol) ->
+
+    graph = make-graph ...
+
+    state = new GraphState {
+        view: (query-params.view or \dag)
+        symbol: symbol
+        small-graph-threshold: 20
+        animating: \waiting
+        root: null
+        jiggle: (query-params.jiggle) #or \centre)
+        spline: (query-params.spline or \curved)
+        dag-direction: \LR
+        all: graph
+        maxmarked: 20
+        zoom: 1
+        tick-k: min-ticks
+        translate: [5, 5]
+        dimensions: {w: $(\body).width!, h: $(\body).height!}
+        elision: if query-params.elision then +query-params.elision else null
+        relationships: (sort unique map (.label), graph.edges) ++ [\elision]
+    }
+    window.GRAPH = state # just fro testing, TODO remove TODO
+
+
+    annotate-for-counts query, graph.nodes
 
     $ \.graph-control
         .show!
@@ -415,10 +436,21 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
         .val state.get \jiggle
         .on \change, -> state.set \jiggle, $(@).val!
 
-    $ \#switch-view-dag
-        .change (evt) -> state.set view: \dag if $(@).is \:checked
-    $ \#switch-view-force
-        .change (evt) -> state.set view: \force if $(@).is \:checked
+    switches =
+        '#switch-view-dag': {view: \dag}
+        '#switch-view-force': {view: \force}
+        '#switch-orient-lr': {dagDirection: \LR}
+        '#switch-orient-tb': {dagDirection: \TB}
+
+    for selector, state-args of switches
+        let args = state-args
+            $(selector).change -> state.set args if $(@).is \:checked
+
+    $ \#min-ticks
+        .val state.get \tickK
+        .change -> state.set tick-k: $(@).val!
+
+    state.on \change:tickK, flip $(\#min-ticks)~val
 
     state.on \change:jiggle, flip $(\#jiggle)~val
 
@@ -438,29 +470,15 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
         | root => root-selector.val root.id
         | otherwise => root-selector.val \null
 
-    state.on \change:root, (s, current-root) ->
-        if current-root
-            console.log "Filtering to #{ current-root.label }"
-            nodes = filter (is current-root) << (.root), all-nodes
-            edges = filter (is current-root) << (.root) << (.target), all-edges
-        else
-            nodes = all-nodes.slice!
-            edges = all-edges.slice!
-
-        level = state.get \elision
-        graph =
-            | level and any (.steps-from-leaf), nodes => trim-graph-to-height {nodes, edges}, level
-            | otherwise => {nodes, edges}
-        state.set \graph, graph
-
     elision-selector = $ \#elision
         ..on \change, -> state.set \elision, parse-int $(@).val!, 10
 
     state.on \change:elision, flip elision-selector~val
 
     set-timeout ( ->
-        annotate-for-height all-nodes
-        heights = sort unique map (.steps-from-leaf), all-nodes
+        annotate-for-height graph.nodes
+        heights = sort unique map (.steps-from-leaf), graph.nodes
+
         for h in heights
             text = switch h
                 | 0 => "Show all terms"
@@ -470,7 +488,7 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
         state.trigger \controls:changed
         if level = state.get \elision
             elision-selector.val level
-            elide-graph state, level
+            state.trigger \annotated:height
     ), 0
 
     set-up-ontology-table!
@@ -480,22 +498,29 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
 
     state.on \graph:marked, show-ontology-table
 
-    state.on \change:graph, ->
+    render = ->
         | state.get(\view) is \force => render-force ...
         | otherwise => render-dag ...
 
+    state.on \change:graph, -> set-timeout (-> render state, state.get \graph), 0
+    state.on 'change:view change:dagDirection', -> set-timeout (-> render state, state.get \graph), 0
+
     state.on \controls:changed -> $ document .foundation!
 
-    roots = filter is-root, all-nodes
+    roots = filter is-root, graph.nodes
 
     for r in roots ++ [ { id: \null, label:"All" } ]
         root-selector.append """<option value="#{ r.id }">#{ r.label }</option>"""
     state.trigger \controls:changed
 
     if query-params.all-roots
-        render-force state, graph
+        render state, state.get \graph
     else
         state.set \root, roots[0]
+
+    state.on 'change:homologueProgress', (s, progress) ->
+        $('#homologue-progress .meter').css \width, "#{ progress * 100}%"
+        $('#homologue-progress').toggle progress < 1
 
     function set-up-interop
         $ul = $ \#interop-sources
@@ -511,10 +536,13 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
 
         each $ul~append, map to-option, interop
 
+    monitor-homologue-progress = monitor-progress state.set \homologueProgress, _
+
     function add-homologues source
+
         service = interop-mines[source]
         rs = flat-rows service~rows
-        merge-graph = merge-graphs {nodes: all-nodes, edges: all-edges}
+        merge-graph = merge-graphs state.get \all
 
         getting-homologues = get-homologues source
             |> flat-rows rows
@@ -527,14 +555,14 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
             .then service~rows . whole-graph-q
             .then map row-to-node
 
+        monitor-homologue-progress [getting-homologues, getting-direct, getting-all, getting-names, getting-edges]
+
         $.when getting-direct, getting-edges, getting-names
             .then make-graph >> merge-graph
             .fail notify
-            .done ({nodes, edges}) ->
-                all-nodes := nodes.slice!
-                all-edges := edges.slice!
-                elide-graph state, state.get \elision
-                annotate-for-counts service~query, all-nodes
+            .done (merged) ->
+                state.set \all, merged
+                annotate-for-counts service~query, merged.nodes
 
     function set-up-ontology-table
         {w, h} = state.get \dimensions
@@ -675,7 +703,7 @@ draw-relationship-legend = (state, palette, svg) -->
             state.trigger \relationship:highlight, null
             d3.select(@).select-all(\rect).attr \fill, palette
         .on \click, (rel) ->
-            for e in state.get(\graph).edges when e.label is rel
+            for e in state.get(\all).edges when e.label is rel
                 for n in [e.source, e.target]
                     n.marked = true
             state.trigger \nodes:marked
@@ -792,8 +820,14 @@ centrify = (state) ->
     centre =
         x: half dimensions.w
         y: half dimensions.h
-    for leaf in graph.nodes when is-leaf leaf
-        mv-towards -0.0005, centre, leaf
+    max-h = maximum map (.steps-from-leaf), graph.nodes
+    for leaf in graph.nodes when not is-root leaf
+        base-speed = -0.0003
+        speed =
+            | leaf.is-leaf => base-speed
+            | max-h => base-speed * (1 - leaf.steps-from-leaf * 1 / max-h)
+            | otherwise => 0
+        mv-towards speed, centre, leaf
 
 unfix = !(state) -> state.get \graph |> (.nodes) |> filter is-root |> each (<<< fixed: false)
 
@@ -826,8 +860,7 @@ render-force = (state, graph) ->
 
     svg = d3.select \svg
 
-    svg.select-all(\g.ontology).remove!
-    svg.select-all(\g.root-label).remove!
+    svg.select-all(\g).remove!
 
     throbber = svg.append \use
         .attr \x, dimensions.w / 2 - 150
@@ -975,10 +1008,11 @@ render-force = (state, graph) ->
 
     state.on \nodes:marked, update-marked
 
-    state.once \force:ready, -> centre-and-zoom (.x), (.y), state, zoom
+    state.once \force:ready, -> centre-and-zoom (.x), (.y), state, graph.nodes, zoom
 
     function is-ready
-        ready = state.get(\animating) is \paused or tick-count > min-ticks * ln length state.get(\graph).edges
+        {animating, tick-k, graph} = state.toJSON!
+        ready = animating is \paused or tick-count > tick-k * ln length graph.edges
         if ready
             state.trigger \force:ready
         return ready
@@ -1157,28 +1191,32 @@ do-update = (group) ->
 get-min-max-size = (f, coll) ->
     map f, coll |> -> {min: (minimum it), max: (maximum it)} |> -> it <<< size: it.max - it.min
 
-centre-and-zoom = (xf, yf, state, zoom) ->
-    graph = state.get \graph
-    dimensions = state.get \dimensions
-    [x, y] = [ get-min-max-size f, graph.nodes for f in [xf, yf] ]
+centre-and-zoom = (xf, yf, state, nodes, zoom) ->
+    padding = 50
+    {h, w}:dimensions = state.get \dimensions
+    [x, y] = [ get-min-max-size f, nodes for f in [xf, yf] ]
 
-    dim = if dimensions.h < dimensions.w then \h
+    display-ratio = w / h
+    graph-ratio   = x.size / y.size
+
+    # Are we operating vertically or horizontally
     [dim, val] =
-        | x.size > dimensions.w and x.size > y.size => [\w, x.size]
-        | dimensions.h < dimensions.w => [\h, y.size]
-        | otherwise => [\w, x.size]
-    console.log "Current zoom level: #{ state.get \zoom }"
-    console.log "y.size = #{ y.size }, height = #{ dimensions.h }"
-    console.log "We really need a #{ dim } of at least #{ val }"
-    scale = dimensions[dim] / (val + 300)
-    console.log "Ideal fit zoom is #{ scale }"
-    translate = switch dim
-        | \w => [ 5, y.min + y.size / 2]
-        | \h => [ x.min + x.size / 2, 5]
-    if scale < 1
-        zoom.scale scale
-        zoom.translate translate
-        state.set {zoom: scale, translate}
+        | display-ratio < graph-ratio => [w, x.size]
+        | otherwise => [h, y.size]
+
+    # Calculate scale and translation
+    scale = dim * 0.9 / (val + padding * 2)
+    translate = map (+ padding) << (0 -) << (.min), [x, y]
+        ..0 += w / 2 - scale * x.size / 2
+        ..1 += h / 2 - scale * y.size / 2 - padding * scale
+
+    console.log \translate, translate
+    console.log \scale, scale
+
+    # Apply
+    zoom.scale scale
+    zoom.translate translate
+    state.set {zoom: scale, translate}
 
 render-dag = (state, {reset, nodes, edges}) ->
 
@@ -1190,8 +1228,8 @@ render-dag = (state, {reset, nodes, edges}) ->
         .attr \width, $(\body).width()
         .attr \height, $(\body).height()
 
-
     update = -> do-update svg-group
+    spline = calculate-spline state.get \dagDirection
 
     re-render = -> render-dag state, it
 
@@ -1236,8 +1274,9 @@ render-dag = (state, {reset, nodes, edges}) ->
             filtered = only-marked nodes, edges
             re-render filtered <<< {reset}
 
+    marker-end = if state.get(\dagDirection) is \LR then 'url(#Triangle)' else 'url(#TriangleDown)'
     edges-enter.append \path
-        .attr \marker-end, 'url(#Triangle)'
+        .attr \marker-end, marker-end
         .attr \stroke-width, 5px
         .attr \opacity, 0.8
         .attr \stroke, link-stroke
@@ -1297,13 +1336,24 @@ render-dag = (state, {reset, nodes, edges}) ->
 
     dagre.layout!
         .nodeSep 50
-        .edgeSep 20
+        .edgeSep 50
         .rankSep 75
-        .rankDir \LR
+        .rankDir state.get(\dagDirection)
         .nodes nodes
         .edges edges
         .debugLevel 1
         .run!
+
+    svg.call draw-relationship-legend state, relationship-palette
+
+    if state.get(\dagDirection) isnt \LR
+        {h} = state.get \dimensions
+        invert-node = -> h - it.dagre.y
+        invert-points = reverse << map ({y}:pt) -> pt <<< y: h - y
+        for n in nodes
+            n.dagre.y = invert-node n
+        for e in edges
+            e.dagre.points = invert-points e.dagre.points
 
     # Apply the layout
     do apply-layout = ->
@@ -1323,7 +1373,7 @@ render-dag = (state, {reset, nodes, edges}) ->
 
     svg.call zoom
 
-    centre-and-zoom ((.x) << (.dagre)), ((.y) << (.dagre)), state, zoom
+    centre-and-zoom ((.x) << (.dagre)), ((.y) << (.dagre)), state, nodes, zoom
 
     de-dup = (f) -> fold ((ls, e) -> if (any (is f e), map f, ls) then ls.slice! else ls ++ [e]), []
     to-combos = de-dup (join \-) << sort << (map (.id))
@@ -1375,7 +1425,7 @@ render-dag = (state, {reset, nodes, edges}) ->
 
         return unless highlit.length
 
-        max-rounds = 50
+        max-rounds = 80
         round = 0
         rounds-per-run = 6
 
@@ -1393,9 +1443,10 @@ render-dag = (state, {reset, nodes, edges}) ->
                 "translate(#{ x },#{ y }) scale(#{ scale })"
             focussed-nodes.select-all \rect .attr \fill, (n) ->
                 n |> term-color |> if n.is-centre then brighten else id
-            # Can't get this to work without crashing...
-            #affected-edges.each (edge, i) ->
-            #    set-timeout (~> d3.select(@).attr \d, reroute edge), 0
+            # Can't get this to work without crashing, on my laptop at least...
+            affected-edges.each (edge, i) ->
+                f = ~> d3.select(@).attr \d, reroute edge
+                set-timeout f, 0
 
     var cooldown
 
@@ -1431,7 +1482,7 @@ render-dag = (state, {reset, nodes, edges}) ->
         edge-paths = svg-edges.select-all \path
             .transition!
                 .duration duration
-                .attr \stroke-width, -> if it.highlight then 15px else 5px
+                .attr \stroke-width, -> if it.highlight then 10px * de-scale else 5px
                 .attr \stroke, ->
                     | it.highlight => BRIGHTEN link-stroke it
                     | otherwise    => link-stroke it
@@ -1444,8 +1495,8 @@ render-dag = (state, {reset, nodes, edges}) ->
                     | otherwise => 0.5
 
         # see fix-dag-box-collisions
-        #unless some-lit
-        #    edge-paths.attr \d, spline
+        unless some-lit
+            edge-paths.attr \d, spline
 
         svg-edges.select-all \text
             .transition!
@@ -1558,16 +1609,23 @@ current-symbol = -> query-params.symbol or \bsk
 main = (symbol) ->
     console.log "Drawing graph for #{ symbol }"
     fetch-flat = flat-rows rows
+    $progress = $('#dag .progress')
+    monitor = monitor-progress (progress) ->
+        console.log "Main progress: #{ progress }"
+        $progress.find(\.meter).css \width, "#{ progress * 100}%"
+        $progress.toggle progress < 1
 
     getting-direct = symbol |> direct-terms |> fetch-flat
     getting-all = symbol |> all-go-terms |> fetch-flat
     getting-names = getting-all.then fetch-names \flymine, rows
     getting-edges = getting-all.then(rows << whole-graph-q).then map row-to-node
 
+    monitor [getting-direct, getting-all, getting-names, getting-edges]
+
     $.when(getting-direct, getting-edges, getting-names, symbol).then draw
 
 # Let's go!
-main current-symbol!
+$ -> main current-symbol!
 
 ### Utils.
 
