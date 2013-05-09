@@ -1377,9 +1377,15 @@ render-dag = (state, {reset, nodes, edges}) ->
 
         max-rounds = 50
         round = 0
-        rounds-per-run = 3
+        rounds-per-run = 6
 
         focussed-nodes = nodes-enter.filter is-focussed
+        affected-edges = edges-enter.filter (.highlight)
+            .select-all \path
+
+        reroute = ({source, target, dagre}) ->
+            [s, t] = map (-> dagre: to-xywh it.bounds), [source, target]
+            spline {dagre, source: s, target: t}
 
         explodify highlit, round, rounds-per-run, max-rounds, ->
             focussed-nodes.attr \transform, (n) ->
@@ -1387,6 +1393,9 @@ render-dag = (state, {reset, nodes, edges}) ->
                 "translate(#{ x },#{ y }) scale(#{ scale })"
             focussed-nodes.select-all \rect .attr \fill, (n) ->
                 n |> term-color |> if n.is-centre then brighten else id
+            # Can't get this to work without crashing...
+            #affected-edges.each (edge, i) ->
+            #    set-timeout (~> d3.select(@).attr \d, reroute edge), 0
 
     var cooldown
 
@@ -1419,7 +1428,7 @@ render-dag = (state, {reset, nodes, edges}) ->
                 | otherwise => 0.3
             .each \end, if (some-lit and de-scale > 1) then fix-dag-box-collisions max-i else (->)
 
-        svg-edges.select-all \path
+        edge-paths = svg-edges.select-all \path
             .transition!
                 .duration duration
                 .attr \stroke-width, -> if it.highlight then 15px else 5px
@@ -1434,6 +1443,10 @@ render-dag = (state, {reset, nodes, edges}) ->
                     | some-lit => 0.2
                     | otherwise => 0.5
 
+        # see fix-dag-box-collisions
+        #unless some-lit
+        #    edge-paths.attr \d, spline
+
         svg-edges.select-all \text
             .transition!
                 .duration duration
@@ -1446,7 +1459,7 @@ render-dag = (state, {reset, nodes, edges}) ->
         moar = (n) -> reject (is n), map (.target), n.edges
         node.is-centre = true
         queue = [node]
-        max-marked = 25
+        max-marked = 15 # Crashing the browser with too many...
         marked = 0
 
         while (n = queue.shift!) and marked++ < max-marked

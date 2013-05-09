@@ -2104,7 +2104,7 @@ if (typeof window == 'undefined' || window === null) {
       }
     };
     fixDagBoxCollisions = curry$(function(maxI, d, i){
-      var scale, halfPad, isFocussed, highlit, maxRounds, round, roundsPerRun, focussedNodes;
+      var scale, halfPad, isFocussed, highlit, maxRounds, round, roundsPerRun, focussedNodes, affectedEdges, reroute;
       if (i < maxI) {
         return;
       }
@@ -2129,8 +2129,25 @@ if (typeof window == 'undefined' || window === null) {
       }
       maxRounds = 50;
       round = 0;
-      roundsPerRun = 3;
+      roundsPerRun = 6;
       focussedNodes = nodesEnter.filter(isFocussed);
+      affectedEdges = edgesEnter.filter(function(it){
+        return it.highlight;
+      }).selectAll('path');
+      reroute = function(arg$){
+        var source, target, dagre, ref$, s, t;
+        source = arg$.source, target = arg$.target, dagre = arg$.dagre;
+        ref$ = map(function(it){
+          return {
+            dagre: toXywh(it.bounds)
+          };
+        }, [source, target]), s = ref$[0], t = ref$[1];
+        return spline({
+          dagre: dagre,
+          source: s,
+          target: t
+        });
+      };
       return explodify(highlit, round, roundsPerRun, maxRounds, function(){
         focussedNodes.attr('transform', function(n){
           var ref$, x, y;
@@ -2157,7 +2174,7 @@ if (typeof window == 'undefined' || window === null) {
     };
     animateFocus = function(someLit){
       return function(){
-        var duration, deScale, maxI, notFocussed;
+        var duration, deScale, maxI, notFocussed, edgePaths;
         duration = 100;
         deScale = Math.max(1, getDescale());
         maxI = nodes.length - 1;
@@ -2187,7 +2204,7 @@ if (typeof window == 'undefined' || window === null) {
         }).each('end', someLit && deScale > 1
           ? fixDagBoxCollisions(maxI)
           : function(){});
-        svgEdges.selectAll('path').transition().duration(duration).attr('stroke-width', function(it){
+        edgePaths = svgEdges.selectAll('path').transition().duration(duration).attr('stroke-width', function(it){
           if (it.highlight) {
             return 15;
           } else {
@@ -2244,7 +2261,7 @@ if (typeof window == 'undefined' || window === null) {
       };
       node.isCentre = true;
       queue = [node];
-      maxMarked = 25;
+      maxMarked = 15;
       marked = 0;
       while ((n = queue.shift()) && marked++ < maxMarked) {
         each((fn$), reject(compose$([(fn1$), fn2$]), n.edges));
