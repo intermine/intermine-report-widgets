@@ -5,7 +5,7 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, objectify, error, notify, doTo, orFs, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, annotateForCounts, GraphState, monitorProgress, draw, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
+  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, objectify, error, notify, doTo, orFs, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, draw, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
@@ -149,10 +149,11 @@ if (typeof window == 'undefined' || window === null) {
   Node = (function(){
     Node.displayName = 'Node';
     var prototype = Node.prototype, constructor = Node;
-    function Node(label, id, origin){
+    function Node(label, id, description, origin){
       var this$ = this instanceof ctor$ ? this : new ctor$;
       this$.label = label;
       this$.id = id;
+      this$.description = description;
       this$.counts = [];
       this$.sources = [origin];
       this$.edges = [];
@@ -180,13 +181,13 @@ if (typeof window == 'undefined' || window === null) {
     };
     return Node;
   }());
-  newNode = curry$(function(source, id, label){
-    return Node(label, id, source);
+  newNode = curry$(function(source, id, label, description){
+    return Node(label, id, description, source);
   });
   fetchNames = curry$(function(source, getRows, identifier){
     var q, node;
     q = {
-      select: ['identifier', 'name'],
+      select: ['identifier', 'name', 'description'],
       from: 'OntologyTerm',
       where: {
         identifier: identifier
@@ -333,7 +334,7 @@ if (typeof window == 'undefined' || window === null) {
       }, n.edges));
     };
     while (n = queue.shift()) {
-      n.isReachable = true;
+      n.marked = true;
       results$.push(each(bind$(queue, 'push'), moar(n)));
     }
     return results$;
@@ -342,6 +343,7 @@ if (typeof window == 'undefined' || window === null) {
     var i$, len$, n, results$ = [];
     for (i$ = 0, len$ = nodes.length; i$ < len$; ++i$) {
       n = nodes[i$];
+      n.marked = false;
       n.isReachable = false;
       n.isFocus = false;
       n.isSource = false;
@@ -352,11 +354,11 @@ if (typeof window == 'undefined' || window === null) {
   onlyMarked = function(nodes, edges){
     return {
       nodes: filter(function(it){
-        return it.isReachable;
+        return it.marked;
       }, nodes),
       edges: filter(compose$([
         function(it){
-          return it.isReachable;
+          return it.marked;
         }, function(it){
           return it.source;
         }
@@ -695,6 +697,11 @@ if (typeof window == 'undefined' || window === null) {
       return it.target;
     }
   });
+  edgeToNodes = function(arg$){
+    var source, target;
+    source = arg$.source, target = arg$.target;
+    return [source, target];
+  };
   annotateForCounts = function(makeQuery, nodes){
     var makingQ, summarising;
     makingQ = makeQuery(countQuery(map(function(it){
@@ -1005,7 +1012,7 @@ if (typeof window == 'undefined' || window === null) {
         case !isOpen:
           return w - 50;
         default:
-          return w - 60 - $('#ontology-table .marked-terms').outerWidth();
+          return w - 50 - $('#ontology-table .section-container').outerWidth();
         }
       };
       x$ = table = $('#ontology-table');
@@ -1028,7 +1035,7 @@ if (typeof window == 'undefined' || window === null) {
       });
     }
     function showOntologyTable(){
-      var ref$, w, h, markedStatements, evt, toRow, x$, $tbl;
+      var ref$, w, h, markedStatements, evt, linkRow, termRow, x$, $stmTbl, y$, $trmTbl;
       ref$ = state.get('dimensions'), w = ref$.w, h = ref$.h;
       markedStatements = filter(compose$([
         function(it){
@@ -1042,9 +1049,9 @@ if (typeof window == 'undefined' || window === null) {
       }(
       state.get('graph')));
       evt = 'relationship:highlight';
-      toRow = function(link){
+      linkRow = function(link){
         var $row;
-        $row = $("<tr>\n    <td>" + link.source.label + "</td>\n    <td>" + link.label + "</td>\n    <td>" + link.target.label + "</td>\n</tr>");
+        $row = $("<tr>\n    <td>" + link.source.id + ": " + link.source.label + "</td>\n    <td>" + link.label + "</td>\n    <td>" + link.target.id + ": " + link.target.label + "</td>\n</tr>");
         return $row.on('mouseout', function(){
           $row.toggleClass('highlit', false);
           return state.trigger(evt, null);
@@ -1053,10 +1060,25 @@ if (typeof window == 'undefined' || window === null) {
           return state.trigger(evt, link);
         });
       };
-      x$ = $tbl = $('#ontology-table .marked-terms');
+      termRow = function(term){
+        var id, label, description, counts, sources, $row;
+        id = term.id, label = term.label, description = term.description, counts = term.counts, sources = term.sources;
+        $row = $("<tr>\n    <td>" + id + "</td>\n    <td>" + label + "</td>\n    <td>" + description + "</td>\n    <td>" + sum(counts) + "</td>\n    <td>" + sources + "</td>\n</tr>");
+        return $row.on('mouseout', function(){
+          $row.toggleClass('highlit', false);
+          return state.trigger('term:highlight', null);
+        }).on('mouseover', function(){
+          $row.toggleClass('highlit', true);
+          return state.trigger('term:highlight', term);
+        });
+      };
+      x$ = $stmTbl = $('#ontology-table .marked-statements');
       x$.find('tbody').empty();
-      each(bind$($tbl, 'append'), map(toRow, markedStatements));
-      return $('#ontology-table').toggle(markedStatements.length > 0);
+      y$ = $trmTbl = $('#ontology-table .marked-terms');
+      y$.find('tbody').empty();
+      each(compose$([bind$($stmTbl, 'append'), linkRow]), markedStatements);
+      each(compose$([bind$($trmTbl, 'append'), termRow]), unique(concatMap(edgeToNodes, markedStatements)));
+      return $('#ontology-table').toggle(markedStatements.length > 0).foundation('section', 'reflow');
     }
     return showOntologyTable;
     function fn$(args, selector, stateArgs){
@@ -1360,6 +1382,23 @@ if (typeof window == 'undefined' || window === null) {
     }(
     state.get('graph'))));
   };
+  relationshipTest = curry$(function(link, defVal, x){
+    switch (false) {
+    case !(link && link.label):
+      return link === x;
+    case !link:
+      return link === x.label;
+    default:
+      return defVal;
+    }
+  });
+  colourFilter = curry$(function(test, x){
+    if (test(x)) {
+      return brighten;
+    } else {
+      return id;
+    }
+  });
   renderForce = function(state, graph){
     var dimensions, force, svg, throbber, getLabelFontSize, zoom, relationships, svgGroup, link, getLabelId, node, nG, texts, tickCount;
     if (graph.edges.length > 250 && !state.has('elision')) {
@@ -1485,29 +1524,8 @@ if (typeof window == 'undefined' || window === null) {
     force.start();
     state.on('relationship:highlight', function(rel){
       var test, colFilt;
-      test = (function(){
-        switch (false) {
-        case !(rel && rel.label):
-          return function(it){
-            return it === rel;
-          };
-        case !rel:
-          return function(it){
-            return it.label === rel;
-          };
-        default:
-          return function(){
-            return false;
-          };
-        }
-      }());
-      colFilt = function(it){
-        if (test(it)) {
-          return brighten;
-        } else {
-          return id;
-        }
-      };
+      test = relationshipTest(rel, false);
+      colFilt = colourFilter(test);
       link.attr('fill', function(d){
         return colFilt(d)(
         linkFill(d));
@@ -1921,6 +1939,7 @@ if (typeof window == 'undefined' || window === null) {
     ]), [x, y]);
     x$[0] += w / 2 - scale * x.size / 2;
     x$[1] += h / 2 - scale * y.size / 2 - padding * scale;
+    console.log("x.min = " + x.min + ", y.min = " + y.min);
     console.log('translate', translate);
     console.log('scale', scale);
     zoom.scale(scale);
@@ -1931,7 +1950,7 @@ if (typeof window == 'undefined' || window === null) {
     });
   };
   renderDag = function(state, arg$){
-    var reset, nodes, edges, svg, svgGroup, update, spline, reRender, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, markerEnd, rects, dragCp, lineWrap, labels, h, invertNode, invertPoints, i$, len$, n, e, applyLayout, maxY, zoom, deDup, toCombos, getOverlapping, getDescale, separateColliding, drawCollisions, explodify, fixDagBoxCollisions, cooldown, focusEdges, animateFocus, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
+    var reset, nodes, edges, svg, svgGroup, update, spline, reRender, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, markerEnd, rects, dragCp, lineWrap, labels, h, yStats, invertScale, invertNode, invertPoints, i$, len$, n, e, applyLayout, maxY, zoom, deDup, toCombos, getOverlapping, getDescale, separateColliding, drawCollisions, explodify, fixDagBoxCollisions, cooldown, focusEdges, animateFocus, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
     reset = arg$.reset, nodes = arg$.nodes, edges = arg$.edges;
     svg = d3.select('svg');
     svg.selectAll('g').remove();
@@ -1972,9 +1991,57 @@ if (typeof window == 'undefined' || window === null) {
         return reset();
       } else {
         markReachable(node);
+        state.trigger('graph:marked');
         filtered = onlyMarked(nodes, edges);
         return reRender((filtered.reset = reset, filtered));
       }
+    });
+    state.on('relationship:highlight', function(link){
+      var test, nodeTest, colFilt;
+      test = relationshipTest(link, true);
+      nodeTest = compose$([
+        any(test), function(it){
+          return it.edges;
+        }
+      ]);
+      colFilt = colourFilter(test);
+      nodesEnter.classed('highlight', nodeTest).attr('opacity', function(node){
+        if (nodeTest(node)) {
+          return 1;
+        } else {
+          return 0.5;
+        }
+      });
+      return edgesEnter.attr('opacity', function(e){
+        if (test(e)) {
+          return 0.8;
+        } else {
+          return 0.2;
+        }
+      }).attr('stroke', function(e){
+        return colFilt(e)(
+        linkStroke(e));
+      });
+    });
+    state.on('term:highlight', function(node){
+      var scale;
+      scale = getDescale();
+      return nodesEnter.classed('highlight', (function(it){
+        return it === node;
+      })).attr('opacity', function(datum){
+        if (!node || datum === node) {
+          return 1;
+        } else {
+          return 0.5;
+        }
+      }).attr('transform', function(it){
+        switch (false) {
+        case it !== node:
+          return "translate(" + it.dagre.x + "," + it.dagre.y + "), scale(" + scale + ")";
+        default:
+          return "translate(" + it.dagre.x + "," + it.dagre.y + ")";
+        }
+      });
     });
     markerEnd = state.get('dagDirection') === 'LR' ? 'url(#Triangle)' : 'url(#TriangleDown)';
     edgesEnter.append('path').attr('marker-end', markerEnd).attr('stroke-width', 5).attr('opacity', 0.8).attr('stroke', linkStroke);
@@ -2051,14 +2118,22 @@ if (typeof window == 'undefined' || window === null) {
     svg.call(drawRelationshipLegend(state, relationshipPalette));
     if (state.get('dagDirection') !== 'LR') {
       h = state.get('dimensions').h;
+      yStats = getMinMaxSize(compose$([
+        function(it){
+          return it.y;
+        }, function(it){
+          return it.dagre;
+        }
+      ]), nodes);
+      invertScale = d3.scale.linear().domain([yStats.min, yStats.max]).range([h * 0.9, 0]);
       invertNode = function(it){
-        return h - it.dagre.y;
+        return invertScale(it.dagre.y);
       };
       invertPoints = compose$([
         reverse, map(function(pt){
           var y;
           y = pt.y;
-          return pt.y = h - y, pt;
+          return pt.y = invertScale(y), pt;
         })
       ]);
       for (i$ = 0, len$ = nodes.length; i$ < len$; ++i$) {

@@ -97,7 +97,7 @@ homologue-query = (symbol, targetOrganism) -->
 #'relations.relationship': \is_a
 
 class Node
-    (@label, @id, origin) ~>
+    (@label, @id, @description, origin) ~>
         @counts = []
         @sources = [origin]
         @edges = []
@@ -117,12 +117,12 @@ class Node
 
     add-count: (c) -> @counts.push c if c?
 
-new-node = (source, id, label) --> Node label, id, source
+new-node = (source, id, label, description) --> Node label, id, description, source
 
 # Get all the names for our ontology terms in one fell swoop, and build a mapping.
 fetch-names = (source, get-rows, identifier) -->
     q =
-        select: <[ identifier name ]>
+        select: <[ identifier name description ]>
         from: \OntologyTerm
         where: {identifier}
 
@@ -199,19 +199,20 @@ mark-reachable = (node) ->
     queue = [node]
     moar = (n) -> reject (is n), map (.target), n.edges
     while n = queue.shift!
-        n.is-reachable = true
+        n.marked = true
         each queue~push, moar n
 
 unmark = (nodes) ->
     for n in nodes
+        n.marked = false
         n.is-reachable = false
         n.is-focus = false
         n.is-source = false
         n.is-target = false
 
 only-marked = (nodes, edges) ->
-    nodes: filter (.is-reachable), nodes
-    edges: filter (.is-reachable) << (.source), edges
+    nodes: filter (.marked), nodes
+    edges: filter (.marked) << (.source), edges
 
 # Roots are those nodes that only have edges coming in, not going out.
 find-roots = ({nodes}) -> [n for n in nodes when all ((is n) << (.source)), n.edges]
@@ -355,6 +356,8 @@ merge-graphs = (left, right) -->
         console.log "#{ n.id }:#{ n.label } (#{ n.root.label }) is from #{ n.sources }"
     console.log "There are #{ length filter (> 1) . (.length) . (.sources), ret.nodes } merged nodes"
     return ret
+
+edge-to-nodes = ({source, target}) -> [source, target]
 
 annotate-for-counts = (make-query, nodes) ->
     making-q = make-query count-query map (.id), nodes
@@ -568,7 +571,7 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
         {w, h} = state.get \dimensions
         get-left = (is-open) ->
             | is-open => w - 50
-            | otherwise => w - 60 - $('#ontology-table .marked-terms').outer-width!
+            | otherwise => w - 50 - $('#ontology-table .section-container').outer-width!
         table = $ \#ontology-table
             ..css top: (0.05 * h), left: (get-left true), height: (0.9 * h), width: (0.6 * w)
 
@@ -584,23 +587,41 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
         {w, h} = state.get \dimensions
         marked-statements = state.get \graph |> (.edges) |> filter (.marked) . (.source)
         evt = \relationship:highlight
-        to-row = (link) ->
+        link-row = (link) ->
             $row = $ """
                 <tr>
-                    <td>#{ link.source.label }</td>
+                    <td>#{ link.source.id }: #{ link.source.label }</td>
                     <td>#{ link.label }</td>
-                    <td>#{ link.target.label }</td>
+                    <td>#{ link.target.id}: #{ link.target.label }</td>
                 </tr>
             """
             $row.on \mouseout, -> $row.toggle-class(\highlit, false); state.trigger evt, null
                 .on \mouseover, -> $row.toggle-class(\highlit, true); state.trigger evt, link
 
-        $tbl = $ '#ontology-table .marked-terms'
+        term-row = ({id, label, description, counts, sources}:term) ->
+            $row = $ """
+                <tr>
+                    <td>#{ id }</td>
+                    <td>#{ label }</td>
+                    <td>#{ description }</td>
+                    <td>#{ sum counts }</td>
+                    <td>#{ sources }</td>
+                </tr>
+            """
+            $row.on \mouseout, -> $row.toggle-class(\highlit, false); state.trigger \term:highlight, null
+                .on \mouseover, -> $row.toggle-class(\highlit, true); state.trigger \term:highlight, term
+
+        $stm-tbl = $ '#ontology-table .marked-statements'
+            ..find \tbody .empty!
+        $trm-tbl =  $ '#ontology-table .marked-terms'
             ..find \tbody .empty!
 
-        each $tbl~append, map to-row, marked-statements
+        each $stm-tbl~append << link-row, marked-statements
+        each $trm-tbl~append << term-row, unique concat-map edge-to-nodes, marked-statements
 
-        $ \#ontology-table .toggle marked-statements.length > 0
+        $ \#ontology-table
+            .toggle marked-statements.length > 0
+            .foundation \section, \reflow
 
 # The following would make good tests...
 #console.log fold ((m, depth) -> m[depth] = (m[depth] or 0) + 1; m), {}, map minimum << (.depths), graph.nodes
@@ -831,6 +852,12 @@ centrify = (state) ->
 
 unfix = !(state) -> state.get \graph |> (.nodes) |> filter is-root |> each (<<< fixed: false)
 
+relationship-test = (link, def-val, x) -->
+    | link and link.label => link is x
+    | link                => link is x.label
+    | otherwise           => def-val
+
+colour-filter = (test, x) --> if test x then brighten else id
 
 render-force = (state, graph) ->
 
@@ -997,11 +1024,8 @@ render-force = (state, graph) ->
     force.start!
 
     state.on \relationship:highlight, (rel) ->
-        test =
-            | rel and rel.label => (-> it is rel)
-            | rel               => (-> it.label is rel)
-            | otherwise         => (-> false)
-        col-filt = -> if test it then brighten else id
+        test = relationship-test rel, false
+        col-filt = colour-filter test
 
         link.attr \fill, (d) -> link-fill d |> col-filt d
         link.classed \highlit, test
@@ -1210,6 +1234,8 @@ centre-and-zoom = (xf, yf, state, nodes, zoom) ->
         ..0 += w / 2 - scale * x.size / 2
         ..1 += h / 2 - scale * y.size / 2 - padding * scale
 
+    console.log "x.min = #{ x.min }, y.min = #{ y.min }"
+
     console.log \translate, translate
     console.log \scale, scale
 
@@ -1271,8 +1297,30 @@ render-dag = (state, {reset, nodes, edges}) ->
             reset!
         else
             mark-reachable node
+            state.trigger \graph:marked
             filtered = only-marked nodes, edges
             re-render filtered <<< {reset}
+
+    state.on \relationship:highlight, (link) ->
+        test = relationship-test link, true
+        node-test = (.edges) >> any test
+        col-filt = colour-filter test
+        nodes-enter
+            .classed \highlight, node-test
+            .attr \opacity, (node) -> if node-test node then 1 else 0.5
+        edges-enter
+            .attr \opacity, (e) -> if test e then 0.8 else 0.2
+            .attr \stroke, (e) -> link-stroke e |> col-filt e
+
+    state.on \term:highlight, (node) ->
+        scale = get-descale!
+        nodes-enter
+            .classed \highlight, (is node)
+            .attr \opacity, (datum) -> if (not node) or (datum is node) then 1 else 0.5
+            .attr \transform, ->
+                | it is node => "translate(#{ it.dagre.x },#{ it.dagre.y }), scale(#{ scale })"
+                | otherwise => "translate(#{ it.dagre.x },#{ it.dagre.y })"
+
 
     marker-end = if state.get(\dagDirection) is \LR then 'url(#Triangle)' else 'url(#TriangleDown)'
     edges-enter.append \path
@@ -1348,8 +1396,12 @@ render-dag = (state, {reset, nodes, edges}) ->
 
     if state.get(\dagDirection) isnt \LR
         {h} = state.get \dimensions
-        invert-node = -> h - it.dagre.y
-        invert-points = reverse << map ({y}:pt) -> pt <<< y: h - y
+        y-stats = get-min-max-size (.y) << (.dagre), nodes
+        invert-scale = d3.scale.linear!
+            .domain [y-stats.min, y-stats.max]
+            .range [h * 0.9, 0]
+        invert-node = -> invert-scale it.dagre.y
+        invert-points = reverse << map ({y}:pt) -> pt <<< y: invert-scale y
         for n in nodes
             n.dagre.y = invert-node n
         for e in edges

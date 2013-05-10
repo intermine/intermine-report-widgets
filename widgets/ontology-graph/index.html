@@ -11,6 +11,7 @@
         <script src="http://cdn.intermine.org/js/prelude-ls/latest/prelude-browser-min.js"></script>
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.js"></script>
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.forms.js"></script>
+        <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.section.js"></script>
         <script src="dagre.js"></script>
         <script src="index.js"></script>
     </head>
@@ -108,15 +109,38 @@
                 <i class="icon-chevron-left"></i>
             </div>
             <div class="ontology-table-container">
-                <table class="marked-terms">
-                    <thead>
-                        <tr>
-                            <th>Subject</th>
-                            <th>Predicate</th>
-                            <th>Object</th>
-                        </tr>
-                    </thead>
-                </table>
+                <div data-section class="section-container tabs ontology-table-container">
+                    <section>
+                        <p class="title" data-section-title><a href="#panel1">Statements</a></p>
+                        <div class="content" data-section-content>
+                            <table class="marked-statements">
+                                <thead>
+                                    <tr>
+                                        <th>Subject</th>
+                                        <th>Predicate</th>
+                                        <th>Object</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </div>
+                    </section>
+                    <section>
+                        <p class="title" data-section-title><a href="#panel2">Terms</a></p>
+                        <div class="content" data-section-content>
+                            <table class="marked-terms">
+                                <thead>
+                                    <tr>
+                                        <th>Identifier</th>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Gene Count</th>
+                                        <th>Present in</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </div>
+                    </section>
+                </div>
             </div>
         </div>
         <script>
@@ -150,14 +174,26 @@
         }
         #ontology-table .slide-control {
             float: left;
+            left: 0;
+            top: 0;
             height: 100%;
-            width: 50px;
+            width: 60px;
             border-top: none;
             border-left: none;
             border-bottom: none;
             font-size: 40px;
             padding-left: 5px;
             padding-top: 5px;
+        }
+        #ontology-table .section-container {
+            width: 95%;
+            height: 100%;
+        }
+        #ontology-table .ontology-table-container {
+            position: relative;
+            left: 30px;
+            height: 100%;
+            top: 0;
         }
         #dag {
             width: 100%;
