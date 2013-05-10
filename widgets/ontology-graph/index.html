@@ -12,6 +12,7 @@
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.js"></script>
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.forms.js"></script>
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.section.js"></script>
+        <script src="jquery.tablesorter.js"></script>
         <script src="dagre.js"></script>
         <script src="index.js"></script>
     </head>
@@ -77,7 +78,7 @@
                     <label for="switch-orient-tb" onclick="">Top To Bottom</label>
                     <span></span>
                 </div>
-                <input type="number" id="min-ticks">
+                <!-- <input type="number" id="min-ticks"> -->
                 <div class="row collapse">
                     <div class="small-8 columns">
                         <input type="text" placeholder="bsk">
@@ -121,6 +122,7 @@
                                         <th>Object</th>
                                     </tr>
                                 </thead>
+                                <tbody></tbody>
                             </table>
                         </div>
                     </section>
@@ -137,6 +139,7 @@
                                         <th>Present in</th>
                                     </tr>
                                 </thead>
+                                <tbody></tbody>
                             </table>
                         </div>
                     </section>
@@ -164,6 +167,24 @@
         }
         #ontology-table, #ontology-table .slide-control {
             border: 1px solid #ccc;
+        }
+        #ontology-table div.content {
+        }
+        table.tablesorter thead tr .header {
+            padding-right: 1.5em;
+            background-image: url(no-sort.gif);
+            background-repeat: no-repeat;
+            background-position: center right;
+            cursor: pointer;
+        }
+        table.tablesorter thead tr .headerSortUp {
+            background-image: url(asc.gif);
+        }
+        table.tablesorter thead tr .headerSortDown {
+            background-image: url(desc.gif);
+        }
+        table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
+            background-color: #8dbdd8;
         }
         #ontology-table {
             overflow: hidden;
@@ -228,6 +249,10 @@
             white-space: normal;
             stroke-width: 1.5px;
             stroke: #333;
+        }
+        .node.highlight rect {
+            stroke: rgba(151, 23, 164, 0.6);
+            stroke-width: 10px;
         }
         .node rect.direct {
             fill: red;

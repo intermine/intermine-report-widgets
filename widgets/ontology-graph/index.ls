@@ -27,6 +27,12 @@ node-padding = 10
 
 min-ticks = 20
 
+link-opacity =
+    normal: 0.6
+    muted: 0.3
+    focus: 0.8
+    unfocus: 0.2
+
 objectify = (key, value, list) --> list |> list-to-obj << map (-> [(key it), (value it)])
 
 error = (msg) -> $.Deferred -> @reject msg
@@ -584,6 +590,11 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
                     ..remove-class 'icon-chevron-right icon-chevron-left'
                     ..add-class if was-open then \icon-chevron-left else \icon-chevron-right
 
+        $ \#ontology-table
+            .find \table
+                .add-class \tablesorter
+                .tablesorter!
+
     function show-ontology-table
         {w, h} = state.get \dimensions
         marked-statements = state.get \graph |> (.edges) |> filter (.marked) . (.source)
@@ -623,6 +634,8 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
         $ \#ontology-table
             .toggle marked-statements.length > 0
             .foundation \section, \reflow
+            .find \table
+                .trigger \update
 
 # The following would make good tests...
 #console.log fold ((m, depth) -> m[depth] = (m[depth] or 0) + 1; m), {}, map minimum << (.depths), graph.nodes
@@ -704,9 +717,9 @@ draw-relationship-legend = (state, palette, svg) -->
     padding = 25
     width = if dimensions.h > dimensions.w then (dimensions.w - padding * 2) / relationships.length else 180
 
-    [get-x, get-y] =
-        | dimensions.h > dimensions.w => [(flip -> padding + width * it), (-> padding)]
-        | otherwise => [ (-> padding), (flip -> padding + height * it)]
+    [get-x, get-y] = [(flip -> padding + width * it), (-> padding)]
+    #   | dimensions.h > dimensions.w => [(flip -> padding + width * it), (-> padding)]
+    #   | otherwise => [ (-> padding), (flip -> padding + height * it)]
 
     legend = svg.select-all \g.legend
         .data relationships
@@ -860,6 +873,29 @@ relationship-test = (link, def-val, x) -->
 
 colour-filter = (test, x) --> if test x then brighten else id
 
+draw-root-labels = (graph, dimensions, svg) -->
+    let roots = filter is-root, graph.nodes
+        if roots.length is 1
+            parts = roots[0].label.split \_
+            root-g = svg.append \g
+                .attr \class, \root-label
+            root-label = root-g.append \text
+                .attr \x, 0
+                .attr \y, 0
+                .attr \font-size, 0.2 * dimensions.h
+                .attr \opacity, 0.05
+            for word, i in parts
+                root-label.append \tspan
+                    .text word
+                    .attr \x, 0
+                    .attr \dx, \0.3em
+                    .attr \dy, if i then \1em else 0
+
+            {width:text-width, height: text-height} = root-label.node!getBBox!
+            tx = dimensions.w - 1.1 * text-width
+            ty = 60 + text-height / 2
+            root-g.attr \transform, "translate(#{ tx },#{ ty })"
+
 render-force = (state, graph) ->
 
     if graph.edges.length > 250 and not state.has(\elision)
@@ -916,30 +952,8 @@ render-force = (state, graph) ->
     svg
         .attr \width, dimensions.w
         .attr \height, dimensions.h
-
-    let roots = filter is-root, graph.nodes
-        if roots.length is 1
-            parts = roots[0].label.split \_
-            root-g = svg.append \g
-                .attr \class, \root-label
-            root-label = root-g.append \text
-                .attr \x, 0
-                .attr \y, 0
-                .attr \font-size, 0.2 * dimensions.h
-                .attr \opacity, 0.08
-            for word, i in parts
-                root-label.append \tspan
-                    .text word
-                    .attr \x, 0
-                    .attr \dx, \0.3em
-                    .attr \dy, if i then \1em else 0
-
-            {width:text-width, height: text-height} = root-label.node!getBBox!
-            tx = dimensions.w - 1.1 * text-width
-            ty = 60 + text-height / 2
-            root-g.attr \transform, "translate(#{ tx },#{ ty })"
-
-    svg.call draw-pause-btn dimensions, state
+        .call draw-pause-btn dimensions, state
+        .call draw-root-labels graph, dimensions
 
     svg-group = svg.append(\g)
         .attr \class, \ontology
@@ -1028,8 +1042,23 @@ render-force = (state, graph) ->
         test = relationship-test rel, false
         col-filt = colour-filter test
 
-        link.attr \fill, (d) -> link-fill d |> col-filt d
+        link.transition!
+            .duration 50ms
+            .attr \fill, (d) -> link-fill d |> col-filt d
+            .attr \opacity, -> if (not rel) or (test it) then link-opacity.normal else link-opacity.unfocus
         link.classed \highlit, test
+
+    state.on \term:highlight, (term) ->
+        force.stop!
+        n-g.select-all \circle.force-term
+            .filter (.marked)
+            .transition!
+            .duration 50ms
+            .attr \opacity, -> if (not term) or (it is term) then 1 else 0.5
+        link.filter (.marked) << (.source)
+            .transition!
+            .duration 50ms
+            .attr \opacity, -> if (not term) or (it.source is term) then link-opacity.focus else link-opacity.unfocus
 
     state.on \nodes:marked, update-marked
 
@@ -1151,12 +1180,12 @@ render-force = (state, graph) ->
         if any (.marked), graph.nodes
             circles.attr \opacity, -> if it.marked or it.is-root then 1 else 0.2
             link.attr \opacity, ({source, target}) ->
-                | source.marked and (target.marked or target.is-root) => 0.8
-                | otherwise => 0.1
+                | source.marked and (target.marked or target.is-root) => link-opacity.focus
+                | otherwise => link-opacity.unfocus
             svg-group.select-all \text
                 .attr \opacity, -> if it.marked then 1 else 0.2
         else
-            link.attr \opacity, ({source: {muted}}) -> if muted then 0.3 else 0.5
+            link.attr \opacity, ({source: {muted}}) -> if muted then link-opacity.muted else link-opacity.normal
             circles.attr \opacity, ({muted, is-direct}) ->
                 | muted => 0.3
                 | is-direct => 1
@@ -1248,19 +1277,25 @@ centre-and-zoom = (xf, yf, state, nodes, zoom) ->
 render-dag = (state, {reset, nodes, edges}) ->
 
     svg = d3.select \svg
-    svg.select-all(\g).remove!
-    svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
 
-    d3.select-all(svg.node!)
-        .attr \width, $(\body).width()
-        .attr \height, $(\body).height()
+    svg.select-all(\g).remove!
+
+    dimensions = state.get \dimensions
+
+    svg
+        .attr \width, dimensions.w
+        .attr \height, dimensions.h
+    svg.call draw-relationship-legend state, relationship-palette
+       .call draw-root-labels {nodes}, dimensions
+
+    svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
 
     update = -> do-update svg-group
     spline = calculate-spline state.get \dagDirection
 
     re-render = -> render-dag state, it
 
-    reset ?= -> state.set \graph, {nodes, edges}
+    reset ?= -> state.set \graph, {nodes, edges} if state.get(\view) is \dag
 
     state.on \graph:reset, reset
 
@@ -1305,13 +1340,19 @@ render-dag = (state, {reset, nodes, edges}) ->
             re-render filtered <<< {reset}
 
     state.on \relationship:highlight, (link) ->
+        scale = get-descale!
         test = relationship-test link, true
         node-test = (.edges) >> any test
         col-filt = colour-filter test
         nodes-enter
-            .classed \highlight, node-test
+            .classed \highlight, if link then node-test else (-> false)
+            .transition!
+            .duration 100ms
             .attr \opacity, (node) -> if node-test node then 1 else 0.5
+
         edges-enter
+            .transition!
+            .duration 100ms
             .attr \opacity, (e) -> if test e then 0.8 else 0.2
             .attr \stroke, (e) -> link-stroke e |> col-filt e
 
@@ -1394,8 +1435,6 @@ render-dag = (state, {reset, nodes, edges}) ->
         .edges edges
         .debugLevel 1
         .run!
-
-    svg.call draw-relationship-legend state, relationship-palette
 
     if state.get(\dagDirection) isnt \LR
         {h} = state.get \dimensions

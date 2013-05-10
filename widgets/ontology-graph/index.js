@@ -5,7 +5,7 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, objectify, error, notify, doTo, orFs, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, draw, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
+  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, doTo, orFs, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, draw, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
@@ -35,6 +35,12 @@ if (typeof window == 'undefined' || window === null) {
   nonCuratedEvidenceCodes = ['IBA', 'IBD', 'IEA', 'IGC', 'IKR', 'ISA', 'ISO', 'ISS', 'RCA'];
   nodePadding = 10;
   minTicks = 20;
+  linkOpacity = {
+    normal: 0.6,
+    muted: 0.3,
+    focus: 0.8,
+    unfocus: 0.2
+  };
   objectify = curry$(function(key, value, list){
     return compose$([
       listToObj, map(function(it){
@@ -1025,7 +1031,7 @@ if (typeof window == 'undefined' || window === null) {
         height: 0.9 * h,
         width: 0.6 * w
       });
-      return table.find('.slide-control').on('click', function(){
+      table.find('.slide-control').on('click', function(){
         var wasOpen, x$, icon;
         wasOpen = table.hasClass('open');
         table.toggleClass('open').animate({
@@ -1036,6 +1042,7 @@ if (typeof window == 'undefined' || window === null) {
         x$.addClass(wasOpen ? 'icon-chevron-left' : 'icon-chevron-right');
         return x$;
       });
+      return $('#ontology-table').find('table').addClass('tablesorter').tablesorter();
     }
     function showOntologyTable(){
       var ref$, w, h, markedStatements, evt, linkRow, termRow, x$, $stmTbl, y$, $trmTbl;
@@ -1081,7 +1088,7 @@ if (typeof window == 'undefined' || window === null) {
       y$.find('tbody').empty();
       each(compose$([bind$($stmTbl, 'append'), linkRow]), markedStatements);
       each(compose$([bind$($trmTbl, 'append'), termRow]), unique(concatMap(edgeToNodes, markedStatements)));
-      return $('#ontology-table').toggle(markedStatements.length > 0).foundation('section', 'reflow');
+      return $('#ontology-table').toggle(markedStatements.length > 0).foundation('section', 'reflow').find('table').trigger('update');
     }
     return showOntologyTable;
     function fn$(args, selector, stateArgs){
@@ -1171,26 +1178,13 @@ if (typeof window == 'undefined' || window === null) {
     height = 50;
     padding = 25;
     width = dimensions.h > dimensions.w ? (dimensions.w - padding * 2) / relationships.length : 180;
-    ref$ = (function(){
-      switch (false) {
-      case !(dimensions.h > dimensions.w):
-        return [
-          flip(function(it){
-            return padding + width * it;
-          }), function(){
-            return padding;
-          }
-        ];
-      default:
-        return [
-          function(){
-            return padding;
-          }, flip(function(it){
-            return padding + height * it;
-          })
-        ];
+    ref$ = [
+      flip(function(it){
+        return padding + width * it;
+      }), function(){
+        return padding;
       }
-    }()), getX = ref$[0], getY = ref$[1];
+    ], getX = ref$[0], getY = ref$[1];
     legend = svg.selectAll('g.legend').data(relationships);
     lg = legend.enter().append('g').attr('class', 'legend').attr('width', width).attr('height', height).attr('x', getX).attr('y', getY).on('mouseover', function(d, i){
       state.trigger('relationship:highlight', d);
@@ -1402,6 +1396,25 @@ if (typeof window == 'undefined' || window === null) {
       return id;
     }
   });
+  drawRootLabels = curry$(function(graph, dimensions, svg){
+    return (function(roots){
+      var parts, rootG, rootLabel, i$, len$, i, word, ref$, textWidth, textHeight, tx, ty;
+      if (roots.length === 1) {
+        parts = roots[0].label.split('_');
+        rootG = svg.append('g').attr('class', 'root-label');
+        rootLabel = rootG.append('text').attr('x', 0).attr('y', 0).attr('font-size', 0.2 * dimensions.h).attr('opacity', 0.05);
+        for (i$ = 0, len$ = parts.length; i$ < len$; ++i$) {
+          i = i$;
+          word = parts[i$];
+          rootLabel.append('tspan').text(word).attr('x', 0).attr('dx', '0.3em').attr('dy', i ? '1em' : 0);
+        }
+        ref$ = rootLabel.node().getBBox(), textWidth = ref$.width, textHeight = ref$.height;
+        tx = dimensions.w - 1.1 * textWidth;
+        ty = 60 + textHeight / 2;
+        return rootG.attr('transform', "translate(" + tx + "," + ty + ")");
+      }
+    }.call(this, filter(isRoot, graph.nodes)));
+  });
   renderForce = function(state, graph){
     var dimensions, force, svg, throbber, getLabelFontSize, zoom, relationships, svgGroup, link, getLabelId, node, nG, texts, tickCount;
     if (graph.edges.length > 250 && !state.has('elision')) {
@@ -1456,25 +1469,7 @@ if (typeof window == 'undefined' || window === null) {
     });
     svg.call(zoom);
     relationships = state.get('relationships');
-    svg.attr('width', dimensions.w).attr('height', dimensions.h);
-    (function(roots){
-      var parts, rootG, rootLabel, i$, len$, i, word, ref$, textWidth, textHeight, tx, ty;
-      if (roots.length === 1) {
-        parts = roots[0].label.split('_');
-        rootG = svg.append('g').attr('class', 'root-label');
-        rootLabel = rootG.append('text').attr('x', 0).attr('y', 0).attr('font-size', 0.2 * dimensions.h).attr('opacity', 0.08);
-        for (i$ = 0, len$ = parts.length; i$ < len$; ++i$) {
-          i = i$;
-          word = parts[i$];
-          rootLabel.append('tspan').text(word).attr('x', 0).attr('dx', '0.3em').attr('dy', i ? '1em' : 0);
-        }
-        ref$ = rootLabel.node().getBBox(), textWidth = ref$.width, textHeight = ref$.height;
-        tx = dimensions.w - 1.1 * textWidth;
-        ty = 60 + textHeight / 2;
-        rootG.attr('transform', "translate(" + tx + "," + ty + ")");
-      }
-    }.call(this, filter(isRoot, graph.nodes)));
-    svg.call(drawPauseBtn(dimensions, state));
+    svg.attr('width', dimensions.w).attr('height', dimensions.h).call(drawPauseBtn(dimensions, state)).call(drawRootLabels(graph, dimensions));
     svgGroup = svg.append('g').attr('class', 'ontology').attr('transform', 'translate(5, 5)');
     force.nodes(graph.nodes).links(graph.edges).on('tick', tick).on('end', function(){
       state.set('animating', 'paused');
@@ -1529,11 +1524,42 @@ if (typeof window == 'undefined' || window === null) {
       var test, colFilt;
       test = relationshipTest(rel, false);
       colFilt = colourFilter(test);
-      link.attr('fill', function(d){
+      link.transition().duration(50).attr('fill', function(d){
         return colFilt(d)(
         linkFill(d));
+      }).attr('opacity', function(it){
+        if (!rel || test(it)) {
+          return linkOpacity.normal;
+        } else {
+          return linkOpacity.unfocus;
+        }
       });
       return link.classed('highlit', test);
+    });
+    state.on('term:highlight', function(term){
+      force.stop();
+      nG.selectAll('circle.force-term').filter(function(it){
+        return it.marked;
+      }).transition().duration(50).attr('opacity', function(it){
+        if (!term || it === term) {
+          return 1;
+        } else {
+          return 0.5;
+        }
+      });
+      return link.filter(compose$([
+        function(it){
+          return it.marked;
+        }, function(it){
+          return it.source;
+        }
+      ])).transition().duration(50).attr('opacity', function(it){
+        if (!term || it.source === term) {
+          return linkOpacity.focus;
+        } else {
+          return linkOpacity.unfocus;
+        }
+      });
     });
     state.on('nodes:marked', updateMarked);
     state.once('force:ready', function(){
@@ -1765,9 +1791,9 @@ if (typeof window == 'undefined' || window === null) {
           source = arg$.source, target = arg$.target;
           switch (false) {
           case !(source.marked && (target.marked || target.isRoot)):
-            return 0.8;
+            return linkOpacity.focus;
           default:
-            return 0.1;
+            return linkOpacity.unfocus;
           }
         });
         return svgGroup.selectAll('text').attr('opacity', function(it){
@@ -1782,9 +1808,9 @@ if (typeof window == 'undefined' || window === null) {
           var muted;
           muted = arg$.source.muted;
           if (muted) {
-            return 0.3;
+            return linkOpacity.muted;
           } else {
-            return 0.5;
+            return linkOpacity.normal;
           }
         });
         circles.attr('opacity', function(arg$){
@@ -1953,12 +1979,16 @@ if (typeof window == 'undefined' || window === null) {
     });
   };
   renderDag = function(state, arg$){
-    var reset, nodes, edges, svg, svgGroup, update, spline, reRender, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, markerEnd, rects, dragCp, lineWrap, labels, h, yStats, invertScale, invertNode, invertPoints, i$, len$, n, e, applyLayout, maxY, zoom, deDup, toCombos, getOverlapping, getDescale, separateColliding, drawCollisions, explodify, fixDagBoxCollisions, cooldown, focusEdges, animateFocus, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
+    var reset, nodes, edges, svg, dimensions, svgGroup, update, spline, reRender, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, x$, markerEnd, rects, dragCp, lineWrap, labels, h, yStats, invertScale, invertNode, invertPoints, i$, len$, n, e, applyLayout, maxY, zoom, deDup, toCombos, getOverlapping, getDescale, separateColliding, drawCollisions, explodify, fixDagBoxCollisions, cooldown, focusEdges, animateFocus, highlightTargets, relationships, palette, edgeStroke, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
     reset = arg$.reset, nodes = arg$.nodes, edges = arg$.edges;
     svg = d3.select('svg');
     svg.selectAll('g').remove();
+    dimensions = state.get('dimensions');
+    svg.attr('width', dimensions.w).attr('height', dimensions.h);
+    svg.call(drawRelationshipLegend(state, relationshipPalette)).call(drawRootLabels({
+      nodes: nodes
+    }, dimensions));
     svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
-    d3.selectAll(svg.node()).attr('width', $('body').width()).attr('height', $('body').height());
     update = function(){
       return doUpdate(svgGroup);
     };
@@ -1967,10 +1997,12 @@ if (typeof window == 'undefined' || window === null) {
       return renderDag(state, it);
     };
     reset == null && (reset = function(){
-      return state.set('graph', {
-        nodes: nodes,
-        edges: edges
-      });
+      if (state.get('view') === 'dag') {
+        return state.set('graph', {
+          nodes: nodes,
+          edges: edges
+        });
+      }
     });
     state.on('graph:reset', reset);
     console.log("Rendering " + length(nodes) + " nodes and " + length(edges) + " edges");
@@ -2001,7 +2033,8 @@ if (typeof window == 'undefined' || window === null) {
       }
     });
     state.on('relationship:highlight', function(link){
-      var test, nodeTest, colFilt;
+      var scale, test, nodeTest, colFilt;
+      scale = getDescale();
       test = relationshipTest(link, true);
       nodeTest = compose$([
         any(test), function(it){
@@ -2009,14 +2042,18 @@ if (typeof window == 'undefined' || window === null) {
         }
       ]);
       colFilt = colourFilter(test);
-      nodesEnter.classed('highlight', nodeTest).attr('opacity', function(node){
+      nodesEnter.classed('highlight', link
+        ? nodeTest
+        : function(){
+          return false;
+        }).transition().duration(100).attr('opacity', function(node){
         if (nodeTest(node)) {
           return 1;
         } else {
           return 0.5;
         }
       });
-      return edgesEnter.attr('opacity', function(e){
+      return edgesEnter.transition().duration(100).attr('opacity', function(e){
         if (test(e)) {
           return 0.8;
         } else {
@@ -2119,7 +2156,6 @@ if (typeof window == 'undefined' || window === null) {
       return -it.bbox.height / 2;
     });
     dagre.layout().nodeSep(50).edgeSep(50).rankSep(75).rankDir(state.get('dagDirection')).nodes(nodes).edges(edges).debugLevel(1).run();
-    svg.call(drawRelationshipLegend(state, relationshipPalette));
     if (state.get('dagDirection') !== 'LR') {
       h = state.get('dimensions').h;
       yStats = getMinMaxSize(compose$([
