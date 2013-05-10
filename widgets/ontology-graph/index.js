@@ -872,6 +872,9 @@ if (typeof window == 'undefined' || window === null) {
     $('#force-reset').on('click', function(){
       return state.trigger('graph:reset');
     });
+    state.on('graph:reset', function(){
+      return unmark(state.get('graph').nodes);
+    });
     x$ = rootSelector = $('#graph-root');
     x$.on('change', function(){
       state.set('root', nodeForIdent[$(this).val()]);
@@ -919,7 +922,7 @@ if (typeof window == 'undefined' || window === null) {
     setUpOntologyTable();
     setUpInterop();
     getHomologues = homologueQuery(symbol);
-    state.on('graph:marked', showOntologyTable);
+    state.on('graph:marked graph:reset', showOntologyTable);
     render = function(){
       switch (false) {
       case state.get('view') !== 'force':
@@ -1418,7 +1421,7 @@ if (typeof window == 'undefined' || window === null) {
         animating: 'running'
       });
     });
-    state.on('graph:reset', unmark);
+    state.on('graph:reset', updateMarked);
     window.force = force;
     state.on('change:animating', function(){
       var currently;
@@ -1969,6 +1972,7 @@ if (typeof window == 'undefined' || window === null) {
         edges: edges
       });
     });
+    state.on('graph:reset', reset);
     console.log("Rendering " + length(nodes) + " nodes and " + length(edges) + " edges");
     svgBBox = svg.node().getBBox();
     mvEdge = translateEdge(svg);

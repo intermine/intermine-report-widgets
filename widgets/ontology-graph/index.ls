@@ -465,6 +465,7 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
 
     $ \#force-reset
         .on \click, -> state.trigger \graph:reset
+    state.on \graph:reset, -> unmark state.get(\graph).nodes
 
     root-selector = $ \#graph-root
         ..on \change, !-> state.set \root, node-for-ident[ $(@).val! ]
@@ -499,7 +500,7 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
 
     get-homologues = homologue-query symbol
 
-    state.on \graph:marked, show-ontology-table
+    state.on 'graph:marked graph:reset', show-ontology-table
 
     render = ->
         | state.get(\view) is \force => render-force ...
@@ -875,7 +876,7 @@ render-force = (state, graph) ->
 
     state.on \change:spline, -> state.set animating: \running
     state.on \change:jiggle, -> state.set animating: \running
-    state.on \graph:reset, unmark
+    state.on \graph:reset, update-marked
 
     window.force = force
 
@@ -1260,6 +1261,8 @@ render-dag = (state, {reset, nodes, edges}) ->
     re-render = -> render-dag state, it
 
     reset ?= -> state.set \graph, {nodes, edges}
+
+    state.on \graph:reset, reset
 
     console.log "Rendering #{ length nodes } nodes and #{ length edges } edges"
 
