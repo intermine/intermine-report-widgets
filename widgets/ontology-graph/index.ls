@@ -12,6 +12,9 @@ interop =
     * taxonId: 10090
       root: \http://beta.mousemine.org/mousemine
       name: \MGI
+    * taxonId: 6239
+      root: \http://intermine.modencode.org/release-32
+      name: \modMine
 
 interop-later-maybe-when-they-upgrade =
     * taxonId: 7955
@@ -255,11 +258,11 @@ relationship-palette = d3.scale.category10!
 link-fill = relationship-palette << (.label)
 link-stroke = (.darker!) << d3~rgb << link-fill
 
-term-palette = d3.scale.category20!
-term-color = (.darker!) << (d3~rgb) << (term-palette) << (.id) << (.root)
-
 brighten = (.brighter!) << (d3~rgb)
 darken = (.darker!) << (d3~rgb)
+
+term-palette = darken << d3~rgb << d3.scale.category20!
+term-color = term-palette << (join \-) << (.sources) #(.id) << (.root)
 
 BRIGHTEN = brighten << brighten
 
@@ -711,6 +714,50 @@ draw-pause-btn = (dimensions, state, svg) -->
         | \paused => state.set animating: \running
         | \running => state.set animating: \paused
 
+draw-source-legend = (state, palette, svg) -->
+    dimensions = state.get \dimensions
+    {nodes} = state.get \graph
+    height = 50
+    padding = 25
+    width = if dimensions.h > dimensions.w then (dimensions.w - padding * 2) / relationships.length else 180
+    sources = unique map (join \-) << (.sources), nodes
+
+    [get-x, get-y] = [(flip -> padding + width * it), (-> padding + height)]
+
+    source-g = svg.select-all \g.source-legend
+        .data sources
+
+    sg = source-g.enter!
+        .append \g
+        .attr \class, \source-legend
+        .attr \width, width
+        .attr \height, height
+        .attr \x, get-x
+        .attr \y, get-y
+        .on \mouseover, (d, i) ->
+            state.trigger \source:highlight, d
+            d3.select(@).select-all(\rect).attr \fill, brighten . palette
+        .on \mouseout, ->
+            state.trigger \source:highlight, null
+            d3.select(@).select-all(\rect).attr \fill, palette
+
+    source-g.exit!remove!
+
+    sg.append \rect
+        .attr \opacity, 0.6
+        .attr \width, width
+        .attr \height, height
+        .attr \x, get-x
+        .attr \y, get-y
+        .attr \fill, palette
+
+    sg.append \text
+        .attr \x, get-x
+        .attr \y, get-y
+        .attr \dy, height / 2
+        .attr \dx, \0.5em
+        .text id
+
 draw-relationship-legend = (state, palette, svg) -->
     {dimensions, relationships} = state.toJSON!
     height = 50
@@ -988,15 +1035,10 @@ render-force = (state, graph) ->
     node.exit!remove!
 
     n-g.append \circle
-        .attr \class, \force-term
+        .attr \class, ({sources}) -> join ' ', cons \force-term, sources
         .classed \root, is-root
         .classed \direct, (.is-direct)
-        .attr \fill, (n) ->
-            if n.sources.length > 1
-                console.log n.label, 'has multiple attributions'
-                darken term-color ...
-            else
-                term-color ...
+        .attr \fill, term-color
         .attr \cx, -dimensions.w
         .attr \cy, -dimensions.h
         .attr \r, get-r
@@ -1283,10 +1325,11 @@ render-dag = (state, {reset, nodes, edges}) ->
     dimensions = state.get \dimensions
 
     svg
-        .attr \width, dimensions.w
-        .attr \height, dimensions.h
-    svg.call draw-relationship-legend state, relationship-palette
+       .attr \width, dimensions.w
+       .attr \height, dimensions.h
+       .call draw-relationship-legend state, relationship-palette
        .call draw-root-labels {nodes}, dimensions
+       .call draw-source-legend state, term-palette
 
     svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
 
@@ -1365,6 +1408,17 @@ render-dag = (state, {reset, nodes, edges}) ->
                 | it is node => "translate(#{ it.dagre.x },#{ it.dagre.y }), scale(#{ scale })"
                 | otherwise => "translate(#{ it.dagre.x },#{ it.dagre.y })"
 
+    state.on \source:highlight, (sources) ->
+        pattern = new RegExp sources
+        test = pattern~test << (join \-) << (.sources)
+        scale = min 2, max 1, get-descale!
+        nodes-enter
+            .classed \highlight, test
+            .attr \opacity, -> if (not sources) or (test it) then 1 else 0.5
+            .attr \transform, ->
+                | test it => "translate(#{ it.dagre.x },#{ it.dagre.y }), scale(#{ scale })"
+                | otherwise => "translate(#{ it.dagre.x },#{ it.dagre.y })"
+
 
     marker-end = if state.get(\dagDirection) is \LR then 'url(#Triangle)' else 'url(#TriangleDown)'
     edges-enter.append \path
@@ -1413,8 +1467,9 @@ render-dag = (state, {reset, nodes, edges}) ->
         n.height = bbox.height + 2 * node-padding
 
     rects
+        .attr \class, ({sources}) -> join ' ', cons \dag-term, sources
         .attr \width, (.width)
-        .attr \height, (.height) #(node-padding * 2 +) << (.height)
+        .attr \height, (.height)
         .attr \x, (1 -) << (/ 2) << (.width)
         .attr \y, (1 -) << (/ 2) << (.height)
         .attr \fill, term-color

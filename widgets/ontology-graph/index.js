@@ -5,7 +5,7 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, doTo, orFs, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, termPalette, termColor, brighten, darken, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, draw, drawPauseBtn, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
+  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, doTo, orFs, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
@@ -19,6 +19,10 @@ if (typeof window == 'undefined' || window === null) {
       taxonId: 10090,
       root: 'http://beta.mousemine.org/mousemine',
       name: 'MGI'
+    }, {
+      taxonId: 6239,
+      root: 'http://intermine.modencode.org/release-32',
+      name: 'modMine'
     }
   ];
   interopLaterMaybeWhenTheyUpgrade = [
@@ -463,16 +467,6 @@ if (typeof window == 'undefined' || window === null) {
       return it.darker();
     }, bind$(d3, 'rgb'), linkFill
   ]);
-  termPalette = d3.scale.category20();
-  termColor = compose$([
-    function(it){
-      return it.darker();
-    }, bind$(d3, 'rgb'), termPalette, function(it){
-      return it.id;
-    }, function(it){
-      return it.root;
-    }
-  ]);
   brighten = compose$([
     function(it){
       return it.brighter();
@@ -482,6 +476,12 @@ if (typeof window == 'undefined' || window === null) {
     function(it){
       return it.darker();
     }, bind$(d3, 'rgb')
+  ]);
+  termPalette = compose$([darken, bind$(d3, 'rgb'), d3.scale.category20()]);
+  termColor = compose$([
+    termPalette, join('-'), function(it){
+      return it.sources;
+    }
   ]);
   BRIGHTEN = compose$([brighten, brighten]);
   isRoot = function(it){
@@ -1172,6 +1172,37 @@ if (typeof window == 'undefined' || window === null) {
       }
     });
   });
+  drawSourceLegend = curry$(function(state, palette, svg){
+    var dimensions, nodes, height, padding, width, sources, ref$, getX, getY, sourceG, sg;
+    dimensions = state.get('dimensions');
+    nodes = state.get('graph').nodes;
+    height = 50;
+    padding = 25;
+    width = dimensions.h > dimensions.w ? (dimensions.w - padding * 2) / relationships.length : 180;
+    sources = unique(map(compose$([
+      join('-'), function(it){
+        return it.sources;
+      }
+    ]), nodes));
+    ref$ = [
+      flip(function(it){
+        return padding + width * it;
+      }), function(){
+        return padding + height;
+      }
+    ], getX = ref$[0], getY = ref$[1];
+    sourceG = svg.selectAll('g.source-legend').data(sources);
+    sg = sourceG.enter().append('g').attr('class', 'source-legend').attr('width', width).attr('height', height).attr('x', getX).attr('y', getY).on('mouseover', function(d, i){
+      state.trigger('source:highlight', d);
+      return d3.select(this).selectAll('rect').attr('fill', compose$([brighten, palette]));
+    }).on('mouseout', function(){
+      state.trigger('source:highlight', null);
+      return d3.select(this).selectAll('rect').attr('fill', palette);
+    });
+    sourceG.exit().remove();
+    sg.append('rect').attr('opacity', 0.6).attr('width', width).attr('height', height).attr('x', getX).attr('y', getY).attr('fill', palette);
+    return sg.append('text').attr('x', getX).attr('y', getY).attr('dy', height / 2).attr('dx', '0.5em').text(id);
+  });
   drawRelationshipLegend = curry$(function(state, palette, svg){
     var ref$, dimensions, relationships, height, padding, width, getX, getY, legend, lg;
     ref$ = state.toJSON(), dimensions = ref$.dimensions, relationships = ref$.relationships;
@@ -1492,16 +1523,13 @@ if (typeof window == 'undefined' || window === null) {
     node = svgGroup.selectAll('.force-node').data(graph.nodes);
     nG = node.enter().append('g').attr('class', 'force-node').call(force.drag).on('click', drawPathToRoot);
     node.exit().remove();
-    nG.append('circle').attr('class', 'force-term').classed('root', isRoot).classed('direct', function(it){
+    nG.append('circle').attr('class', function(arg$){
+      var sources;
+      sources = arg$.sources;
+      return join(' ', cons('force-term', sources));
+    }).classed('root', isRoot).classed('direct', function(it){
       return it.isDirect;
-    }).attr('fill', function(n){
-      if (n.sources.length > 1) {
-        console.log(n.label, 'has multiple attributions');
-        return darken(termColor.apply(this, arguments));
-      } else {
-        return termColor.apply(this, arguments);
-      }
-    }).attr('cx', -dimensions.w).attr('cy', -dimensions.h).attr('r', getR);
+    }).attr('fill', termColor).attr('cx', -dimensions.w).attr('cy', -dimensions.h).attr('r', getR);
     nG.append('text').attr('class', 'count-label').attr('fill', 'white').attr('text-anchor', 'middle').attr('display', 'none').attr('x', -dimensions.w).attr('y', -dimensions.h).attr('dy', '0.3em');
     texts = svgGroup.selectAll('text.force-label').data(graph.nodes);
     texts.enter().append('text').attr('class', 'force-label').attr('text-anchor', 'start').attr('fill', '#555').attr('stroke', 'white').attr('stroke-width', '0.1px').attr('text-rendering', 'optimizeLegibility').attr('display', function(it){
@@ -1984,10 +2012,9 @@ if (typeof window == 'undefined' || window === null) {
     svg = d3.select('svg');
     svg.selectAll('g').remove();
     dimensions = state.get('dimensions');
-    svg.attr('width', dimensions.w).attr('height', dimensions.h);
-    svg.call(drawRelationshipLegend(state, relationshipPalette)).call(drawRootLabels({
+    svg.attr('width', dimensions.w).attr('height', dimensions.h).call(drawRelationshipLegend(state, relationshipPalette)).call(drawRootLabels({
       nodes: nodes
-    }, dimensions));
+    }, dimensions)).call(drawSourceLegend(state, termPalette));
     svgGroup = svg.append('g').attr('transform', 'translate(5, 5)');
     update = function(){
       return doUpdate(svgGroup);
@@ -2084,6 +2111,30 @@ if (typeof window == 'undefined' || window === null) {
         }
       });
     });
+    state.on('source:highlight', function(sources){
+      var pattern, test, scale;
+      pattern = new RegExp(sources);
+      test = compose$([
+        bind$(pattern, 'test'), join('-'), function(it){
+          return it.sources;
+        }
+      ]);
+      scale = min(2, max(1, getDescale()));
+      return nodesEnter.classed('highlight', test).attr('opacity', function(it){
+        if (!sources || test(it)) {
+          return 1;
+        } else {
+          return 0.5;
+        }
+      }).attr('transform', function(it){
+        switch (false) {
+        case !test(it):
+          return "translate(" + it.dagre.x + "," + it.dagre.y + "), scale(" + scale + ")";
+        default:
+          return "translate(" + it.dagre.x + "," + it.dagre.y + ")";
+        }
+      });
+    });
     markerEnd = state.get('dagDirection') === 'LR' ? 'url(#Triangle)' : 'url(#TriangleDown)';
     edgesEnter.append('path').attr('marker-end', markerEnd).attr('stroke-width', 5).attr('opacity', 0.8).attr('stroke', linkStroke);
     rects = nodesEnter.append('rect');
@@ -2123,7 +2174,11 @@ if (typeof window == 'undefined' || window === null) {
       n.width = bbox.width + 2 * nodePadding;
       return n.height = bbox.height + 2 * nodePadding;
     });
-    rects.attr('width', function(it){
+    rects.attr('class', function(arg$){
+      var sources;
+      sources = arg$.sources;
+      return join(' ', cons('dag-term', sources));
+    }).attr('width', function(it){
       return it.width;
     }).attr('height', function(it){
       return it.height;

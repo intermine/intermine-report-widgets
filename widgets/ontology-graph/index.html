@@ -87,20 +87,24 @@
                         <a href="#" class="button prefix">Search</a>
                     </div>
                 </div>
-                <div>
-                    Add annotations from homologues in:
-                    <ul class="button-group" id="interop-sources">
-                    </ul>
-                </div>
-                <div class="progress" id="homologue-progress"><span class="meter"></span></div>
-                <select id="jiggle">
-                    <option value="none">Force Directed Layout</option>
-                    <option value="strata">Move Roots to Top</option>
-                    <option value="centre">Move Roots to Centre</option>
-                </select>
+                <fieldset>
+                    <div>
+                        Add annotations from homologues in:
+                        <ul class="button-group" id="interop-sources">
+                        </ul>
+                    </div>
+                    <div class="progress" id="homologue-progress"><span class="meter"></span></div>
+                </fieldset>
+                <fieldset>
+                    <select id="jiggle">
+                        <option value="none">Force Directed Layout</option>
+                        <option value="strata">Move Roots to Top</option>
+                        <option value="centre">Move Roots to Centre</option>
+                    </select>
+                    <select id="elision" >
+                    </select>
+                </fieldset>
                 <select id="graph-root" >
-                </select>
-                <select id="elision" >
                 </select>
                 <button id="force-reset" >Reset</button>
             </div>
@@ -222,7 +226,7 @@
         }
         .graph-control {
             background: #eee;
-            width: 250px;
+            width: 300px;
             display: none;
             position: absolute;
             left: 25px;
