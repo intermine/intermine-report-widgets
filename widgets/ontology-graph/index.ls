@@ -351,6 +351,7 @@ merge-graphs = (left, right) -->
             real.edges = map real-edges, real.edges
         else
             real.sources .= concat n.sources
+            real.symbols .= concat n.symbols
             real.is-direct or= n.is-direct
             real.edges = unique(real.edges ++ map real-edges, n.edges)
 
@@ -646,14 +647,15 @@ draw =  (graph) -> #direct-nodes, edges, node-for-ident, symbol) ->
             $row.on \mouseout, -> $row.toggle-class(\highlit, false); state.trigger evt, null
                 .on \mouseover, -> $row.toggle-class(\highlit, true); state.trigger evt, link
 
-        term-row = ({id, label, description, counts, sources}:term) ->
+        term-row = ({id, label, description, counts, sources, symbols}:term) ->
             $row = $ """
                 <tr>
                     <td>#{ id }</td>
                     <td>#{ label }</td>
                     <td>#{ description }</td>
                     <td>#{ sum counts }</td>
-                    <td>#{ sources }</td>
+                    <td>#{ join ', ', sources }</td>
+                    <td>#{ join ', ', symbols }</td>
                 </tr>
             """
             $row.on \mouseout, -> $row.toggle-class(\highlit, false); state.trigger \term:highlight, null

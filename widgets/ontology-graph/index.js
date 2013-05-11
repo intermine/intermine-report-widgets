@@ -666,6 +666,7 @@ if (typeof window == 'undefined' || window === null) {
         real.edges = map(realEdges, real.edges);
       } else {
         real.sources = real.sources.concat(n.sources);
+        real.symbols = real.symbols.concat(n.symbols);
         real.isDirect || (real.isDirect = n.isDirect);
         real.edges = unique(real.edges.concat(map(realEdges, n.edges)));
       }
@@ -1117,9 +1118,9 @@ if (typeof window == 'undefined' || window === null) {
         });
       };
       termRow = function(term){
-        var id, label, description, counts, sources, $row;
-        id = term.id, label = term.label, description = term.description, counts = term.counts, sources = term.sources;
-        $row = $("<tr>\n    <td>" + id + "</td>\n    <td>" + label + "</td>\n    <td>" + description + "</td>\n    <td>" + sum(counts) + "</td>\n    <td>" + sources + "</td>\n</tr>");
+        var id, label, description, counts, sources, symbols, $row;
+        id = term.id, label = term.label, description = term.description, counts = term.counts, sources = term.sources, symbols = term.symbols;
+        $row = $("<tr>\n    <td>" + id + "</td>\n    <td>" + label + "</td>\n    <td>" + description + "</td>\n    <td>" + sum(counts) + "</td>\n    <td>" + join(', ', sources) + "</td>\n    <td>" + join(', ', symbols) + "</td>\n</tr>");
         return $row.on('mouseout', function(){
           $row.toggleClass('highlit', false);
           return state.trigger('term:highlight', null);
