@@ -1109,6 +1109,7 @@ render-force = (state, graph) ->
         .text (.label)
 
     svg.call draw-relationship-legend state, relationship-palette
+       .call draw-source-legend state, term-palette
 
     tick-count = 0
 

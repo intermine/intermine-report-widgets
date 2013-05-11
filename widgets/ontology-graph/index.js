@@ -1591,7 +1591,7 @@ if (typeof window == 'undefined' || window === null) {
     nG.append('title').text(function(it){
       return it.label;
     });
-    svg.call(drawRelationshipLegend(state, relationshipPalette));
+    svg.call(drawRelationshipLegend(state, relationshipPalette)).call(drawSourceLegend(state, termPalette));
     tickCount = 0;
     state.set('animating', 'running');
     force.start();
