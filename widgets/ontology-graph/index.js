@@ -829,7 +829,7 @@ if (typeof window == 'undefined' || window === null) {
     });
   };
   draw = function(graph){
-    var symbol, state, newGraph, switches, selector, stateArgs, x$, rootSelector, y$, elisionSelector, getHomologues, render, roots, i$, ref$, len$, r, monitorHomologueProgress;
+    var symbol, state, newGraph, switches, selector, stateArgs, x$, rootSelector, y$, elisionSelector, render, roots, i$, ref$, len$, r, monitorHomologueProgress;
     symbol = head(unique(concatMap(function(it){
       return it.symbols;
     }, graph.nodes)));
@@ -859,7 +859,9 @@ if (typeof window == 'undefined' || window === null) {
     window.GRAPH = state;
     newGraph = graphify(progressMonitor('#dag .progress'), rows);
     $('.button.symbol').on('click', function(){
-      return newGraph($('input.symbol').val()).fail(notify).done(function(arg$){
+      var newSymbol;
+      newSymbol = $('input.symbol').val();
+      return newGraph(newSymbol).fail(notify).done(function(arg$){
         var nodes;
         nodes = arg$.nodes;
         return annotateForCounts(query, nodes);
@@ -867,6 +869,8 @@ if (typeof window == 'undefined' || window === null) {
         var nodes;
         nodes = arg$.nodes;
         return doHeightAnnotation;
+      }).done(function(){
+        return state.set('symbol', newSymbol);
       }).done(partialize$.apply(state, [state.set, ['all', void 8], [1]])).done(compose$([
         partialize$.apply(state, [state.set, ['root', void 8], [1]]), head, filter(isRoot), function(it){
           return it.nodes;
@@ -948,7 +952,6 @@ if (typeof window == 'undefined' || window === null) {
     doHeightAnnotation(graph.nodes);
     setUpOntologyTable();
     setUpInterop();
-    getHomologues = homologueQuery(symbol);
     state.on('graph:marked graph:reset', showOntologyTable);
     render = function(){
       switch (false) {
@@ -1045,7 +1048,7 @@ if (typeof window == 'undefined' || window === null) {
       mergeGraph = mergeGraphs(state.get('all'));
       gettingHomologues = failWhenEmpty("No homologues found")(
       flatRows(rows)(
-      getHomologues(source)));
+      homologueQuery(state.get('symbol'), source)));
       gettingDirect = gettingHomologues.then(compose$([rs, directHomologyTerms]));
       gettingAll = gettingDirect.then(compose$([rs, allHomologyTerms]));
       gettingNames = $.when(gettingHomologues, gettingAll).then(fetchNames(service.name, bind$(service, 'rows')));

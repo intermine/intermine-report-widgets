@@ -447,10 +447,12 @@ draw =  (graph) -> #direct-nodes, edges, node-for-ident, symbol) ->
 
     # Rerender with new value.
     $ \.button.symbol .on \click, ->
-        new-graph $(\input.symbol).val!
+        new-symbol = $(\input.symbol).val!
+        new-graph new-symbol
             .fail notify
             .done ({nodes}) -> annotate-for-counts query, nodes
             .done ({nodes}) -> do-height-annotation
+            .done -> state.set \symbol, new-symbol
             .done state.set \all, _
             .done (.nodes) >> (filter is-root) >> head >> (state.set \root, _)
 
@@ -517,8 +519,6 @@ draw =  (graph) -> #direct-nodes, edges, node-for-ident, symbol) ->
     # Do initial ontology set up
     set-up-ontology-table!
     set-up-interop!
-
-    get-homologues = homologue-query symbol
 
     state.on 'graph:marked graph:reset', show-ontology-table
 
@@ -589,7 +589,7 @@ draw =  (graph) -> #direct-nodes, edges, node-for-ident, symbol) ->
         rs = flat-rows service~rows
         merge-graph = merge-graphs state.get \all
 
-        getting-homologues = get-homologues source
+        getting-homologues = homologue-query state.get(\symbol), source
             |> flat-rows rows
             |> fail-when-empty "No homologues found"
 
