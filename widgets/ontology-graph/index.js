@@ -5,7 +5,7 @@ if (typeof window == 'undefined' || window === null) {
 }
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, doTo, orFs, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
+  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, failWhenEmpty, doTo, anyTest, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, progressMonitor, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, graphify, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
@@ -61,11 +61,20 @@ if (typeof window == 'undefined' || window === null) {
   notify = function(it){
     return alert(it);
   };
+  failWhenEmpty = curry$(function(msg, promise){
+    return promise.then(function(it){
+      if (empty(it)) {
+        return error(msg);
+      } else {
+        return it;
+      }
+    });
+  });
   doTo = function(f, x){
     return f(x);
   };
-  orFs = curry$(function(fs, x){
-    return orList(map(flip$(doTo)(x), fs));
+  anyTest = curry$(function(tests, x){
+    return any(flip$(doTo)(x), tests);
   });
   interopMines = objectify(function(it){
     return it.taxonId;
@@ -159,13 +168,14 @@ if (typeof window == 'undefined' || window === null) {
   Node = (function(){
     Node.displayName = 'Node';
     var prototype = Node.prototype, constructor = Node;
-    function Node(label, id, description, origin){
+    function Node(label, id, description, origin, syms){
       var this$ = this instanceof ctor$ ? this : new ctor$;
       this$.label = label;
       this$.id = id;
       this$.description = description;
       this$.counts = [];
       this$.sources = [origin];
+      this$.symbols = syms.slice();
       this$.edges = [];
       this$.depths = [];
       return this$;
@@ -191,10 +201,10 @@ if (typeof window == 'undefined' || window === null) {
     };
     return Node;
   }());
-  newNode = curry$(function(source, id, label, description){
-    return Node(label, id, description, source);
+  newNode = curry$(function(src, syms, id, label, desc){
+    return Node(label, id, desc, src, syms);
   });
-  fetchNames = curry$(function(source, getRows, identifier){
+  fetchNames = curry$(function(source, getRows, symbols, identifier){
     var q, node;
     q = {
       select: ['identifier', 'name', 'description'],
@@ -203,7 +213,7 @@ if (typeof window == 'undefined' || window === null) {
         identifier: identifier
       }
     };
-    node = newNode(source);
+    node = newNode(source, symbols);
     return getRows(q).then(objectify(function(it){
       return it[0];
     }, function(it){
@@ -569,7 +579,7 @@ if (typeof window == 'undefined' || window === null) {
         return it.stepsFromLeaf;
       }
     ]);
-    acceptable = orFs([isRoot, atOrBelowHeight]);
+    acceptable = anyTest([isRoot, atOrBelowHeight]);
     filtered = {
       nodes: filter(acceptable, nodes),
       edges: filter(function(it){
@@ -810,15 +820,25 @@ if (typeof window == 'undefined' || window === null) {
       return it.fail(onError);
     }, stages);
   });
-  draw = function(directNodes, edges, nodeForIdent, symbol){
-    var graph, state, switches, selector, stateArgs, x$, rootSelector, y$, elisionSelector, getHomologues, render, roots, i$, ref$, len$, r, monitorHomologueProgress;
-    graph = makeGraph.apply(this, arguments);
+  progressMonitor = function(selector){
+    var $progress;
+    $progress = $(selector);
+    return monitorProgress(function(progress){
+      $progress.find('.meter').css('width', progress * 100 + "%");
+      return $progress.toggle(progress < 1);
+    });
+  };
+  draw = function(graph){
+    var symbol, state, newGraph, switches, selector, stateArgs, x$, rootSelector, y$, elisionSelector, getHomologues, render, roots, i$, ref$, len$, r, monitorHomologueProgress;
+    symbol = head(unique(concatMap(function(it){
+      return it.symbols;
+    }, graph.nodes)));
     state = new GraphState({
       view: queryParams.view || 'dag',
-      symbol: symbol,
       smallGraphThreshold: 20,
       animating: 'waiting',
       root: null,
+      symbol: symbol,
       jiggle: queryParams.jiggle,
       spline: queryParams.spline || 'curved',
       dagDirection: 'LR',
@@ -837,7 +857,22 @@ if (typeof window == 'undefined' || window === null) {
       }, graph.edges))).concat(['elision'])
     });
     window.GRAPH = state;
-    annotateForCounts(query, graph.nodes);
+    newGraph = graphify(progressMonitor('#dag .progress'), rows);
+    $('.button.symbol').on('click', function(){
+      return newGraph($('input.symbol').val()).fail(notify).done(function(arg$){
+        var nodes;
+        nodes = arg$.nodes;
+        return annotateForCounts(query, nodes);
+      }).done(function(arg$){
+        var nodes;
+        nodes = arg$.nodes;
+        return doHeightAnnotation;
+      }).done(partialize$.apply(state, [state.set, ['all', void 8], [1]])).done(compose$([
+        partialize$.apply(state, [state.set, ['root', void 8], [1]]), head, filter(isRoot), function(it){
+          return it.nodes;
+        }
+      ]));
+    });
     $('.graph-control').show().on('submit', function(it){
       return it.preventDefault();
     }).find('.resizer').click(function(){
@@ -883,7 +918,18 @@ if (typeof window == 'undefined' || window === null) {
     });
     x$ = rootSelector = $('#graph-root');
     x$.on('change', function(){
-      state.set('root', nodeForIdent[$(this).val()]);
+      var setRoot, nodes, rootId, rootNode;
+      setRoot = partialize$.apply(state, [state.set, ['root', void 8], [1]]);
+      nodes = state.get('all').nodes;
+      rootId = $(this).val();
+      rootNode = find(compose$([
+        (function(it){
+          return it === rootId;
+        }), function(it){
+          return it.id;
+        }
+      ]), nodes);
+      setRoot(rootNode);
     });
     state.on('change:root', function(s, root){
       switch (false) {
@@ -898,33 +944,8 @@ if (typeof window == 'undefined' || window === null) {
       return state.set('elision', parseInt($(this).val(), 10));
     });
     state.on('change:elision', flip(bind$(elisionSelector, 'val')));
-    setTimeout(function(){
-      var heights, i$, len$, h, text, level;
-      annotateForHeight(graph.nodes);
-      heights = sort(unique(map(function(it){
-        return it.stepsFromLeaf;
-      }, graph.nodes)));
-      for (i$ = 0, len$ = heights.length; i$ < len$; ++i$) {
-        h = heights[i$];
-        text = (fn$());
-        elisionSelector.append("<option value=\"" + h + "\">" + text + "</option>");
-      }
-      state.trigger('controls:changed');
-      if (level = state.get('elision')) {
-        elisionSelector.val(level);
-        return state.trigger('annotated:height');
-      }
-      function fn$(){
-        switch (h) {
-        case 0:
-          return "Show all terms";
-        case 1:
-          return "Show only direct parents of annotations, and the root term";
-        default:
-          return "show all terms within " + h + " steps of a directly annotated term";
-        }
-      }
-    }, 0);
+    annotateForCounts(query, graph.nodes);
+    doHeightAnnotation(graph.nodes);
     setUpOntologyTable();
     setUpInterop();
     getHomologues = homologueQuery(symbol);
@@ -962,12 +983,42 @@ if (typeof window == 'undefined' || window === null) {
     if (queryParams.allRoots) {
       render(state, state.get('graph'));
     } else {
-      state.set('root', roots[0]);
+      state.set('root', head(roots));
     }
     state.on('change:homologueProgress', function(s, progress){
       $('#homologue-progress .meter').css('width', progress * 100 + "%");
       return $('#homologue-progress').toggle(progress < 1);
     });
+    function doHeightAnnotation(nodes){
+      return setTimeout(function(){
+        var heights, i$, len$, h, text, level;
+        annotateForHeight(nodes);
+        heights = sort(unique(map(function(it){
+          return it.stepsFromLeaf;
+        }, nodes)));
+        elisionSelector.empty();
+        for (i$ = 0, len$ = heights.length; i$ < len$; ++i$) {
+          h = heights[i$];
+          text = (fn$());
+          elisionSelector.append("<option value=\"" + h + "\">" + text + "</option>");
+        }
+        state.trigger('controls:changed');
+        if (level = state.get('elision')) {
+          elisionSelector.val(level);
+          return state.trigger('annotated:height');
+        }
+        function fn$(){
+          switch (h) {
+          case 0:
+            return "Show all terms";
+          case 1:
+            return "Show only direct parents of annotations, and the root term";
+          default:
+            return "show all terms within " + h + " steps of a directly annotated term";
+          }
+        }
+      }, 0);
+    }
     function setUpInterop(){
       var $ul, toOption;
       $ul = $('#interop-sources');
@@ -992,20 +1043,12 @@ if (typeof window == 'undefined' || window === null) {
       service = interopMines[source];
       rs = flatRows(bind$(service, 'rows'));
       mergeGraph = mergeGraphs(state.get('all'));
-      gettingHomologues = function(it){
-        return it.then(function(it){
-          if (empty(it)) {
-            return error("No homologues found");
-          } else {
-            return it;
-          }
-        });
-      }(
+      gettingHomologues = failWhenEmpty("No homologues found")(
       flatRows(rows)(
       getHomologues(source)));
       gettingDirect = gettingHomologues.then(compose$([rs, directHomologyTerms]));
       gettingAll = gettingDirect.then(compose$([rs, allHomologyTerms]));
-      gettingNames = gettingAll.then(fetchNames(service.name, bind$(service, 'rows')));
+      gettingNames = $.when(gettingHomologues, gettingAll).then(fetchNames(service.name, bind$(service, 'rows')));
       gettingEdges = gettingAll.then(compose$([bind$(service, 'rows'), wholeGraphQ])).then(map(rowToNode));
       monitorHomologueProgress([gettingHomologues, gettingDirect, gettingAll, gettingNames, gettingEdges]);
       return $.when(gettingDirect, gettingEdges, gettingNames).then(compose$([mergeGraph, makeGraph])).fail(notify).done(function(merged){
@@ -2664,27 +2707,29 @@ if (typeof window == 'undefined' || window === null) {
   currentSymbol = function(){
     return queryParams.symbol || 'bsk';
   };
-  main = function(symbol){
-    var fetchFlat, $progress, monitor, gettingDirect, gettingAll, gettingNames, gettingEdges;
+  graphify = curry$(function(monitor, getRows, symbol){
+    var fetchFlat, gettingDirect, gettingAll, gettingNames, gettingEdges;
     console.log("Drawing graph for " + symbol);
-    fetchFlat = flatRows(rows);
-    $progress = $('#dag .progress');
-    monitor = monitorProgress(function(progress){
-      console.log("Main progress: " + progress);
-      $progress.find('.meter').css('width', progress * 100 + "%");
-      return $progress.toggle(progress < 1);
-    });
-    gettingDirect = fetchFlat(
+    fetchFlat = flatRows(getRows);
+    gettingDirect = failWhenEmpty("No annotation found for " + symbol)(
+    fetchFlat(
     directTerms(
-    symbol));
+    symbol)));
     gettingAll = fetchFlat(
     allGoTerms(
     symbol));
-    gettingNames = gettingAll.then(fetchNames('flymine', rows));
-    gettingEdges = gettingAll.then(compose$([rows, wholeGraphQ])).then(map(rowToNode));
+    gettingNames = gettingAll.then(fetchNames('flymine', getRows, [symbol]));
+    gettingEdges = gettingAll.then(compose$([getRows, wholeGraphQ])).then(map(rowToNode));
     monitor([gettingDirect, gettingAll, gettingNames, gettingEdges]);
-    return $.when(gettingDirect, gettingEdges, gettingNames, symbol).then(draw);
-  };
+    return function(it){
+      return it.then(makeGraph);
+    }($.when(gettingDirect, gettingEdges, gettingNames));
+  });
+  main = compose$([
+    function(it){
+      return it.then(draw, notify);
+    }, graphify(progressMonitor('#dag .progress'), rows)
+  ]);
   $(function(){
     return main(currentSymbol());
   });

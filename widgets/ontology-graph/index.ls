@@ -44,9 +44,11 @@ error = (msg) -> $.Deferred -> @reject msg
 # out alert for a better notification system later.
 notify = -> alert it
 
+fail-when-empty = (msg, promise) --> promise.then -> if empty it then error msg else it
+
 # Simple alias that makes for cleaner fmapping
 do-to = (f, x) -> f x
-or-fs = (fs, x) --> orList map (`do-to` x), fs
+any-test = (tests, x) --> any (`do-to` x), tests
 
 interop-mines = objectify (.taxon-id), (({root, name}) -> (<<< {name}) new Service {root}), interop
 
@@ -106,9 +108,10 @@ homologue-query = (symbol, targetOrganism) -->
 #'relations.relationship': \is_a
 
 class Node
-    (@label, @id, @description, origin) ~>
+    (@label, @id, @description, origin, syms) ~>
         @counts = []
         @sources = [origin]
+        @symbols = syms.slice!
         @edges = []
         @depths = []
 
@@ -126,16 +129,16 @@ class Node
 
     add-count: (c) -> @counts.push c if c?
 
-new-node = (source, id, label, description) --> Node label, id, description, source
+new-node = (src, syms, id, label, desc) --> Node label, id, desc, src, syms
 
 # Get all the names for our ontology terms in one fell swoop, and build a mapping.
-fetch-names = (source, get-rows, identifier) -->
+fetch-names = (source, get-rows, symbols, identifier) -->
     q =
         select: <[ identifier name description ]>
         from: \OntologyTerm
         where: {identifier}
 
-    node = new-node source
+    node = new-node source, symbols
 
     get-rows(q).then objectify (.0), (-> node ...it)
 
@@ -309,7 +312,7 @@ trim-graph-to-height = ({nodes, edges}, level) ->
     console.log "Trimming graph to #{ level }"
 
     at-or-below-height = (.steps-from-leaf) >> (<= level)
-    acceptable = or-fs [is-root, at-or-below-height]
+    acceptable = any-test [is-root, at-or-below-height]
 
     filtered =
         nodes: filter acceptable, nodes
@@ -410,16 +413,22 @@ monitor-progress = (report, stages) -->
     each (.done stage-complete), stages
     each (.fail on-error), stages
 
-draw =  (direct-nodes, edges, node-for-ident, symbol) ->
+progress-monitor = (selector) ->
+    $progress = $ selector
+    monitor-progress (progress) ->
+        $progress.find(\.meter).css \width, "#{ progress * 100}%"
+        $progress.toggle progress < 1
 
-    graph = make-graph ...
+draw =  (graph) -> #direct-nodes, edges, node-for-ident, symbol) ->
+
+    symbol = head unique concat-map (.symbols), graph.nodes
 
     state = new GraphState {
         view: (query-params.view or \dag)
-        symbol: symbol
         small-graph-threshold: 20
         animating: \waiting
         root: null
+        symbol: symbol,
         jiggle: (query-params.jiggle) #or \centre)
         spline: (query-params.spline or \curved)
         dag-direction: \LR
@@ -434,8 +443,16 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
     }
     window.GRAPH = state # just fro testing, TODO remove TODO
 
+    new-graph = graphify (progress-monitor '#dag .progress'), rows
 
-    annotate-for-counts query, graph.nodes
+    # Rerender with new value.
+    $ \.button.symbol .on \click, ->
+        new-graph $(\input.symbol).val!
+            .fail notify
+            .done ({nodes}) -> annotate-for-counts query, nodes
+            .done ({nodes}) -> do-height-annotation
+            .done state.set \all, _
+            .done (.nodes) >> (filter is-root) >> head >> (state.set \root, _)
 
     $ \.graph-control
         .show!
@@ -477,7 +494,12 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
     state.on \graph:reset, -> unmark state.get(\graph).nodes
 
     root-selector = $ \#graph-root
-        ..on \change, !-> state.set \root, node-for-ident[ $(@).val! ]
+        ..on \change, !->
+            set-root = state.set \root, _
+            {nodes} = state.get \all
+            root-id = $(@).val!
+            root-node = find (is root-id) << (.id), nodes
+            set-root root-node
 
     state.on \change:root, (s, root) ->
         | root => root-selector.val root.id
@@ -488,22 +510,11 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
 
     state.on \change:elision, flip elision-selector~val
 
-    set-timeout ( ->
-        annotate-for-height graph.nodes
-        heights = sort unique map (.steps-from-leaf), graph.nodes
+    # Do initial graph analysis
+    annotate-for-counts query, graph.nodes
+    do-height-annotation graph.nodes
 
-        for h in heights
-            text = switch h
-                | 0 => "Show all terms"
-                | 1 => "Show only direct parents of annotations, and the root term"
-                | otherwise => "show all terms within #{ h } steps of a directly annotated term"
-            elision-selector.append """<option value="#{ h }">#{ text }</option>"""
-        state.trigger \controls:changed
-        if level = state.get \elision
-            elision-selector.val level
-            state.trigger \annotated:height
-    ), 0
-
+    # Do initial ontology set up
     set-up-ontology-table!
     set-up-interop!
 
@@ -529,11 +540,32 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
     if query-params.all-roots
         render state, state.get \graph
     else
-        state.set \root, roots[0]
+        state.set \root, head roots
 
     state.on 'change:homologueProgress', (s, progress) ->
         $('#homologue-progress .meter').css \width, "#{ progress * 100}%"
         $('#homologue-progress').toggle progress < 1
+
+    function do-height-annotation nodes
+        # A bit computationally expensive, especially for large graphs, so
+        # defer this into another tick.
+        set-timeout ( ->
+            annotate-for-height nodes
+            heights = sort unique map (.steps-from-leaf), nodes
+            elision-selector.empty!
+
+            for h in heights
+                text = switch h
+                    | 0 => "Show all terms"
+                    | 1 => "Show only direct parents of annotations, and the root term"
+                    | otherwise => "show all terms within #{ h } steps of a directly annotated term"
+                elision-selector.append """<option value="#{ h }">#{ text }</option>"""
+
+            state.trigger \controls:changed
+            if level = state.get \elision
+                elision-selector.val level
+                state.trigger \annotated:height
+        ), 0
 
     function set-up-interop
         $ul = $ \#interop-sources
@@ -559,11 +591,12 @@ draw =  (direct-nodes, edges, node-for-ident, symbol) ->
 
         getting-homologues = get-homologues source
             |> flat-rows rows
-            |> (.then -> if empty it then error "No homologues found" else it)
+            |> fail-when-empty "No homologues found"
 
         getting-direct = getting-homologues.then rs . direct-homology-terms
         getting-all = getting-direct.then rs . all-homology-terms
-        getting-names = getting-all.then fetch-names service.name, service~rows
+        getting-names = $.when getting-homologues, getting-all
+            .then fetch-names service.name, service~rows
         getting-edges = getting-all
             .then service~rows . whole-graph-q
             .then map row-to-node
@@ -1755,23 +1788,20 @@ query-params =
 
 current-symbol = -> query-params.symbol or \bsk
 
-main = (symbol) ->
+graphify = (monitor, get-rows, symbol) -->
     console.log "Drawing graph for #{ symbol }"
-    fetch-flat = flat-rows rows
-    $progress = $('#dag .progress')
-    monitor = monitor-progress (progress) ->
-        console.log "Main progress: #{ progress }"
-        $progress.find(\.meter).css \width, "#{ progress * 100}%"
-        $progress.toggle progress < 1
+    fetch-flat = flat-rows get-rows
 
-    getting-direct = symbol |> direct-terms |> fetch-flat
+    getting-direct = symbol |> direct-terms |> fetch-flat |> fail-when-empty "No annotation found for #{ symbol }"
     getting-all = symbol |> all-go-terms |> fetch-flat
-    getting-names = getting-all.then fetch-names \flymine, rows
-    getting-edges = getting-all.then(rows << whole-graph-q).then map row-to-node
+    getting-names = getting-all.then fetch-names \flymine, get-rows, [symbol]
+    getting-edges = getting-all.then(get-rows << whole-graph-q).then map row-to-node
 
     monitor [getting-direct, getting-all, getting-names, getting-edges]
 
-    $.when(getting-direct, getting-edges, getting-names, symbol).then draw
+    (.then make-graph) $.when getting-direct, getting-edges, getting-names
+
+main = (.then draw, notify) << graphify (progress-monitor '#dag .progress'), rows
 
 # Let's go!
 $ -> main current-symbol!
