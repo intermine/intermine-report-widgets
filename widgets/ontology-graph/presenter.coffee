@@ -1,4 +1,28 @@
-{flip} = prelude
+
+DEFAULT_GRAPH_STATE =
+      view: 'dag'
+      smallGraphThreshold: 20
+      jiggle: null
+      spline: 'curved'
+      dagDirection: 'LR'
+      maxmarked: 20
+      tickK: 15
+      translate: [5, 5]
+      elision: null
+      relationships: []
+
+getGraphState = ( config, elem ) ->
+
+    initVals =
+        root: null
+        animating: 'waiting'
+        dimensions:
+            w: elem.offsetWidth
+            h: elem.offsetHeight
+
+    new Backbone.Model _.extend {}, DEFAULT_GRAPH_STATE, initVals, config.graphState
+
+$ = jQuery
 
 class Widget extends Backbone.View
 
@@ -7,83 +31,57 @@ class Widget extends Backbone.View
 
     render: (target) ->
 
-        @set-elem first $ target
-        @model = get-graph-state @config, elem
+        @setElem $(target)[0]
+        @model = getGraphState @config, elem
 
-        @render-chrome!
-        @start-listening!
-        @load-data!
+        @renderChrome()
+        @startListening()
+        @loadData()
 
         return this
 
     @BINDINGS:
-        tick-k: \.min-ticks
-        jiggle: \jiggle
-        spline: \spline
+        tickK: '.min-ticks'
+        jiggle: '.jiggle'
+        spline: '.spline'
 
-    start-listening: ->
+    startListening: ->
 
-        for key, sel of Widget.BINDINGS
-            @listen-to @model, 'change:' + key, flip @$(sel)~val!
+        for key, sel of Widget.BINDINGS then do (sel) =>
+            @listenTo @model, 'change:' + key, (m, v) => @$(sel).val v
 
-    render-chrome: ->
+    renderChrome: ->
         @$el.html @templates.widget
-        @$ \.jiggle .val @model.get \jiggle
-        @$ \.min-ticks .val @model.get \tickK
+        for key, sel of Widget.BINDINGS
+          @$(sel).val @model.get key
 
     events: ->
         state = @model
         evts =
-            'submit .graph-control': (.prevent-default!)
-            'click .graph-control .resizer': @~toggle-display-options
-            'click .graph-reset': @trigger \graph:reset, _
+            'submit .graph-control': (e) -> e.preventDefault()
+            'click .graph-control .resizer': 'toggleDisplayOptions'
+            'click .graph-reset': => @trigger 'graph:reset'
 
 
         for key, sel of Widget.BINDINGS
-            evts['change ' + sel] = -> state.set key, $(@).val!
+            evts['change ' + sel] = -> state.set key, $(@).val()
 
         switches =
-            '.switch-view-dag': {view: \dag}
-            '.switch-view-force': {view: \force}
-            '.switch-orient-lr': {dagDirection: \LR}
-            '.switch-orient-tb': {dagDirection: \TB}
+            '.switch-view-dag': {view: 'dag'}
+            '.switch-view-force': {view: 'force'}
+            '.switch-orient-lr': {dagDirection: 'LR'}
+            '.switch-orient-tb': {dagDirection: 'TB'}
 
-        for selector, state-args of switches
-            let args = state-args
-                evts[\change + ' ' + selector] = -> state.set args if $(@).is \:checked
+        for selector, args of switches then do (args) ->
+              evts['change  ' + selector] = -> state.set args if $(@).is ':checked'
 
         return evts
 
-    toggle-display-options: ->
-        @$ '.graph-control .resizer' .toggle-class 'icon-resize-small icon-resize-full'
-        @$ '.graph-control .hidable' .slide-toggle!
+    toggleDisplayOptions: ->
+        @$ '.graph-control .resizer'
+          .toggleClass 'icon-resize-small icon-resize-full'
+        @$ '.graph-control .hidable'
+          .slideToggle()
 
-
-
-    load-data: ->
-
-function get-graph-state config, elem
-
-    defaults =
-        view: \dag
-        small-graph-threshold: 20
-        jiggle: null
-        spline: \curved
-        dag-direction: \LR
-        maxmarked: 20
-        tick-k: 15
-        translate: [5, 5]
-        elision: null
-        relationships: []
-
-    init-vals =
-        root: null
-        animating: \waiting
-        dimensions:
-            w: elem.offset-width
-            h: elem.offset-height
-
-    from-conf = config.graph-state
-
-    new Backbone.Model defaults <<< init-vals <<< from-conf
+    loadData: ->
 
