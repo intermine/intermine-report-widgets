@@ -21,8 +21,8 @@ for lvl in [ 'info', 'warn', 'debug', 'data', 'error' ] then do (lvl) ->
             catch err
                 # Silence!
 
-# Require precompiler with out logger.
-precompile = require('./precompile.coffee') log
+# Require builder with out logger.
+build = require('./build.coffee') log
 
 # Read the config file.
 config = do ->
@@ -111,7 +111,7 @@ app.router.path "/widget/report/:widgetId", ->
                     widget = data.widgets[widgetId]
                     if widget?
                         # Run the precompile.
-                        precompile.single widgetId, callback, widget, (err, js) =>
+                        build.single widgetId, callback, widget, (err, js) =>
                             if err
                                 # Catch all errors into logs and JSON messages.
                                 log.error err.red

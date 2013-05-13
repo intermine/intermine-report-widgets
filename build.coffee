@@ -3,7 +3,7 @@ fs        = require 'fs'
 eco       = require 'eco'
 cs        = require 'coffee-script'
 stylus    = require 'stylus'
-uglifyJs  = require 'uglify-js'
+uglify    = require 'uglify-js'
 cleanCss  = require 'clean-css'
 parserlib = require 'parserlib'
 prefix    = require 'prefix-css-node'
@@ -18,6 +18,14 @@ Precompile a single widget.
 @param {fn} output Expects two parameters, 1. error string 2. JS string with the precompiled widget.
 ###
 single = (widgetId, callback, config, output) ->
+
+    # Compress using `uglify-js` or `clean-css`.
+    minify = (input, type="js") ->
+        switch type
+            when 'js'
+                (uglify.minify(input, 'fromString': true)).code
+            when 'css'
+                cleanCss.process input
 
     # Does the dir actually exist?
     async.waterfall [ (cb) ->
@@ -239,7 +247,7 @@ all = ->
                         if encodeURIComponent(widgetId) isnt widgetId
                             log.error "Widget id `#{widgetId}` is not a valid name and cannot be used, use encodeURIComponent() to check".red
                         else
-                            log.debug "Precompiling widget " + widgetId.bold
+                            log.info 'Precompiling widget ' + widgetId.bold
 
                             # Create the placeholders.
                             config =
@@ -255,65 +263,76 @@ all = ->
                                 # Catch all errors into messages.
                                 if err
                                     log.error err.red
+                                    done()
                                 else
                                     # Since we are writing the result into a file, make sure that the file begins with an exception if read directly.
                                     (js = js.split("\n")).splice 0, 0, 'new Error(\'This widget cannot be called directly\');\n'
 
                                     # Write the result.
-                                    write "./build/#{widgetId}.js", js.join "\n"
-                                    log.data "Writing .js package".green
+                                    log.data 'Writing .js package'.green
+                                    write "./build/#{widgetId}.js", js.join("\n"), done
 
-                                # Run again.
-                                done()
+# Compile the client.
+client = (cb = ->) ->
+    async.waterfall [ (cb) ->
+        compile = (f) ->
+            (cb) ->
+                fs.readFile f, 'utf-8', (err, data) ->
+                    return cb err if err
+                    cb null, [ f, data ]
+
+        # Run checks in parallel.
+        async.parallel ( compile f for f in [ './client/client.coffee', './client/client.deps.coffee' ] ), (err, results) ->
+            return cb err if err
+
+            # Swap?
+            [ a, b ] = results
+            ( a[0] is './client/client.coffee' and [ b, a ] = [ a, b ] )
+
+            # Add paths and join.
+            merged = [ a[1], b[1] ].join('\n')
+
+            # Compile please, with closure.
+            try
+                js = cs.compile merged
+            catch err
+                return cb err
+
+            # Merge the files into one and wrap in closure.
+            cb null, js
+
+    # Write it.
+    , (js, cb) ->
+        process = (path, compress=false) ->
+            (cb) ->
+                # Compress?
+                try
+                    data = if compress then (uglify.minify(js, 'fromString': true)).code else js
+                catch err
+                    return cb err
+
+                # Actually write.
+                write path, data, cb
+
+        async.parallel [
+            process('./public/js/intermine.report-widgets.js')
+            process('./public/js/intermine.report-widgets.min.js', true)
+        ], cb
+
+    ], (err) ->
+        log.error (''+err) if err
+        cb()
+
+# Append to existing file.
+write = (path, data, cb) ->
+    fs.open path, 'w', 0o0666, (err, id) ->
+        return cb err if err
+        fs.write id, data, null, 'utf-8', (err) ->
+            return cb err if err
+            cb null
 
 # Export the precompilers after setting the logger.
 module.exports = (@log) ->
     'all':    all
     'single': single
-
-# Async walk a directory recursively to return a list of files in a callback matching a particular file filter.
-walk = (path, filter, callback) ->
-    results = []
-    # Read directory.
-    fs.readdir path, (err, list) ->
-        # Problems?
-        return callback err if err
-        
-        # Get listing length.
-        pending = list.length
-
-        return callback null, results unless pending # Done already?
-        
-        # Traverse.
-        list.forEach (file) ->
-            # Form path
-            file = "#{path}/#{file}"
-            fs.stat file, (err, stat) ->
-                # Subdirectory.
-                if stat and stat.isDirectory()
-                    walk file, filter, (err, res) ->
-                        # Append result from sub.
-                        results = results.concat(res)
-                        callback null, results unless --pending # Done yet?
-                # A file.
-                else
-                    if filter?
-                        if file.match filter then results.push file
-                    else
-                        results.push file
-                    callback null, results unless --pending # Done yet?
-
-# Compress using `uglify-js` or `clean-css`.
-minify = (input, type="js") ->
-    switch type
-        when 'js'
-            jsp = uglifyJs.parser ; pro = uglifyJs.uglify
-            pro.gen_code pro.ast_squeeze pro.ast_mangle jsp.parse input
-        when 'css'
-            cleanCss.process input
-
-# Append to existing file.
-write = (path, text, mode = "w") ->
-    fs.open path, mode, 0o0666, (err, id) ->
-        throw err if err
-        fs.write id, text, null, "utf8"
+    'client': client

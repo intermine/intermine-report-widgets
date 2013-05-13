@@ -1,27 +1,15 @@
 #!./node_modules/.bin/cake
 winston = require 'winston'
-fs      = require 'fs'
-cs      = require 'coffee-script'
+winston.cli()
 
-"""
-@sh ./node_modules/.bin/coffee -o public/js -c client.coffee ; ./node_modules/.bin/coffee -c service.coffee
-"""
+build = require('./build.coffee')(winston)
+
 task 'start', 'compile client and start the service', (options) ->
-    write './public/js/client.js', cs.compile fs.readFileSync 'client.coffee', 'utf-8'
-    require './service.coffee'
+    build.client ->
+        require './service.coffee'
 
-"""
-@sh ./node_modules/.bin/coffee -o public/js -c client.coffee
-"""
 task 'client', 'compile client', (options) ->
-    write './public/js/client.js', cs.compile fs.readFileSync 'client.coffee', 'utf-8'
+    build.client()
 
 task 'precompile', 'precompile widgets', (options) ->
-    winston.cli()
-    (require('./precompile.coffee')(winston)).all()
-
-# Append to existing file.
-write = (path, text, mode = "w") ->
-    fs.open path, mode, 0o0666, (err, id) ->
-        throw err if err
-        fs.write id, text, null, "utf8"
+    build.all()

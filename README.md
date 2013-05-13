@@ -1,4 +1,4 @@
-# InterMine Report Widgets Service Reference Implementation
+# InterMine Report Widgets Service & Client
 
 A [node.js](http://nodejs.org/) reference implementation of a **service** and a **client** for loading and rendering Report Widgets (previously called Displayers).
 
@@ -34,9 +34,12 @@ If you want to see Growl-like notifications in your OS on specific events, insta
 The following snippet shows how one loads a specific widget on a page:
 
 ```javascript
-// give us report widgets from a specific service in a callback `widgets`
-intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
-    // now load a specific widget and place it in a target element passing it extra config.
+// Use InterMine API Loader to fetch Report Widgets client.
+intermine.load('report-widgets', function(err) {
+    // Potentially capture loading errors in `err`.
+    // Instantiate the library pointing to a service.
+    var widgets = new intermine.reportWidgets(document.location.href);
+    // Load a specific widget after satisfying its dependencies; passing target & extra config.
     widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
 });
 ```
@@ -44,9 +47,9 @@ intermine.load('report-widgets', 'http://127.0.0.1:1119', function(widgets) {
 The service does not cache the packaged widgets so that changes can be propagated in real time. There are two URLs that the service responds to:
 
 <dl>
-    <dt>/widgets</dt>
-    <dd>returns a JSON representation of all widgets configured in <code>config.json</code></dd>
-    <dt>/widget/[CALLBACK_ID]/[WIDGET_ID]</dt>
+    <dt>/widget/report</dt>
+    <dd>returns a JSON representation of all widgets configured in <code>config.json</code>. Call as JSONP.</dd>
+    <dt>/widget/report/[WIDGET_ID]?callback=[CALLBACK_ID]</dt>
     <dd>returns the widget in a JavaScript package with a callback</dd>
 </dl>
 

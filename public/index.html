@@ -2,7 +2,7 @@
 <head>
     <meta charset="utf-8" />
 
-    <title>InterMine Report Widgets Service Demo</title>
+    <title>InterMine Report Widgets Demo</title>
 
     <link rel="stylesheet" href="css/foundation3.css">
     <link rel="stylesheet" href="css/tricolore.css">
@@ -20,10 +20,10 @@
     <script src="http://cdn.intermine.org/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
 
     <!-- API loader for dependency resolution -->
-    <script src="http://cdn.intermine.org/js/intermine/api-loader/0.3.6/intermine.api.min.js"></script>
+    <script src="http://cdn.intermine.org/api"></script>
 
     <!-- report widgets client -->
-    <script src="js/client.js"></script>
+    <script src="js/intermine.report-widgets.js"></script>
 
     <script>
         var widgets = new intermine.reportWidgets(document.location.href);
@@ -32,7 +32,7 @@
 <body>
     <div class="row">
         <div class="ten columns">
-            <h2>InterMine Report Widgets Service Demo</h2>
+            <h2>InterMine Report Widgets Demo</h2>
         </div>
         <div id="docs" class="two columns">
             <a target="_blank" href="http://intermine.readthedocs.org/en/latest/embedding/report-widgets/">Read the Docs</a>
@@ -43,9 +43,11 @@
         <div class="twelve columns">
         <h3>Dendrogram Clustering</h3>
         <pre><code data-language="javascript">
-// give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.intermine.org', function(widgets) {
-    // now load a specific widget and place it in a target element passing it extra config.
+// Use InterMine API Loader to fetch Report Widgets client.
+intermine.load('report-widgets', function(err) {
+    // Instantiate the library pointing to a service.
+    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
+    // Load a specific widget after satisfying its dependencies; passing target & extra config.
     widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 600, 'symbol': 'MGI:97747' });
 });
         </code></pre>
@@ -62,9 +64,11 @@ intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.in
         <div class="twelve columns">
         <h3>Histogram</h3>
         <pre><code data-language="javascript">
-// give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.intermine.org', function(widgets) {
-    // now load a specific widget and place it in a target element.
+// Use InterMine API Loader to fetch Report Widgets client.
+intermine.load('report-widgets', function(err) {
+    // Instantiate the library pointing to a service.
+    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
+    // Load a specific widget after satisfying its dependencies; passing target & extra config.
     widgets.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
 });
         </code></pre>
@@ -81,9 +85,11 @@ intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.in
         <div class="twelve columns">
         <h3>Gene Mine Pathways</h3>
         <pre><code data-language="javascript">
-// give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.intermine.org', function(widgets) {
-    // now load a specific widget and place it in a target element passing it extra config.
+// Use InterMine API Loader to fetch Report Widgets client.
+intermine.load('report-widgets', function(err) {
+    // Instantiate the library pointing to a service.
+    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
+    // Load a specific widget after satisfying its dependencies; passing target & extra config.
     widgets.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
 });
         </code></pre>
@@ -100,9 +106,11 @@ intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.in
         <div class="twelve columns">
         <h3>Publications Displayer</h3>
         <pre><code data-language="javascript">
-// give us report widgets from a specific service in a callback `widgets`
-intermine.load('reportWidgets', 'http://intermine-report-widgets-service.labs.intermine.org', function(widgets) {
-    // now load a specific widget and place it in a target element passing it extra config.
+// Use InterMine API Loader to fetch Report Widgets client.
+intermine.load('report-widgets', function(err) {
+    // Instantiate the library pointing to a service.
+    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
+    // Load a specific widget after satisfying its dependencies; passing target & extra config.
     widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
 });
         </code></pre>

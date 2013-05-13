@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 29 Apr 2013 13:55:31 GMT
+ *  Generated: Mon, 13 May 2013 14:29:11 GMT
  */
 (function() {
   var root = this;
@@ -201,7 +201,7 @@ new Error('This widget cannot be called directly');
 
   /**#@+ the templates */
   var templates = {};
-  templates.chart=function(e){e||(e={});var t=[],n=function(e){var n=t,r;return t=[],e.call(this),r=t.join(""),t=n,i(r)},r=function(e){return e&&e.ecoSafe?e:typeof e!="undefined"&&e!=null?o(e):""},i,s=e.safe,o=e.escape;return i=e.safe=function(e){if(e&&e.ecoSafe)return e;if(typeof e=="undefined"||e==null)e="";var t=new String(e);return t.ecoSafe=!0,t},o||(o=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<header>    \n    <h4>SPELL Expression Summary for</h4> <input type="text" placeholder="S000001855" class="symbol three columns" value="'),t.push(r(this.symbol)),t.push('" />\n</header>\n\n<div class="chart"></div>')}).call(this)}.call(e),e.safe=s,e.escape=o,t.join("")};
+  templates.chart=function(e){e||(e={});var n,a=[],r=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?c(e):""},t=e.safe,c=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},c||(c=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){a.push('<header>    \n    <h4>SPELL Expression Summary for</h4> <input type="text" placeholder="S000001855" class="symbol three columns" value="'),a.push(r(this.symbol)),a.push('" />\n</header>\n\n<div class="chart"></div>')}).call(this)}.call(e),e.safe=t,e.escape=c,a.join("")};;
 
   /**#@+ css */
   var style = document.createElement('style');
