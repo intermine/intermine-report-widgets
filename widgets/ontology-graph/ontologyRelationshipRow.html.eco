@@ -1,0 +1,6 @@
+<tr>
+    <td><%= @source.id %>: <%= @source.label %></td>
+    <td><%= @label %></td>
+    <td><%= @target.id %>: <%= @target.label %></td>
+</tr>
+

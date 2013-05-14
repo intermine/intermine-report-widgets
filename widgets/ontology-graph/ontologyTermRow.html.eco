@@ -1,0 +1,9 @@
+<tr>
+    <td><%= @id %></td>
+    <td><%= @label %></td>
+    <td><%= @description %></td>
+    <td><%= @getTotalCount() %></td>
+    <td><%= @sources.join ', ' %></td>
+    <td><%= @symbols.join ', ' %></td>
+</tr>
+

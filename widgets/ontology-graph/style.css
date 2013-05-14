@@ -1,0 +1,208 @@
+.progress,
+.homologue-progress {
+    display: none;
+}
+.dag .progress {
+    position: relative;
+    top: 30%;
+    height: 30%;
+    left: 0;
+    width: 100%;
+}
+.ontology-table, .ontology-table .slide-control {
+    border: 1px solid #ccc;
+}
+.ontology-table div.content {
+}
+table.tablesorter thead tr .header {
+    padding-right: 1.5em;
+    background-image: url(no-sort.gif);
+    background-repeat: no-repeat;
+    background-position: center right;
+    cursor: pointer;
+}
+table.tablesorter thead tr .headerSortUp {
+    background-image: url(asc.gif);
+}
+table.tablesorter thead tr .headerSortDown {
+    background-image: url(desc.gif);
+}
+table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
+    background-color: #8dbdd8;
+}
+.ontology-table {
+    overflow: hidden;
+    position: fixed;
+    display: none;
+    z-index: 1000;
+    background: #fff;
+    opacity: 0.9;
+}
+.ontology-table .slide-control {
+    float: left;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 60px;
+    border-top: none;
+    border-left: none;
+    border-bottom: none;
+    font-size: 40px;
+    padding-left: 5px;
+    padding-top: 5px;
+}
+.ontology-table .section-container {
+    width: 95%;
+    height: 100%;
+}
+.ontology-table .ontology-table-container {
+    position: relative;
+    left: 30px;
+    height: 100%;
+    top: 0;
+}
+.dag {
+    width: 100%;
+    height: 100%;
+}
+.graph-control {
+    background: #eee;
+    width: 300px;
+    position: absolute;
+    left: 25px;
+    bottom: 25px;
+    border: 1px solid #ccc;
+    padding: 1.5em;
+}
+.graph-control .resizer {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+}
+.graph-control .hidable {
+    display: none;
+}
+.ontology-table tr.highlit td {
+    background: #5fc0ce;
+}
+
+svg {
+    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAdCAMAAACKeiw+AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAAZQTFRF////9fb3h/JDwQAAABtJREFUeNpiYMQLGBgZ8IJR6VHpUWnKpAECDACcGgA72QxfPgAAAABJRU5ErkJggg==);
+}
+.node rect {
+    white-space: normal;
+    stroke-width: 1.5px;
+    stroke: #333;
+}
+.node.highlight rect {
+    stroke: rgba(151, 23, 164, 0.6);
+    stroke-width: 10px;
+}
+.node rect.direct {
+    fill: red;
+}
+.node rect.focus {
+}
+text {
+    font-family: "Helvetica Neue", "Helvetica", "Droid Sans", "Ubuntu";
+}
+.node text.dag-label {
+    stroke-width: 3px;
+    font-weight: bold;
+    fill: #000;
+}
+.node text.focus,
+.node text.direct {
+    fill: #fff;
+}
+.node text.chord-label.direct {
+    fill: red;
+}
+.node:hover {
+    cursor: pointer;
+}
+.edge rect {
+    fill: #fff;
+}
+.edge path {
+    fill: none;
+}
+.link {
+    fill: none;
+    opacity: 0.5;
+}
+.chord {
+    fill: none;
+    opacity: 0.5;
+}
+.edge path.highlight,
+.edge:hover path {
+    stroke: rgba(151, 23, 164, 0.6);
+    /* stroke-width: 14px; */
+}
+.highlight #arrowhead,
+.edge:hover #arrowhead {
+    stroke-width: 3px;
+}
+.edge .label text {
+    stroke: none;
+    fill: #333;
+}
+.edge .label text,
+.legend text,
+text.dag-label {
+    font-family: "Ubuntu mono", "Droid Sans Mono", "Inconsolata", "Consolas", "Monospaced", monospace;
+}
+.chord-label {
+    font-size: 8px;
+    fill: #555;
+}
+.chord.focus {
+    stroke-width: 3px;
+    stroke: red;
+}
+text.go-name {
+    font-size: 10px;
+}
+text.go-name:hover {
+    opacity: 1;
+}
+.cp {
+    cursor: pointer;
+    opacity: 0;
+}
+path.highlight .label text,
+.edge:hover .label text {
+    font-size: 26px;
+    opacity: 1;
+}
+.edge:hover .cp {
+    opacity: 1;
+}
+path.force-link {
+}
+text.force-label {
+    cursor: pointer;
+}
+path.force-link.highlit {
+    stroke-width: 15px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* stroke: rgba(218, 226, 23, 0.4); */
+    stroke: rgba(151, 23, 164, 0.6);
+}
+circle.force-term {
+    cursor: pointer;
+    stroke: white;
+    stroke-width: 1;
+}
+rect.root,
+circle.root {
+    fill: rgb(120, 31, 180);
+}
+circle.direct {
+    fill: red;
+}
+.legend text {
+    fill: #555;
+}

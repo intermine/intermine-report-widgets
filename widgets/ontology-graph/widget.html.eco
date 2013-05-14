@@ -1,0 +1,133 @@
+<div class="ontology-widget">
+    <div class="dag">
+        <div class="progress"><span class="meter"></span></div>
+        <svg width="100%" height="100%">
+            <defs>
+                <marker class="arrowhead"
+                        viewBox="0 0 12 12"
+                        refX="1"
+                        refY="5"
+                        markerUnits="userSpaceInUse"
+                        markerWidth="8"
+                        markerHeight="5"
+                        orient="auto"
+                        style="fill: #555">
+                    <circle cx="5" cy="5", r="5"/>
+                </marker>
+                <marker class="Triangle"
+                    viewBox="0 0 10 10" refX="0" refY="5" 
+                    markerUnits="strokeWidth"
+                    markerWidth="4" markerHeight="3"
+                    orient="auto">
+                    <path d="M 0 0 L 10 5 L 0 10 z" />
+                </marker>
+                <marker class="TriangleDown"
+                    viewBox="0 0 10 10" refX="0" refY="5" 
+                    markerUnits="strokeWidth"
+                    markerWidth="4" markerHeight="3"
+                    orient="270">
+                    <path d="M 0 0 L 10 5 L 0 10 z" />
+                </marker>
+                <path class="throbber" d="M 150,0
+                        a 150,150 0 0,1 106.066,256.066
+                        l -35.355,-35.355
+                        a -100,-100 0 0,0 -70.711,-170.711 z"
+                        fill="#3d7fe6">
+                    <animateTransform attributeName="transform" attributeType="XML"
+                        type="rotate" from="0 150 150" to="360 150 150"
+                        begin="0s" dur="1s" fill="freeze" repeatCount="indefinite" />
+                </path>
+            </defs>
+        </svg>
+    </div>
+    <form class="graph-control">
+        <i class="resizer icon-resize-full"></i>
+        <div class="row">
+            <h6>Display Options</h6>
+        </div>
+        <div class="hidable">
+            <select class="graph-view">
+                <option value="Dag" selected>Directed Acyclic Graph</option>
+                <option value="Force">Force Directed Graph</option>
+            </select>
+            <select class="dag-direction">
+                <option value="LR" selected>Left-to-Right</option>
+                <option value="TB">Top-to-Bottom</option>
+            </select>
+            <!-- <input type="number" class="min-ticks"> -->
+            <div class="row collapse">
+                <div class="small-8 columns">
+                    <input class="symbol" type="text" placeholder="bsk">
+                </div>
+                <div class="small-4 columns">
+                    <a href="#" class="button prefix symbol">Search</a>
+                </div>
+            </div>
+            <fieldset>
+                <div>
+                    Add annotations from homologues in:
+                    <ul class="button-group interop-sources">
+                    </ul>
+                </div>
+                <div class="progress homologue-progress">
+                    <span class="meter"></span>
+                </div>
+            </fieldset>
+            <fieldset>
+                <select class="jiggle">
+                    <option value="none">Force Directed Layout</option>
+                    <option value="strata">Move Roots to Top</option>
+                    <option value="centre">Move Roots to Centre</option>
+                </select>
+                <select class="elision" >
+                </select>
+            </fieldset>
+            <select class="graph-root" >
+            </select>
+            <button class="graph-reset" >Reset</button>
+        </div>
+    </form>
+    <div class="ontology-table">
+        <div class="slide-control">
+            <i class="icon-chevron-left"></i>
+        </div>
+        <div class="ontology-table-container">
+            <div data-section class="section-container tabs ontology-table-container">
+                <section>
+                    <p class="title" data-section-title><a href="#panel1">Statements</a></p>
+                    <div class="content" data-section-content>
+                        <table class="marked-statements">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Predicate</th>
+                                    <th>Object</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+                <section>
+                    <p class="title" data-section-title><a href="#panel2">Terms</a></p>
+                    <div class="content" data-section-content>
+                        <table class="marked-terms">
+                            <thead>
+                                <tr>
+                                    <th>Identifier</th>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Gene Count</th>
+                                    <th>Present in</th>
+                                    <th>Annotated to</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
