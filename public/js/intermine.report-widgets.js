@@ -60,6 +60,10 @@
 
   root = this;
 
+  if (!document.querySelector) {
+    throw 'An old & unsupported browser detected';
+  }
+
   ReportWidgets = (function() {
     ReportWidgets.prototype.selectorPrefix = 'w';
 
@@ -94,9 +98,12 @@
       if (!this.config) {
         return _setImmediate(again);
       }
-      run = function() {
+      run = function(err) {
         var uid;
 
+        if (err) {
+          throw err;
+        }
         uid = _uid();
         return root.intermine.load([
           {
@@ -104,15 +111,20 @@
             'type': 'js'
           }
         ], function(err) {
-          var widget;
+          var article, div, widget;
 
-          $(target).html($("<div/>", {
-            'id': "w" + uid,
-            'html': $('<article/>', {
-              'class': "im-report-widget " + widgetId
-            })
-          }));
-          widget = root.intermine.temp.widgets[uid];
+          article = document.createElement('article');
+          article.setAttribute('class', "im-report-widget " + widgetId);
+          div = document.createElement('div');
+          div.setAttribute('id', 'w' + uid);
+          div.appendChild(article);
+          document.querySelector(target).appendChild(div);
+          if (!root.intermine.temp) {
+            throw '`intermine.temp` object cache does not exist';
+          }
+          if (!(widget = root.intermine.temp.widgets[uid])) {
+            throw "Unknown widget `" + uid + "`";
+          }
           widget.config = _extend(widget.config, options);
           return widget.render("#w" + uid + " article.im-report-widget");
         });

@@ -1,6 +1,9 @@
 #!/usr/bin/env coffee
 root = this
 
+# Can we work?
+throw 'An old & unsupported browser detected' unless document.querySelector
+
 class ReportWidgets
 
     # So that we do not start a selector with a number...
@@ -34,7 +37,10 @@ class ReportWidgets
         if not @config then return _setImmediate again
 
         # Post dependencies loaded.
-        run = =>
+        run = (err) =>
+            # Any loading problems?
+            throw err if err
+
             # Generate callback UID.
             uid = _uid()
 
@@ -44,13 +50,21 @@ class ReportWidgets
                 'type': 'js'
             ], (err) =>
                 # Create a wrapper for the target.
-                $(target).html $("<div/>",
-                    'id':   "w#{uid}"
-                    'html': $('<article/>', 'class': "im-report-widget #{widgetId}")
-                )
+                article = document.createElement 'article'
+                article.setAttribute 'class', "im-report-widget #{widgetId}"
+
+                div = document.createElement 'div'
+                div.setAttribute 'id', 'w' + uid
+                div.appendChild article
+
+                # Append it to the target, IE8+.
+                document.querySelector(target).appendChild div
                 
+                # Checks.
+                throw '`intermine.temp` object cache does not exist' unless root.intermine.temp
+
                 # Get the widget from the `cache`.
-                widget = root.intermine.temp.widgets[uid]
+                throw "Unknown widget `#{uid}`" unless widget = root.intermine.temp.widgets[uid]
 
                 # Inject the extra options to it.
                 widget.config = _extend widget.config, options
@@ -60,6 +74,7 @@ class ReportWidgets
 
         # Load dependencies?
         deps = @config[widgetId]
+
         if deps? then root.intermine.load deps, run
         else run()
 
