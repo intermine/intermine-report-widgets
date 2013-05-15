@@ -47,6 +47,7 @@ config = do ->
             try
                 data = JSON.parse data
             catch err
+                log.error "config.json is invalid"
                 return cb err
 
             # Validate that the config has widgets that are accessible by us.
@@ -64,10 +65,6 @@ app.use flatiron.plugins.http,
         connect.static './public'
     ]
     'after':  []
-
-app.start process.env.PORT, (err) ->
-    throw err if err
-    log.info "Listening on port #{String(app.server.address().port).bold}".green
 
 # -------------------------------------------------------------------
 # List all available widgets.
@@ -137,3 +134,13 @@ app.router.path "/widget/report/:widgetId", ->
             @res.writeHead 400, "content-type": "application/json"
             @res.write JSON.stringify 'message': 'Callback not provided'
             @res.end()
+
+# Check we can read the config, and then start the app.
+config (err) ->
+  if err?
+    log.error "Cannot start app: config is invalid: #{ err }"
+    process.exit 1
+  else
+    app.start process.env.PORT, (err) ->
+        throw err if err
+        log.info "Listening on port #{String(app.server.address().port).bold}".green
