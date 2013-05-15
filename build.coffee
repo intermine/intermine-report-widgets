@@ -205,6 +205,11 @@ single = (widgetId, callback, config, output) ->
                       document.head.appendChild(style);
                     """
 
+            widgetRef = if config.require?
+              "require('#{ config.require }')"
+            else
+              "Widget"
+
             # Finally add us to the browser `cache` under the callback id.
             js.push """
                 \n  /**#@+ callback */
@@ -217,7 +222,8 @@ single = (widgetId, callback, config, output) ->
                       parent = parent[part] = parent[part] || {};
                     }
                   }).call(root);
-                  root.intermine.temp.widgets['#{callback}'] = new Widget(config, templates);\n\n}).call(this);
+                  root.intermine.temp.widgets['#{callback}'] = new (#{widgetRef})(config, templates);
+                \n\n}).call(this);
                 """
 
             cb null, js.join '\n'
