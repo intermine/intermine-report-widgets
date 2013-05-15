@@ -79,7 +79,7 @@ process.chdir = function (dir) {
       root: null,
       animating: 'waiting'
     };
-    data = import$(import$(import$({}, DEFAULT_GRAPH_STATE), initVals), config.graphState);
+    data = merge$({}, DEFAULT_GRAPH_STATE, initVals, config.graphState);
     if (data.query == null) {
       throw new Error("No query provided.");
     }
@@ -89,7 +89,26 @@ process.chdir = function (dir) {
     var prototype = extend$((import$(OntologyWidget, superclass).displayName = 'OntologyWidget', OntologyWidget), superclass).prototype, constructor = OntologyWidget;
     prototype.initialize = function(config, templates){
       var Service;
-      this.config = config;
+      //this.config = config;
+      this.config = {
+        'service': { root: 'http://www.flymine.org/query' },
+        'interop': [
+            {
+                taxonId: 4932,
+                root: 'yeastmine-test.yeastgenome.org/yeastmine-dev',
+                name: 'SGD'
+            }, {
+                taxonId: 10090,
+                root: 'http://beta.mousemine.org/mousemine',
+                name: 'MGI'
+            }, {
+                taxonId: 6239,
+                root: 'http://intermine.modencode.org/release-32',
+                name: 'modMine'
+            }
+        ],
+        'graphState': { query: 'Adh' }
+      };
       this.templates = templates;
       Service = intermine.Service;
       this.service = new Service(this.config.service);
@@ -134,10 +153,7 @@ process.chdir = function (dir) {
     };
     prototype.startListening = function(){
       var key, ref$, sel, this$ = this;
-      for (key in ref$ = constructor.BINDINGS) {
-        sel = ref$[key];
-        fn$();
-      }
+
       this.listenTo(this.model, 'change:query', this.loadData);
       this.listenTo(this.model, 'change:query', bind$(this, 'resetHomologyButtons'));
       this.listenTo(this.model, 'change:heights', this.fillElisionSelector);
@@ -156,7 +172,7 @@ process.chdir = function (dir) {
       this.on('controls:changed', function(){
         return this$.$el.foundation();
       });
-      return this.on('graph:reset', function(){
+      this.on('graph:reset', function(){
         this$.model.get('all').unmark();
         return this$.model.trigger('nodes:marked');
       });
@@ -164,6 +180,10 @@ process.chdir = function (dir) {
         return this$.listenTo(this$.model, 'change:' + key, function(m, v){
           return this$.$(sel).val(v);
         });
+      }
+      for (key in ref$ = constructor.BINDINGS) {
+        sel = ref$[key];
+        fn$();
       }
     };
     prototype.onRootChange = function(){
@@ -424,6 +444,16 @@ process.chdir = function (dir) {
   }(Backbone.View));
   Widget = OntologyWidget;
   module.exports = OntologyWidget;
+  function merge$(obj) {
+    Array.prototype.slice.call(arguments, 1).forEach(function(source) {
+      if (source) {
+        for (var prop in source) {
+          obj[prop] = source[prop];
+        }
+      }
+    });
+    return obj;
+  }
   function import$(obj, src){
     var own = {}.hasOwnProperty;
     for (var key in src) if (own.call(src, key)) obj[key] = src[key];
@@ -1781,6 +1811,14 @@ function curry$(f, bound){
   });
   _graphify = function(monitor, getRows, symbols, query){
     var fetchFlat, gettingDirect, gettingAll, gettingNames, gettingEdges;
+    query = {
+      'select': ['Gene.symbol'],
+      'where': {
+        'symbol': {
+          '=': 'Adh'
+        }
+      }
+    };
     console.log("Drawing graph for:", query);
     fetchFlat = flatRows(getRows);
     gettingDirect = failWhenEmpty("No annotation found for " + query)(

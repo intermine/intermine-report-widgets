@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 13 May 2013 14:29:11 GMT
+ *  Generated: Wed, 15 May 2013 17:27:05 GMT
  */
 (function() {
   var root = this;
@@ -544,7 +544,7 @@ new Error('This widget cannot be called directly');
 
   /**#@+ the templates */
   var templates = {};
-  templates.grid=function(n){n||(n={});var e,t=[],s=function(n){return n&&n.ecoSafe?n:n!==void 0&&null!=n?l(n):""},a=n.safe,l=n.escape;return e=n.safe=function(n){if(n&&n.ecoSafe)return n;(void 0===n||null==n)&&(n="");var e=new String(n);return e.ecoSafe=!0,e},l||(l=n.escape=function(n){return(""+n).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<div class="foundation">\n    <h4>Pathways for '),t.push(s(this.title)),t.push('</h4> <div class="notifications"></div>\n    <p></p>\n    <div class="grid">\n        <div class="legend"></div>\n        \n        <table class="faux">\n            <thead>\n                <tr>\n                    <th><input type="text" placeholder="Filter..." class="filter" /></th>\n                </tr>\n            </thead>\n        </table>\n        \n        <div class="wrapper">\n            <table>\n                <thead></thead>\n                <tbody>\n                    <!-- so we start with a white row... -->\n                    <tr></tr>\n                    <tr class="filterMessage">\n                        <td colspan="99">\n                            <div class="alert-box secondary"><span class="text"></span> <a class="show-all">Show all</a></div>\n                        </td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>')}).call(this)}.call(n),n.safe=a,n.escape=l,t.join("")};;
+  templates.grid=function(n){n||(n={});var t,e=[],a=function(n){return n&&n.ecoSafe?n:n!==void 0&&null!=n?l(n):""},s=n.safe,l=n.escape;return t=n.safe=function(n){if(n&&n.ecoSafe)return n;(void 0===n||null==n)&&(n="");var t=new String(n);return t.ecoSafe=!0,t},l||(l=n.escape=function(n){return(""+n).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){e.push("<div>\n    <h4>Pathways for "),e.push(a(this.title)),e.push('</h4> <div class="notifications"></div>\n    <p></p>\n    <div class="grid">\n        <div class="legend"></div>\n        \n        <table class="faux">\n            <thead>\n                <tr>\n                    <th><input type="text" placeholder="Filter..." class="filter" /></th>\n                </tr>\n            </thead>\n        </table>\n        \n        <div class="wrapper">\n            <table>\n                <thead></thead>\n                <tbody>\n                    <!-- so we start with a white row... -->\n                    <tr></tr>\n                    <tr class="filterMessage">\n                        <td colspan="99">\n                            <div class="alert-box secondary"><span class="text"></span> <a class="show-all">Show all</a></div>\n                        </td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>')}).call(this)}.call(n),n.safe=s,n.escape=l,e.join("")};;
 
   /**#@+ css */
   var style = document.createElement('style');
@@ -562,6 +562,7 @@ new Error('This widget cannot be called directly');
       parent = parent[part] = parent[part] || {};
     }
   }).call(root);
-  root.intermine.temp.widgets['#@+CALLBACK'] = new Widget(config, templates);
+  root.intermine.temp.widgets['#@+CALLBACK'] = new (Widget)(config, templates);
+
 
 }).call(this);
