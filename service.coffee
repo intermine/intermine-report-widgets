@@ -8,11 +8,14 @@ growl    = require 'growl'
 fs       = require 'fs'
 
 # A Winston and Growl logger?
-log = {} ; winston.cli()
+log = {}
+logger = new winston.Logger()
+logger.add(winston.transports.Console, {level: 'debug'})
+logger.cli()
 for lvl in [ 'info', 'warn', 'debug', 'data', 'error' ] then do (lvl) ->
     log[lvl] = (text) ->
         # Show using Winston.
-        winston[lvl](text)
+        logger[lvl](text)
 
         # Strip colors and show in Growl.
         if lvl in [ 'info', 'warn', 'error' ]
@@ -78,6 +81,8 @@ app.router.path "/widget/report", ->
             # Only provide deps for each widget much like InterMine.
             config (err, data) =>
                 if err
+                    log.error "Request failed: #{ err }"
+                    console.log err.stack
                     @res.writeHead 500, "content-type": "application/json"
                     @res.write JSON.stringify 'message': err
                     @res.end()

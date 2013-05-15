@@ -188,7 +188,7 @@
               "intermine.imjs": {
                   "path": "http://cdn.intermine.org/js/intermine/imjs/latest/imjs.js",
                   "depends": [ "jQuery", "_" ]
-              }
+              },
               "Backbone": {
                 "path": "http://cdn.intermine.org/js/backbone.js/0.9.2/backbone-min.js",
                 "depends": [ "jQuery", "_" ]
@@ -200,20 +200,21 @@
               "foundation-4": {
                 "path": "http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.js",
                 "depends": [ "jQuery" ]
-              }
+              },
               "foundation-forms-4": {
                 "path": "http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.forms.js",
-                "depends": [ "jQuery" ]
-              }
+                "depends": [ "foundation-4" ]
+              },
               "foundation-section-4": {
                 "path": "http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.section.js",
-                "depends": [ "jQuery" ]
+                "depends": [ "foundation-4" ]
               }
-            },
-            "config": {
-              "service": { "root": "http://www.flymine.org/query" },
-              "graphState": { }
             }
+          },
+          "config": {
+            "service": { "root": "http://www.flymine.org/query" },
+            "graphState": { }
+          }
         }
     }
 }
