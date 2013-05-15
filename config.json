@@ -162,8 +162,8 @@
             }
         },
         "ontology-graph": {
-          "author": "Alex",
-          "require": "ontology-widget",
+          "author": "Alex Kalderimis",
+          "classExpr": "require('ontology-widget')",
           "description": "The super spaghetti monster",
           "title": "Gene Ontology Annotations for a given Gene",
           "version": "0.0.1",

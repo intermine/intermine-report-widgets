@@ -175,7 +175,8 @@ single = (widgetId, callback, config, output) ->
                  *  Generated: #{(new Date()).toUTCString()}
                  */
                 (function() {
-                  var root = this;
+                  var clazz
+                    , root = this;
 
                   /**#@+ the presenter */\n
                 """
@@ -205,10 +206,7 @@ single = (widgetId, callback, config, output) ->
                       document.head.appendChild(style);
                     """
 
-            widgetRef = if config.require?
-              "require('#{ config.require }')"
-            else
-              "Widget"
+            widgetRef = (config.classExpr or "Widget")
 
             # Finally add us to the browser `cache` under the callback id.
             js.push """
@@ -222,7 +220,8 @@ single = (widgetId, callback, config, output) ->
                       parent = parent[part] = parent[part] || {};
                     }
                   }).call(root);
-                  root.intermine.temp.widgets['#{callback}'] = new (#{widgetRef})(config, templates);
+                  clazz = #{ widgetRef };
+                  root.intermine.temp.widgets['#{callback}'] = [clazz, config, templates];
                 \n\n}).call(this);
                 """
 
