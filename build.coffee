@@ -261,6 +261,7 @@ all = ->
                                 'description': '#@+DESCRIPTION'
                                 'version':     '#@+VERSION'
                                 'config':      '#@+CONFIG'
+                                'classExpr':   '#@+CLASSEXPR'
                             callback         = '#@+CALLBACK'
 
                             # Run the precompile.
