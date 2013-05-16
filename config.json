@@ -210,7 +210,9 @@
                 "path": "http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.section.js",
                 "depends": [ "foundation-4" ]
               }
-            }
+            },
+            "config": {}
+          }
         }
     }
 }
