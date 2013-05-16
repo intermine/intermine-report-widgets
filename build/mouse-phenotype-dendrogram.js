@@ -11,10 +11,11 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 13 May 2013 14:29:12 GMT
+ *  Generated: Wed, 15 May 2013 16:53:56 GMT
  */
 (function() {
-  var root = this;
+  var clazz
+    , root = this;
 
   /**#@+ the presenter */
 
@@ -593,9 +594,9 @@ new Error('This widget cannot be called directly');
 
   /**#@+ the templates */
   var templates = {};
+  templates.popover=function(e){e||(e={});var n,t=[],s=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?r(e):""},a=e.safe,r=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},r||(r=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){var e,n,a,r,o,i,l,c,p,u,d;for(t.push('<div class="popover">\n    <a class="close">close</a>\n    <div class="inner">\n        <table>\n            <thead>\n                <tr>\n                    '),u=this.columns,r=0,l=u.length;l>r;r++)e=u[r],t.push('\n                        <th title="'),t.push(s(e)),t.push('">'),t.push(s(this.titleize(e))),t.push("</th>\n                    ");for(t.push("\n                </tr>\n            </thead>\n            <tbody>\n                "),d=this.rows,o=0,c=d.length;c>o;o++){for(n=d[o],t.push("\n                    <tr>\n                        "),i=0,p=n.length;p>i;i++)a=n[i],t.push("\n                            <td>"),t.push(s(a)),t.push("</td>\n                        ");t.push("\n                    </tr>\n                ")}t.push("\n            </tbody>\n        </table>\n    </div>\n</div>")}).call(this)}.call(e),e.safe=a,e.escape=r,t.join("")};;
   templates.config=function(e){e||(e={});var n,t=[],a=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?r(e):""},s=e.safe,r=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},r||(r=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<div class="hideTermsBand">\n    Term cutoff\n    <input type="range" min="1" max="5" step="1" value="'),t.push(a(this.hideTermsBand)),t.push('" />\n</div>\n\n<div class="termTextBand">\n    Term text cutoff\n    <input type="range" min="1" max="5" step="1" value="'),t.push(a(this.termTextBand)),t.push('" />\n</div>\n\n<div class="type">\n    Use a radial\n    <input type="radio" name="type" value="radial" checked="checked">\n    or a tree\n    <input type="radio" name="type" value="tree">\n    dendrogram\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=r,t.join("")};;
-  templates.popover=function(e){e||(e={});var n,t=[],s=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?l(e):""},a=e.safe,l=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},l||(l=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){var e,n,a,l,r,u,i,c,p,h,o;for(t.push('<div class="popover">\n    <a class="close">close</a>\n    <div class="inner">\n        <table>\n            <thead>\n                <tr>\n                    '),h=this.columns,l=0,i=h.length;i>l;l++)e=h[l],t.push('\n                        <th title="'),t.push(s(e)),t.push('">'),t.push(s(this.titleize(e))),t.push("</th>\n                    ");for(t.push("\n                </tr>\n            </thead>\n            <tbody>\n                "),o=this.rows,r=0,c=o.length;c>r;r++){for(n=o[r],t.push("\n                    <tr>\n                        "),u=0,p=n.length;p>u;u++)a=n[u],t.push("\n                            <td>"),t.push(s(a)),t.push("</td>\n                        ");t.push("\n                    </tr>\n                ")}t.push("\n            </tbody>\n        </table>\n    </div>\n</div>")}).call(this)}.call(e),e.safe=a,e.escape=l,t.join("")};;
-  templates.widget=function(e){e||(e={});var n,t=[],s=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?l(e):""},a=e.safe,l=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},l||(l=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<h4>Alleles phenotype terms for</h4> <input type="text" placeholder="MGI:97747" class="symbol three columns" value="'),t.push(s(this.symbol)),t.push('" />\n<div style="clear:both"></div>\n<div class="config">Loading &hellip;</div>\n<div class="graph"></div>')}).call(this)}.call(e),e.safe=a,e.escape=l,t.join("")};;
+  templates.widget=function(e){e||(e={});var n,t=[],a=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?r(e):""},s=e.safe,r=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},r||(r=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<h4>Alleles phenotype terms for</h4> <input type="text" placeholder="MGI:97747" class="symbol three columns" value="'),t.push(a(this.symbol)),t.push('" />\n<div style="clear:both"></div>\n<div class="config">Loading &hellip;</div>\n<div class="graph"></div>')}).call(this)}.call(e),e.safe=s,e.escape=r,t.join("")};;
 
   /**#@+ css */
   var style = document.createElement('style');
@@ -613,6 +614,8 @@ new Error('This widget cannot be called directly');
       parent = parent[part] = parent[part] || {};
     }
   }).call(root);
-  root.intermine.temp.widgets['#@+CALLBACK'] = new Widget(config, templates);
+  clazz = #@+CLASSEXPR;
+  root.intermine.temp.widgets['#@+CALLBACK'] = [clazz, config, templates];
+
 
 }).call(this);

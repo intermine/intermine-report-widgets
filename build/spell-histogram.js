@@ -11,10 +11,11 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 13 May 2013 14:29:11 GMT
+ *  Generated: Wed, 15 May 2013 16:53:53 GMT
  */
 (function() {
-  var root = this;
+  var clazz
+    , root = this;
 
   /**#@+ the presenter */
 
@@ -219,6 +220,8 @@ new Error('This widget cannot be called directly');
       parent = parent[part] = parent[part] || {};
     }
   }).call(root);
-  root.intermine.temp.widgets['#@+CALLBACK'] = new Widget(config, templates);
+  clazz = #@+CLASSEXPR;
+  root.intermine.temp.widgets['#@+CALLBACK'] = [clazz, config, templates];
+
 
 }).call(this);

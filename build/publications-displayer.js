@@ -11,10 +11,11 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Mon, 13 May 2013 14:29:11 GMT
+ *  Generated: Wed, 15 May 2013 16:53:56 GMT
  */
 (function() {
-  var root = this;
+  var clazz
+    , root = this;
 
   /**#@+ the presenter */
 
@@ -186,7 +187,7 @@ new Error('This widget cannot be called directly');
 
   /**#@+ the templates */
   var templates = {};
-  templates.table=function(n){n||(n={});var e,s=[],t=function(n){return n&&n.ecoSafe?n:n!==void 0&&null!=n?u(n):""},a=n.safe,u=n.escape;return e=n.safe=function(n){if(n&&n.ecoSafe)return n;(void 0===n||null==n)&&(n="");var e=new String(n);return e.ecoSafe=!0,e},u||(u=n.escape=function(n){return(""+n).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){var n,e,a,u,h,r,l,p,o,c,i,f;if(s.push("<header>\n    <!-- pagination -->\n    "),this.pages>1){for(s.push('\n        <ul class="pages">\n            <li>Page:</li>\n        '),e=u=0,c=this.pages;c>=0?c>u:u>c;e=c>=0?++u:--u)s.push("\n            <li><a "),this.current===e&&s.push('class="current"'),s.push(">"),s.push(t(e+1)),s.push("</a></li>\n        ");s.push("\n        </ul>\n    ")}if(s.push("\n    \n    <h4>"),s.push(t(this.count)),s.push(' Publications for</h4> <input type="text" placeholder="zen" class="symbol three columns" value="'),s.push(t(this.symbol)),s.push('" />\n</header>\n\n'),0!==this.rows.length){for(s.push("\n    <table>\n        <thead>\n            <tr>\n                <th>Title</th>\n                <th>Author</th>\n            </tr>\n        </thead>\n        <tbody>\n            "),i=this.rows,h=0,p=i.length;p>h;h++){if(a=i[h],s.push("\n                <tr>\n                    <td>"),s.push(t(a.title)),s.push("</td>\n                    <td>\n                        "),a.authors){if(s.push("\n                            "),a.authors.length>5){for(s.push("\n                                "),e=r=0;5>r;e=++r)s.push('\n                                    <span class="author">'),s.push(t(a.authors[e].name)),s.push("</span>\n                                ");s.push("\n                                &hellip;\n                            ")}else{for(s.push("\n                                "),f=a.authors,l=0,o=f.length;o>l;l++)n=f[l],s.push('\n                                    <span class="author">'),s.push(t(n.name)),s.push("</span>\n                                ");s.push("\n                            ")}s.push("\n                        ")}s.push("\n                    </td>\n                </tr>\n            ")}s.push("\n        </tbody>\n    </table>\n")}else s.push('\n    <div class="alert-box alert">No results</div>\n')}).call(this)}.call(n),n.safe=a,n.escape=u,s.join("")};;
+  templates.table=function(e){e||(e={});var n,t=[],s=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?r(e):""},a=e.safe,r=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},r||(r=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){var e,n,a,r,l,i,o,c,u,p,h,d;if(t.push("<header>\n    <!-- pagination -->\n    "),this.pages>1){for(t.push('\n        <ul class="pages">\n            <li>Page:</li>\n        '),n=r=0,p=this.pages;p>=0?p>r:r>p;n=p>=0?++r:--r)t.push("\n            <li><a "),this.current===n&&t.push('class="current"'),t.push(">"),t.push(s(n+1)),t.push("</a></li>\n        ");t.push("\n        </ul>\n    ")}if(t.push("\n    \n    <h4>"),t.push(s(this.count)),t.push(' Publications for</h4> <input type="text" placeholder="zen" class="symbol three columns" value="'),t.push(s(this.symbol)),t.push('" />\n</header>\n\n'),0!==this.rows.length){for(t.push("\n    <table>\n        <thead>\n            <tr>\n                <th>Title</th>\n                <th>Author</th>\n            </tr>\n        </thead>\n        <tbody>\n            "),h=this.rows,l=0,c=h.length;c>l;l++){if(a=h[l],t.push("\n                <tr>\n                    <td>"),t.push(s(a.title)),t.push("</td>\n                    <td>\n                        "),a.authors){if(t.push("\n                            "),a.authors.length>5){for(t.push("\n                                "),n=i=0;5>i;n=++i)t.push('\n                                    <span class="author">'),t.push(s(a.authors[n].name)),t.push("</span>\n                                ");t.push("\n                                &hellip;\n                            ")}else{for(t.push("\n                                "),d=a.authors,o=0,u=d.length;u>o;o++)e=d[o],t.push('\n                                    <span class="author">'),t.push(s(e.name)),t.push("</span>\n                                ");t.push("\n                            ")}t.push("\n                        ")}t.push("\n                    </td>\n                </tr>\n            ")}t.push("\n        </tbody>\n    </table>\n")}else t.push('\n    <div class="alert-box alert">No results</div>\n')}).call(this)}.call(e),e.safe=a,e.escape=r,t.join("")};;
 
   /**#@+ css */
   var style = document.createElement('style');
@@ -204,6 +205,8 @@ new Error('This widget cannot be called directly');
       parent = parent[part] = parent[part] || {};
     }
   }).call(root);
-  root.intermine.temp.widgets['#@+CALLBACK'] = new Widget(config, templates);
+  clazz = #@+CLASSEXPR;
+  root.intermine.temp.widgets['#@+CALLBACK'] = [clazz, config, templates];
+
 
 }).call(this);
