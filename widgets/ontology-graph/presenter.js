@@ -799,7 +799,11 @@ function curry$(f, bound){
     gettingHomologues = failWhenEmpty("No homologues found")(
     flatRows(bind$(homologyService, 'rows'))(
     homologueQuery(query, source)));
-    gettingDirect = gettingHomologues.then(compose$([rs, directHomologyTerms]));
+    gettingDirect = failWhenEmpty("No annotations found")(
+    function(it){
+      return it.then(compose$([rs, directHomologyTerms]));
+    }(
+    gettingHomologues));
     gettingAll = gettingDirect.then(compose$([rs, allHomologyTerms]));
     gettingNames = $.when(gettingHomologues, gettingAll).then(fetchNames(dataService.name, bind$(dataService, 'rows')));
     gettingEdges = gettingAll.then(compose$([bind$(dataService, 'rows'), wholeGraphQ])).then(map(rowToNode));
@@ -5540,6 +5544,207 @@ function curry$(f, bound){
   return _curry();
 }
 
+},{}],9:[function(require,module,exports){
+var split, join, lines, unlines, words, unwords, chars, unchars, reverse, repeat;
+split = curry$(function(sep, str){
+  return str.split(sep);
+});
+join = curry$(function(sep, xs){
+  return xs.join(sep);
+});
+lines = function(str){
+  if (!str.length) {
+    return [];
+  }
+  return str.split('\n');
+};
+unlines = function(it){
+  return it.join('\n');
+};
+words = function(str){
+  if (!str.length) {
+    return [];
+  }
+  return str.split(/[ ]+/);
+};
+unwords = function(it){
+  return it.join(' ');
+};
+chars = function(it){
+  return it.split('');
+};
+unchars = function(it){
+  return it.join('');
+};
+reverse = function(str){
+  return str.split('').reverse().join('');
+};
+repeat = curry$(function(n, str){
+  var out, res$, i$;
+  res$ = [];
+  for (i$ = 0; i$ < n; ++i$) {
+    res$.push(str);
+  }
+  out = res$;
+  return out.join('');
+});
+module.exports = {
+  split: split,
+  join: join,
+  lines: lines,
+  unlines: unlines,
+  words: words,
+  unwords: unwords,
+  chars: chars,
+  unchars: unchars,
+  reverse: reverse,
+  repeat: repeat
+};
+function curry$(f, bound){
+  var context,
+  _curry = function(args) {
+    return f.length > 1 ? function(){
+      var params = args ? args.concat() : [];
+      context = bound ? context || this : this;
+      return params.push.apply(params, arguments) <
+          f.length && arguments.length ?
+        _curry.call(context, params) : f.apply(context, params);
+    } : f;
+  };
+  return _curry();
+}
+
+},{}],10:[function(require,module,exports){
+var max, min, negate, abs, signum, quot, rem, div, mod, recip, pi, tau, exp, sqrt, ln, pow, sin, tan, cos, asin, acos, atan, atan2, truncate, round, ceiling, floor, isItNaN, even, odd, gcd, lcm;
+max = curry$(function(x$, y$){
+  return x$ > y$ ? x$ : y$;
+});
+min = curry$(function(x$, y$){
+  return x$ < y$ ? x$ : y$;
+});
+negate = function(x){
+  return -x;
+};
+abs = Math.abs;
+signum = function(x){
+  if (x < 0) {
+    return -1;
+  } else if (x > 0) {
+    return 1;
+  } else {
+    return 0;
+  }
+};
+quot = curry$(function(x, y){
+  return ~~(x / y);
+});
+rem = curry$(function(x$, y$){
+  return x$ % y$;
+});
+div = curry$(function(x, y){
+  return Math.floor(x / y);
+});
+mod = curry$(function(x$, y$){
+  var ref$;
+  return ((x$) % (ref$ = y$) + ref$) % ref$;
+});
+recip = (function(it){
+  return 1 / it;
+});
+pi = Math.PI;
+tau = pi * 2;
+exp = Math.exp;
+sqrt = Math.sqrt;
+ln = Math.log;
+pow = curry$(function(x$, y$){
+  return Math.pow(x$, y$);
+});
+sin = Math.sin;
+tan = Math.tan;
+cos = Math.cos;
+asin = Math.asin;
+acos = Math.acos;
+atan = Math.atan;
+atan2 = curry$(function(x, y){
+  return Math.atan2(x, y);
+});
+truncate = function(x){
+  return ~~x;
+};
+round = Math.round;
+ceiling = Math.ceil;
+floor = Math.floor;
+isItNaN = function(x){
+  return x !== x;
+};
+even = function(x){
+  return x % 2 === 0;
+};
+odd = function(x){
+  return x % 2 !== 0;
+};
+gcd = curry$(function(x, y){
+  var z;
+  x = Math.abs(x);
+  y = Math.abs(y);
+  while (y !== 0) {
+    z = x % y;
+    x = y;
+    y = z;
+  }
+  return x;
+});
+lcm = curry$(function(x, y){
+  return Math.abs(Math.floor(x / gcd(x, y) * y));
+});
+module.exports = {
+  max: max,
+  min: min,
+  negate: negate,
+  abs: abs,
+  signum: signum,
+  quot: quot,
+  rem: rem,
+  div: div,
+  mod: mod,
+  recip: recip,
+  pi: pi,
+  tau: tau,
+  exp: exp,
+  sqrt: sqrt,
+  ln: ln,
+  pow: pow,
+  sin: sin,
+  tan: tan,
+  cos: cos,
+  acos: acos,
+  asin: asin,
+  atan: atan,
+  atan2: atan2,
+  truncate: truncate,
+  round: round,
+  ceiling: ceiling,
+  floor: floor,
+  isItNaN: isItNaN,
+  even: even,
+  odd: odd,
+  gcd: gcd,
+  lcm: lcm
+};
+function curry$(f, bound){
+  var context,
+  _curry = function(args) {
+    return f.length > 1 ? function(){
+      var params = args ? args.concat() : [];
+      context = bound ? context || this : this;
+      return params.push.apply(params, arguments) <
+          f.length && arguments.length ?
+        _curry.call(context, params) : f.apply(context, params);
+    } : f;
+  };
+  return _curry();
+}
+
 },{}],7:[function(require,module,exports){
 var each, map, compact, filter, reject, partition, find, head, first, tail, last, initial, empty, reverse, unique, fold, foldl, fold1, foldl1, foldr, foldr1, unfoldr, concat, concatMap, flatten, difference, intersection, union, countBy, groupBy, andList, orList, any, all, sort, sortWith, sortBy, sum, product, mean, average, maximum, minimum, scan, scanl, scan1, scanl1, scanr, scanr1, slice, take, drop, splitAt, takeWhile, dropWhile, span, breakList, zip, zipWith, zipAll, zipAllWith, slice$ = [].slice;
 each = curry$(function(f, xs){
@@ -6288,207 +6493,6 @@ module.exports = {
   reject: reject,
   partition: partition,
   find: find
-};
-function curry$(f, bound){
-  var context,
-  _curry = function(args) {
-    return f.length > 1 ? function(){
-      var params = args ? args.concat() : [];
-      context = bound ? context || this : this;
-      return params.push.apply(params, arguments) <
-          f.length && arguments.length ?
-        _curry.call(context, params) : f.apply(context, params);
-    } : f;
-  };
-  return _curry();
-}
-
-},{}],10:[function(require,module,exports){
-var max, min, negate, abs, signum, quot, rem, div, mod, recip, pi, tau, exp, sqrt, ln, pow, sin, tan, cos, asin, acos, atan, atan2, truncate, round, ceiling, floor, isItNaN, even, odd, gcd, lcm;
-max = curry$(function(x$, y$){
-  return x$ > y$ ? x$ : y$;
-});
-min = curry$(function(x$, y$){
-  return x$ < y$ ? x$ : y$;
-});
-negate = function(x){
-  return -x;
-};
-abs = Math.abs;
-signum = function(x){
-  if (x < 0) {
-    return -1;
-  } else if (x > 0) {
-    return 1;
-  } else {
-    return 0;
-  }
-};
-quot = curry$(function(x, y){
-  return ~~(x / y);
-});
-rem = curry$(function(x$, y$){
-  return x$ % y$;
-});
-div = curry$(function(x, y){
-  return Math.floor(x / y);
-});
-mod = curry$(function(x$, y$){
-  var ref$;
-  return ((x$) % (ref$ = y$) + ref$) % ref$;
-});
-recip = (function(it){
-  return 1 / it;
-});
-pi = Math.PI;
-tau = pi * 2;
-exp = Math.exp;
-sqrt = Math.sqrt;
-ln = Math.log;
-pow = curry$(function(x$, y$){
-  return Math.pow(x$, y$);
-});
-sin = Math.sin;
-tan = Math.tan;
-cos = Math.cos;
-asin = Math.asin;
-acos = Math.acos;
-atan = Math.atan;
-atan2 = curry$(function(x, y){
-  return Math.atan2(x, y);
-});
-truncate = function(x){
-  return ~~x;
-};
-round = Math.round;
-ceiling = Math.ceil;
-floor = Math.floor;
-isItNaN = function(x){
-  return x !== x;
-};
-even = function(x){
-  return x % 2 === 0;
-};
-odd = function(x){
-  return x % 2 !== 0;
-};
-gcd = curry$(function(x, y){
-  var z;
-  x = Math.abs(x);
-  y = Math.abs(y);
-  while (y !== 0) {
-    z = x % y;
-    x = y;
-    y = z;
-  }
-  return x;
-});
-lcm = curry$(function(x, y){
-  return Math.abs(Math.floor(x / gcd(x, y) * y));
-});
-module.exports = {
-  max: max,
-  min: min,
-  negate: negate,
-  abs: abs,
-  signum: signum,
-  quot: quot,
-  rem: rem,
-  div: div,
-  mod: mod,
-  recip: recip,
-  pi: pi,
-  tau: tau,
-  exp: exp,
-  sqrt: sqrt,
-  ln: ln,
-  pow: pow,
-  sin: sin,
-  tan: tan,
-  cos: cos,
-  acos: acos,
-  asin: asin,
-  atan: atan,
-  atan2: atan2,
-  truncate: truncate,
-  round: round,
-  ceiling: ceiling,
-  floor: floor,
-  isItNaN: isItNaN,
-  even: even,
-  odd: odd,
-  gcd: gcd,
-  lcm: lcm
-};
-function curry$(f, bound){
-  var context,
-  _curry = function(args) {
-    return f.length > 1 ? function(){
-      var params = args ? args.concat() : [];
-      context = bound ? context || this : this;
-      return params.push.apply(params, arguments) <
-          f.length && arguments.length ?
-        _curry.call(context, params) : f.apply(context, params);
-    } : f;
-  };
-  return _curry();
-}
-
-},{}],9:[function(require,module,exports){
-var split, join, lines, unlines, words, unwords, chars, unchars, reverse, repeat;
-split = curry$(function(sep, str){
-  return str.split(sep);
-});
-join = curry$(function(sep, xs){
-  return xs.join(sep);
-});
-lines = function(str){
-  if (!str.length) {
-    return [];
-  }
-  return str.split('\n');
-};
-unlines = function(it){
-  return it.join('\n');
-};
-words = function(str){
-  if (!str.length) {
-    return [];
-  }
-  return str.split(/[ ]+/);
-};
-unwords = function(it){
-  return it.join(' ');
-};
-chars = function(it){
-  return it.split('');
-};
-unchars = function(it){
-  return it.join('');
-};
-reverse = function(str){
-  return str.split('').reverse().join('');
-};
-repeat = curry$(function(n, str){
-  var out, res$, i$;
-  res$ = [];
-  for (i$ = 0; i$ < n; ++i$) {
-    res$.push(str);
-  }
-  out = res$;
-  return out.join('');
-});
-module.exports = {
-  split: split,
-  join: join,
-  lines: lines,
-  unlines: unlines,
-  words: words,
-  unwords: unwords,
-  chars: chars,
-  unchars: unchars,
-  reverse: reverse,
-  repeat: repeat
 };
 function curry$(f, bound){
   var context,
