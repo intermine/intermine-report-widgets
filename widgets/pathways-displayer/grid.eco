@@ -1,4 +1,4 @@
-<div class="foundation">
+<div>
     <h4>Pathways for <%= @title %></h4> <div class="notifications"></div>
     <p></p>
     <div class="grid">

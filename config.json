@@ -211,11 +211,6 @@
                 "depends": [ "foundation-4" ]
               }
             }
-          },
-          "config": {
-            "service": { "root": "http://www.flymine.org/query" },
-            "graphState": { }
-          }
         }
     }
 }
