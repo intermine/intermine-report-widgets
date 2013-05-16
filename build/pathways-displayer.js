@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Wed, 15 May 2013 17:27:05 GMT
+ *  Generated: Thu, 16 May 2013 18:36:35 GMT
  */
 (function() {
   var clazz
@@ -545,7 +545,7 @@ new Error('This widget cannot be called directly');
 
   /**#@+ the templates */
   var templates = {};
-  templates.grid=function(n){n||(n={});var t,e=[],a=function(n){return n&&n.ecoSafe?n:n!==void 0&&null!=n?l(n):""},s=n.safe,l=n.escape;return t=n.safe=function(n){if(n&&n.ecoSafe)return n;(void 0===n||null==n)&&(n="");var t=new String(n);return t.ecoSafe=!0,t},l||(l=n.escape=function(n){return(""+n).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){e.push("<div>\n    <h4>Pathways for "),e.push(a(this.title)),e.push('</h4> <div class="notifications"></div>\n    <p></p>\n    <div class="grid">\n        <div class="legend"></div>\n        \n        <table class="faux">\n            <thead>\n                <tr>\n                    <th><input type="text" placeholder="Filter..." class="filter" /></th>\n                </tr>\n            </thead>\n        </table>\n        \n        <div class="wrapper">\n            <table>\n                <thead></thead>\n                <tbody>\n                    <!-- so we start with a white row... -->\n                    <tr></tr>\n                    <tr class="filterMessage">\n                        <td colspan="99">\n                            <div class="alert-box secondary"><span class="text"></span> <a class="show-all">Show all</a></div>\n                        </td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>')}).call(this)}.call(n),n.safe=s,n.escape=l,e.join("")};;
+  templates.grid=function(e){e||(e={});var n,t=[],a=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?l(e):""},s=e.safe,l=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},l||(l=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<div>\n    <h4>Pathways for "),t.push(a(this.title)),t.push('</h4> <div class="notifications"></div>\n    <p></p>\n    <div class="grid">\n        <div class="legend"></div>\n        \n        <table class="faux">\n            <thead>\n                <tr>\n                    <th><input type="text" placeholder="Filter..." class="filter" /></th>\n                </tr>\n            </thead>\n        </table>\n        \n        <div class="wrapper">\n            <table>\n                <thead></thead>\n                <tbody>\n                    <!-- so we start with a white row... -->\n                    <tr></tr>\n                    <tr class="filterMessage">\n                        <td colspan="99">\n                            <div class="alert-box secondary"><span class="text"></span> <a class="show-all">Show all</a></div>\n                        </td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n    </div>\n</div>')}).call(this)}.call(e),e.safe=s,e.escape=l,t.join("")};;
 
   /**#@+ css */
   var style = document.createElement('style');

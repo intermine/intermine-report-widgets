@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Wed, 15 May 2013 16:53:56 GMT
+ *  Generated: Thu, 16 May 2013 18:36:36 GMT
  */
 (function() {
   var clazz

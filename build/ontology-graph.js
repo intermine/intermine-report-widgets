@@ -11,7 +11,7 @@ new Error('This widget cannot be called directly');
  *  Author: #@+AUTHOR
  *  Description: #@+DESCRIPTION
  *  Version: #@+VERSION
- *  Generated: Wed, 15 May 2013 16:53:55 GMT
+ *  Generated: Thu, 16 May 2013 18:36:35 GMT
  */
 (function() {
   var clazz
@@ -100,7 +100,7 @@ new Error('This widget cannot be called directly');
         root: null,
         animating: 'waiting'
       };
-      data = import$(import$(import$({}, DEFAULT_GRAPH_STATE), initVals), config.graphState);
+      data = merge$({}, DEFAULT_GRAPH_STATE, initVals, config.graphState);
       if (data.query == null) {
         throw new Error("No query provided.");
       }
@@ -110,7 +110,26 @@ new Error('This widget cannot be called directly');
       var prototype = extend$((import$(OntologyWidget, superclass).displayName = 'OntologyWidget', OntologyWidget), superclass).prototype, constructor = OntologyWidget;
       prototype.initialize = function(config, templates){
         var Service;
-        this.config = config;
+        //this.config = config;
+        this.config = {
+          'service': { root: 'http://www.flymine.org/query' },
+          'interop': [
+              {
+                  taxonId: 4932,
+                  root: 'yeastmine-test.yeastgenome.org/yeastmine-dev',
+                  name: 'SGD'
+              }, {
+                  taxonId: 10090,
+                  root: 'http://beta.mousemine.org/mousemine',
+                  name: 'MGI'
+              }, {
+                  taxonId: 6239,
+                  root: 'http://intermine.modencode.org/release-32',
+                  name: 'modMine'
+              }
+          ],
+          'graphState': { query: 'Adh' }
+        };
         this.templates = templates;
         Service = intermine.Service;
         this.service = new Service(this.config.service);
@@ -155,10 +174,7 @@ new Error('This widget cannot be called directly');
       };
       prototype.startListening = function(){
         var key, ref$, sel, this$ = this;
-        for (key in ref$ = constructor.BINDINGS) {
-          sel = ref$[key];
-          fn$();
-        }
+  
         this.listenTo(this.model, 'change:query', this.loadData);
         this.listenTo(this.model, 'change:query', bind$(this, 'resetHomologyButtons'));
         this.listenTo(this.model, 'change:heights', this.fillElisionSelector);
@@ -177,7 +193,7 @@ new Error('This widget cannot be called directly');
         this.on('controls:changed', function(){
           return this$.$el.foundation();
         });
-        return this.on('graph:reset', function(){
+        this.on('graph:reset', function(){
           this$.model.get('all').unmark();
           return this$.model.trigger('nodes:marked');
         });
@@ -185,6 +201,10 @@ new Error('This widget cannot be called directly');
           return this$.listenTo(this$.model, 'change:' + key, function(m, v){
             return this$.$(sel).val(v);
           });
+        }
+        for (key in ref$ = constructor.BINDINGS) {
+          sel = ref$[key];
+          fn$();
         }
       };
       prototype.onRootChange = function(){
@@ -445,6 +465,16 @@ new Error('This widget cannot be called directly');
     }(Backbone.View));
     Widget = OntologyWidget;
     module.exports = OntologyWidget;
+    function merge$(obj) {
+      Array.prototype.slice.call(arguments, 1).forEach(function(source) {
+        if (source) {
+          for (var prop in source) {
+            obj[prop] = source[prop];
+          }
+        }
+      });
+      return obj;
+    }
     function import$(obj, src){
       var own = {}.hasOwnProperty;
       for (var key in src) if (own.call(src, key)) obj[key] = src[key];
@@ -1802,6 +1832,14 @@ new Error('This widget cannot be called directly');
     });
     _graphify = function(monitor, getRows, symbols, query){
       var fetchFlat, gettingDirect, gettingAll, gettingNames, gettingEdges;
+      query = {
+        'select': ['Gene.symbol'],
+        'where': {
+          'symbol': {
+            '=': 'Adh'
+          }
+        }
+      };
       console.log("Drawing graph for:", query);
       fetchFlat = flatRows(getRows);
       gettingDirect = failWhenEmpty("No annotation found for " + query)(
@@ -8555,9 +8593,9 @@ new Error('This widget cannot be called directly');
 
   /**#@+ the templates */
   var templates = {};
-  templates["ontologyTermRow.html"]=function(e){e||(e={});var n,t=[],s=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?r(e):""},a=e.safe,r=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},r||(r=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<tr>\n    <td>"),t.push(s(this.id)),t.push("</td>\n    <td>"),t.push(s(this.label)),t.push("</td>\n    <td>"),t.push(s(this.description)),t.push("</td>\n    <td>"),t.push(s(this.getTotalCount())),t.push("</td>\n    <td>"),t.push(s(this.sources.join(", "))),t.push("</td>\n    <td>"),t.push(s(this.symbols.join(", "))),t.push("</td>\n</tr>\n\n")}).call(this)}.call(e),e.safe=a,e.escape=r,t.join("")};;
-  templates["widget.html"]=function(n){n||(n={});var e,t=[],s=n.safe,a=n.escape;return e=n.safe=function(n){if(n&&n.ecoSafe)return n;(void 0===n||null==n)&&(n="");var e=new String(n);return e.ecoSafe=!0,e},a||(a=n.escape=function(n){return(""+n).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<div class="ontology-widget">\n    <div class="dag">\n        <div class="progress"><span class="meter"></span></div>\n        <svg width="100%" height="100%">\n            <defs>\n                <marker class="arrowhead"\n                        viewBox="0 0 12 12"\n                        refX="1"\n                        refY="5"\n                        markerUnits="userSpaceInUse"\n                        markerWidth="8"\n                        markerHeight="5"\n                        orient="auto"\n                        style="fill: #555">\n                    <circle cx="5" cy="5", r="5"/>\n                </marker>\n                <marker class="Triangle"\n                    viewBox="0 0 10 10" refX="0" refY="5" \n                    markerUnits="strokeWidth"\n                    markerWidth="4" markerHeight="3"\n                    orient="auto">\n                    <path d="M 0 0 L 10 5 L 0 10 z" />\n                </marker>\n                <marker class="TriangleDown"\n                    viewBox="0 0 10 10" refX="0" refY="5" \n                    markerUnits="strokeWidth"\n                    markerWidth="4" markerHeight="3"\n                    orient="270">\n                    <path d="M 0 0 L 10 5 L 0 10 z" />\n                </marker>\n                <path class="throbber" d="M 150,0\n                        a 150,150 0 0,1 106.066,256.066\n                        l -35.355,-35.355\n                        a -100,-100 0 0,0 -70.711,-170.711 z"\n                        fill="#3d7fe6">\n                    <animateTransform attributeName="transform" attributeType="XML"\n                        type="rotate" from="0 150 150" to="360 150 150"\n                        begin="0s" dur="1s" fill="freeze" repeatCount="indefinite" />\n                </path>\n            </defs>\n        </svg>\n    </div>\n    <form class="graph-control">\n        <i class="resizer icon-resize-full"></i>\n        <div class="row">\n            <h6>Display Options</h6>\n        </div>\n        <div class="hidable">\n            <select class="graph-view">\n                <option value="Dag" selected>Directed Acyclic Graph</option>\n                <option value="Force">Force Directed Graph</option>\n            </select>\n            <select class="dag-direction">\n                <option value="LR" selected>Left-to-Right</option>\n                <option value="TB">Top-to-Bottom</option>\n            </select>\n            <!-- <input type="number" class="min-ticks"> -->\n            <div class="row collapse">\n                <div class="small-8 columns">\n                    <input class="symbol" type="text" placeholder="bsk">\n                </div>\n                <div class="small-4 columns">\n                    <a href="#" class="button prefix symbol">Search</a>\n                </div>\n            </div>\n            <fieldset>\n                <div>\n                    Add annotations from homologues in:\n                    <ul class="button-group interop-sources">\n                    </ul>\n                </div>\n                <div class="progress homologue-progress">\n                    <span class="meter"></span>\n                </div>\n            </fieldset>\n            <fieldset>\n                <select class="jiggle">\n                    <option value="none">Force Directed Layout</option>\n                    <option value="strata">Move Roots to Top</option>\n                    <option value="centre">Move Roots to Centre</option>\n                </select>\n                <select class="elision" >\n                </select>\n            </fieldset>\n            <select class="graph-root" >\n            </select>\n            <button class="graph-reset" >Reset</button>\n        </div>\n    </form>\n    <div class="ontology-table">\n        <div class="slide-control">\n            <i class="icon-chevron-left"></i>\n        </div>\n        <div class="ontology-table-container">\n            <div data-section class="section-container tabs ontology-table-container">\n                <section>\n                    <p class="title" data-section-title><a href="#panel1">Statements</a></p>\n                    <div class="content" data-section-content>\n                        <table class="marked-statements">\n                            <thead>\n                                <tr>\n                                    <th>Subject</th>\n                                    <th>Predicate</th>\n                                    <th>Object</th>\n                                </tr>\n                            </thead>\n                            <tbody></tbody>\n                        </table>\n                    </div>\n                </section>\n                <section>\n                    <p class="title" data-section-title><a href="#panel2">Terms</a></p>\n                    <div class="content" data-section-content>\n                        <table class="marked-terms">\n                            <thead>\n                                <tr>\n                                    <th>Identifier</th>\n                                    <th>Name</th>\n                                    <th>Description</th>\n                                    <th>Gene Count</th>\n                                    <th>Present in</th>\n                                    <th>Annotated to</th>\n                                </tr>\n                            </thead>\n                            <tbody></tbody>\n                        </table>\n                    </div>\n                </section>\n            </div>\n        </div>\n    </div>\n</div>\n\n')}).call(this)}.call(n),n.safe=s,n.escape=a,t.join("")};;
-  templates["ontologyRelationshipRow.html"]=function(e){e||(e={});var n,t=[],s=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?r(e):""},a=e.safe,r=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},r||(r=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push("<tr>\n    <td>"),t.push(s(this.source.id)),t.push(": "),t.push(s(this.source.label)),t.push("</td>\n    <td>"),t.push(s(this.label)),t.push("</td>\n    <td>"),t.push(s(this.target.id)),t.push(": "),t.push(s(this.target.label)),t.push("</td>\n</tr>\n\n")}).call(this)}.call(e),e.safe=a,e.escape=r,t.join("")};;
+  templates["ontologyRelationshipRow.html"]=function(e){e||(e={});var t,n=[],a=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?l(e):""},s=e.safe,l=e.escape;return t=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var t=new String(e);return t.ecoSafe=!0,t},l||(l=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){n.push("<tr>\n    <td>"),n.push(a(this.source.id)),n.push(": "),n.push(a(this.source.label)),n.push("</td>\n    <td>"),n.push(a(this.label)),n.push("</td>\n    <td>"),n.push(a(this.target.id)),n.push(": "),n.push(a(this.target.label)),n.push("</td>\n</tr>\n\n")}).call(this)}.call(e),e.safe=s,e.escape=l,n.join("")};;
+  templates["ontologyTermRow.html"]=function(e){e||(e={});var t,n=[],a=function(e){return e&&e.ecoSafe?e:e!==void 0&&null!=e?r(e):""},s=e.safe,r=e.escape;return t=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var t=new String(e);return t.ecoSafe=!0,t},r||(r=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){n.push("<tr>\n    <td>"),n.push(a(this.id)),n.push("</td>\n    <td>"),n.push(a(this.label)),n.push("</td>\n    <td>"),n.push(a(this.description)),n.push("</td>\n    <td>"),n.push(a(this.getTotalCount())),n.push("</td>\n    <td>"),n.push(a(this.sources.join(", "))),n.push("</td>\n    <td>"),n.push(a(this.symbols.join(", "))),n.push("</td>\n</tr>\n\n")}).call(this)}.call(e),e.safe=s,e.escape=r,n.join("")};;
+  templates["widget.html"]=function(e){e||(e={});var n,t=[],a=e.safe,s=e.escape;return n=e.safe=function(e){if(e&&e.ecoSafe)return e;(void 0===e||null==e)&&(e="");var n=new String(e);return n.ecoSafe=!0,n},s||(s=e.escape=function(e){return(""+e).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}),function(){(function(){t.push('<div class="ontology-widget">\n    <div class="dag">\n        <div class="progress"><span class="meter"></span></div>\n        <svg width="100%" height="100%">\n            <defs>\n                <marker class="arrowhead"\n                        viewBox="0 0 12 12"\n                        refX="1"\n                        refY="5"\n                        markerUnits="userSpaceInUse"\n                        markerWidth="8"\n                        markerHeight="5"\n                        orient="auto"\n                        style="fill: #555">\n                    <circle cx="5" cy="5", r="5"/>\n                </marker>\n                <marker class="Triangle"\n                    viewBox="0 0 10 10" refX="0" refY="5" \n                    markerUnits="strokeWidth"\n                    markerWidth="4" markerHeight="3"\n                    orient="auto">\n                    <path d="M 0 0 L 10 5 L 0 10 z" />\n                </marker>\n                <marker class="TriangleDown"\n                    viewBox="0 0 10 10" refX="0" refY="5" \n                    markerUnits="strokeWidth"\n                    markerWidth="4" markerHeight="3"\n                    orient="270">\n                    <path d="M 0 0 L 10 5 L 0 10 z" />\n                </marker>\n                <path class="throbber" d="M 150,0\n                        a 150,150 0 0,1 106.066,256.066\n                        l -35.355,-35.355\n                        a -100,-100 0 0,0 -70.711,-170.711 z"\n                        fill="#3d7fe6">\n                    <animateTransform attributeName="transform" attributeType="XML"\n                        type="rotate" from="0 150 150" to="360 150 150"\n                        begin="0s" dur="1s" fill="freeze" repeatCount="indefinite" />\n                </path>\n            </defs>\n        </svg>\n    </div>\n    <form class="graph-control">\n        <i class="resizer icon-resize-full"></i>\n        <div class="row">\n            <h6>Display Options</h6>\n        </div>\n        <div class="hidable">\n            <select class="graph-view">\n                <option value="Dag" selected>Directed Acyclic Graph</option>\n                <option value="Force">Force Directed Graph</option>\n            </select>\n            <select class="dag-direction">\n                <option value="LR" selected>Left-to-Right</option>\n                <option value="TB">Top-to-Bottom</option>\n            </select>\n            <!-- <input type="number" class="min-ticks"> -->\n            <div class="row collapse">\n                <div class="small-8 columns">\n                    <input class="symbol" type="text" placeholder="bsk">\n                </div>\n                <div class="small-4 columns">\n                    <a href="#" class="button prefix symbol">Search</a>\n                </div>\n            </div>\n            <fieldset>\n                <div>\n                    Add annotations from homologues in:\n                    <ul class="button-group interop-sources">\n                    </ul>\n                </div>\n                <div class="progress homologue-progress">\n                    <span class="meter"></span>\n                </div>\n            </fieldset>\n            <fieldset>\n                <select class="jiggle">\n                    <option value="none">Force Directed Layout</option>\n                    <option value="strata">Move Roots to Top</option>\n                    <option value="centre">Move Roots to Centre</option>\n                </select>\n                <select class="elision" >\n                </select>\n            </fieldset>\n            <select class="graph-root" >\n            </select>\n            <button class="graph-reset" >Reset</button>\n        </div>\n    </form>\n    <div class="ontology-table">\n        <div class="slide-control">\n            <i class="icon-chevron-left"></i>\n        </div>\n        <div class="ontology-table-container">\n            <div data-section class="section-container tabs ontology-table-container">\n                <section>\n                    <p class="title" data-section-title><a href="#panel1">Statements</a></p>\n                    <div class="content" data-section-content>\n                        <table class="marked-statements">\n                            <thead>\n                                <tr>\n                                    <th>Subject</th>\n                                    <th>Predicate</th>\n                                    <th>Object</th>\n                                </tr>\n                            </thead>\n                            <tbody></tbody>\n                        </table>\n                    </div>\n                </section>\n                <section>\n                    <p class="title" data-section-title><a href="#panel2">Terms</a></p>\n                    <div class="content" data-section-content>\n                        <table class="marked-terms">\n                            <thead>\n                                <tr>\n                                    <th>Identifier</th>\n                                    <th>Name</th>\n                                    <th>Description</th>\n                                    <th>Gene Count</th>\n                                    <th>Present in</th>\n                                    <th>Annotated to</th>\n                                </tr>\n                            </thead>\n                            <tbody></tbody>\n                        </table>\n                    </div>\n                </section>\n            </div>\n        </div>\n    </div>\n</div>\n\n')}).call(this)}.call(e),e.safe=a,e.escape=s,t.join("")};;
 
   /**#@+ css */
   var style = document.createElement('style');
