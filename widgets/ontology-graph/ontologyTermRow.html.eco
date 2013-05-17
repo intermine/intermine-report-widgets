@@ -1,7 +1,15 @@
 <tr>
     <td><%= @id %></td>
     <td><%= @label %></td>
-    <td><%= @description %></td>
+    <td class="description">
+        <span class="brief-description"><%= @description.substring(0, 50) %></span>
+        <% if @description.length > 50: %>
+            <a class="button small more">more</a>
+            <span class="full-description">
+                <%= @description %>
+            </span>
+        <% end %>
+    </td>
     <td><%= @getTotalCount() %></td>
     <td><%= @sources.join ', ' %></td>
     <td><%= @symbols.join ', ' %></td>

@@ -56,7 +56,7 @@ process.chdir = function (dir) {
 
 },{}],"FbWzRJ":[function(require,module,exports){
 (function(process){(function(){
-  var DEFAULT_GRAPH_STATE, $, dagify, ref$, each, first, objectify, GraphState, getGraphState, OntologyWidget, Widget, slice$ = [].slice;
+  var DEFAULT_GRAPH_STATE, $, dagify, ref$, map, id, each, first, zipAll, objectify, GraphState, getGraphState, OntologyWidget, Widget, slice$ = [].slice;
   DEFAULT_GRAPH_STATE = {
     view: 'Dag',
     smallGraphThreshold: 20,
@@ -70,7 +70,7 @@ process.chdir = function (dir) {
   };
   $ = jQuery;
   dagify = require('./dagify');
-  ref$ = require('prelude-ls'), each = ref$.each, first = ref$.first;
+  ref$ = require('prelude-ls'), map = ref$.map, id = ref$.id, each = ref$.each, first = ref$.first, zipAll = ref$.zipAll;
   objectify = require('./util').objectify;
   GraphState = require('./state');
   getGraphState = function(config){
@@ -145,7 +145,6 @@ process.chdir = function (dir) {
       this.listenTo(this.model, 'change:elision', function(m, elision){
         return this$.$('.elision').val(elision);
       });
-      this.listenTo(this.model, 'graph:marked graph:reset', this.showOntologyTable);
       this.listenTo(this.model, 'change:all', bind$(this, 'renderRoots'));
       this.listenTo(this.model, 'change:all', function(m, graph){
         return m.set({
@@ -153,6 +152,7 @@ process.chdir = function (dir) {
         });
       });
       this.listenTo(this.model, 'change:graph change:view change:dagDirection', bind$(this, 'presentGraph'));
+      this.listenTo(this.model, 'nodes:marked change:all', bind$(this, 'showOntologyTable'));
       this.on('controls:changed', function(){
         return this$.$el.foundation();
       });
@@ -231,11 +231,14 @@ process.chdir = function (dir) {
     prototype.setUpOntologyTable = function(){
       var ref$, w, h, table;
       ref$ = this.model.get('dimensions'), w = ref$.w, h = ref$.h;
-      table = this.$('.ontology-table').css({
+      table = this.$('.ontology-table').addClass('open').css({
         top: 0.05 * h,
         left: w - 50,
         height: 0.9 * h,
         width: 0.6 * w
+      });
+      table.find('.scroll-container').css({
+        'max-height': 0.8 * h
       });
       return table.find('table').addClass('tablesorter').tablesorter();
     };
@@ -245,7 +248,7 @@ process.chdir = function (dir) {
       self = this;
       toOption = function(group){
         var $li;
-        $li = $("<li><a href=\"#\" class=\"small button\">" + group.name + "</a></li>");
+        $li = $("<li><a class=\"small button\">" + group.name + "</a></li>");
         return $li.find('a').on('click', function(){
           var $this;
           $this = $(this);
@@ -305,27 +308,34 @@ process.chdir = function (dir) {
       });
     };
     prototype.showOntologyTable = function(){
-      var ref$, w, h, markedStatements, $statements, $terms, i$, len$, $e, statement, term;
+      var ref$, w, h, markedStatements, $tables, templates, filters, ontologyTable, i$, len$, ref1$, $el, tmpl, f;
       ref$ = this.model.get('dimensions'), w = ref$.w, h = ref$.h;
       markedStatements = this.model.get('all').getMarkedStatements();
-      $statements = this.$('.ontology-table .marked-statements');
-      $terms = this.$('.ontology-table .marked-terms');
-      for (i$ = 0, len$ = (ref$ = [$statements, $terms]).length; i$ < len$; ++i$) {
-        $e = ref$[i$];
-        $e.find('tbody').empty();
+      console.log("Got " + markedStatements.length + " marked statements");
+      $tables = map(bind$(this, '$'), ['.marked-statements', '.marked-terms']);
+      templates = [bind$(this, 'linkRow'), bind$(this, 'termRow')];
+      filters = [id, dagify.edgesToNodes];
+      each(function(it){
+        return it.find('tbody').empty();
+      }, $tables);
+      ontologyTable = this.$('.ontology-table');
+      if (markedStatements.length) {
+        for (i$ = 0, len$ = (ref$ = zipAll($tables, templates, filters)).length; i$ < len$; ++i$) {
+          ref1$ = ref$[i$], $el = ref1$[0], tmpl = ref1$[1], f = ref1$[2];
+          each(compose$([bind$($el, 'append'), tmpl]), f(markedStatements));
+        }
+        ontologyTable.show().foundation('section', 'reflow').find('table').trigger('update');
+        return this.toggleOntologyTable();
+      } else {
+        return ontologyTable.animate({
+          left: w - 50
+        }, function(){
+          return ontologyTable.removeClass('open').hide();
+        });
       }
-      for (i$ = 0, len$ = markedStatements.length; i$ < len$; ++i$) {
-        statement = markedStatements[i$];
-        $statements.append(this.linkRow(statement));
-      }
-      for (i$ = 0, len$ = (ref$ = dagify.edgesToNodes(markedStatements)).length; i$ < len$; ++i$) {
-        term = ref$[i$];
-        $terms.append(this.termRow(term));
-      }
-      return this.$('.ontology-table').toggle(markedStatements.length > 0).foundation('section', 'reflow').find('table').trigger('update');
     };
     prototype.events = function(){
-      var state, evts, key, ref$, sel, getLeft, this$ = this;
+      var state, evts, key, ref$, sel, this$ = this;
       state = this.model;
       evts = {
         'submit .graph-control': function(e){
@@ -334,6 +344,9 @@ process.chdir = function (dir) {
         'click .graph-control .resizer': 'toggleDisplayOptions',
         'click .graph-reset': function(){
           return this$.trigger('graph:reset');
+        },
+        'click .marked-terms .description .more': function(it){
+          return $(it.target).hide().prev().hide().end().next().show();
         }
       };
       for (key in ref$ = Widget.BINDINGS) {
@@ -357,26 +370,27 @@ process.chdir = function (dir) {
       evts['change .elision'] = function(it){
         return state.set('elision', parseInt($(it.target).val(), 10));
       };
-      getLeft = function(isOpen){
-        var w;
-        w = this$.model.get('dimensions').w;
-        return w - 50 - (isOpen
-          ? 0
-          : this$.$('.ontology-table .section-container').outerWidth());
-      };
-      evts['click .slide-control'] = function(){
-        var table, wasOpen, icon;
-        table = this$.$('.ontology-table');
-        wasOpen = table.hasClass('open');
-        table.toggleClass('open').animate({
-          left: getLeft(wasOpen)
-        });
-        return icon = $('.slide-control i').removeClass('icon-chevron-right icon-chevron-left').addClass(wasOpen ? 'icon-chevron-left' : 'icon-chevron-right');
-      };
+      evts['click .slide-control'] = bind$(this, 'toggleOntologyTable');
       return evts;
       function fn$(it){
         return $(it.target).val();
       }
+    };
+    prototype.toggleOntologyTable = function(event){
+      var getLeft, table, wasOpen, icon, this$ = this;
+      getLeft = function(isOpen){
+        var w;
+        w = $('body').outerWidth();
+        return w - 50 - (isOpen
+          ? 0
+          : this$.$('.ontology-table .section-container').outerWidth());
+      };
+      table = this.$('.ontology-table');
+      wasOpen = !event || table.hasClass('open');
+      table.toggleClass('open').animate({
+        left: getLeft(wasOpen)
+      });
+      return icon = $('.slide-control i').removeClass('icon-chevron-right icon-chevron-left').addClass(wasOpen ? 'icon-chevron-left' : 'icon-chevron-right');
     };
     prototype.toggleDisplayOptions = function(){
       this.$('.graph-control .resizer').toggleClass('icon-resize-small icon-resize-full');
@@ -416,7 +430,6 @@ process.chdir = function (dir) {
     };
     function OntologyWidget(){
       this.loadData = bind$(this, 'loadData', prototype);
-      this.showOntologyTable = bind$(this, 'showOntologyTable', prototype);
       this.fillElisionSelector = bind$(this, 'fillElisionSelector', prototype);
       this.onRootChange = bind$(this, 'onRootChange', prototype);
       OntologyWidget.superclass.apply(this, arguments);
@@ -460,7 +473,7 @@ process.chdir = function (dir) {
 }).call(this);
 
 })(require("__browserify_process"))
-},{"./dagify":2,"./util":3,"./state":4,"prelude-ls":5,"__browserify_process":1}],5:[function(require,module,exports){
+},{"./dagify":2,"./state":3,"./util":4,"prelude-ls":5,"__browserify_process":1}],5:[function(require,module,exports){
 var Func, List, Obj, Str, Num, id, isType, replicate, prelude, toString$ = {}.toString;
 Func = require('./Func.js');
 List = require('./List.js');
@@ -1090,7 +1103,7 @@ function curry$(f, bound){
   }
 }).call(this);
 
-},{"./util.js":3,"./graph":11,"./node":12,"./dag":13,"./force":14,"./state":4,"prelude-ls":5}],15:[function(require,module,exports){
+},{"./util.js":4,"./graph":11,"./node":12,"./dag":13,"./force":14,"./state":3,"prelude-ls":5}],15:[function(require,module,exports){
 /*
 Copyright (c) 2012 Chris Pettitt
 
@@ -5225,143 +5238,6 @@ dot_parser = (function(){
 
 },{}],3:[function(require,module,exports){
 (function(){
-  var ref$, reject, empty, any, min, max, each, map, pairsToObj, objectify, error, len, within, notify, failWhenEmpty, doTo, anyTest, relationshipTest;
-  ref$ = require('prelude-ls'), reject = ref$.reject, empty = ref$.empty, any = ref$.any, min = ref$.min, max = ref$.max, each = ref$.each, map = ref$.map, pairsToObj = ref$.pairsToObj;
-  objectify = curry$(function(key, value, list){
-    return compose$([
-      pairsToObj, map(function(it){
-        return [key(it), value(it)];
-      })
-    ])(
-    list);
-  });
-  error = function(msg){
-    return $.Deferred(function(){
-      return this.reject(msg);
-    });
-  };
-  len = function(it){
-    return it.length;
-  };
-  within = curry$(function(upper, lower, actual){
-    return min(upper, max(lower, actual));
-  });
-  notify = function(it){
-    return alert(it);
-  };
-  failWhenEmpty = curry$(function(msg, promise){
-    return promise.then(function(it){
-      if (empty(it)) {
-        return error(msg);
-      } else {
-        return it;
-      }
-    });
-  });
-  doTo = function(f, x){
-    return f(x);
-  };
-  anyTest = curry$(function(tests, x){
-    return any(flip$(doTo)(x), tests);
-  });
-  relationshipTest = curry$(function(link, defVal, x){
-    switch (false) {
-    case !(link && link.label):
-      return link === x;
-    case !link:
-      return link === x.label;
-    default:
-      return defVal;
-    }
-  });
-  module.exports = {
-    toLtrb: toLtrb,
-    toXywh: toXywh,
-    markSubtree: markSubtree,
-    objectify: objectify,
-    error: error,
-    len: len,
-    within: within,
-    notify: notify,
-    failWhenEmpty: failWhenEmpty,
-    doTo: doTo,
-    anyTest: anyTest,
-    relationshipTest: relationshipTest
-  };
-  function markSubtree(root, prop, val){
-    var queue, moar, n;
-    queue = [root];
-    moar = function(arg$){
-      var edges;
-      edges = arg$.edges;
-      return reject(compose$([
-        (function(it){
-          return it === val;
-        }), function(it){
-          return it[prop];
-        }
-      ]))(
-      map(function(it){
-        return it.source;
-      }, edges));
-    };
-    while (n = queue.shift()) {
-      n[prop] = val;
-      each(bind$(queue, 'push'), moar(n));
-    }
-    return root;
-  }
-  function toLtrb(arg$, k){
-    var x, y, height, width;
-    x = arg$.x, y = arg$.y, height = arg$.height, width = arg$.width;
-    k == null && (k = 1);
-    return {
-      l: x - k * width / 2,
-      t: y - k * height / 2,
-      r: x + k * width / 2,
-      b: y + k * height / 2
-    };
-  }
-  function toXywh(arg$){
-    var l, t, r, b;
-    l = arg$.l, t = arg$.t, r = arg$.r, b = arg$.b;
-    return {
-      x: l + (r - l) / 2,
-      y: t + (b - t) / 2,
-      height: b - t,
-      width: r - l
-    };
-  }
-  function compose$(fs){
-    return function(){
-      var i, args = arguments;
-      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
-      return args[0];
-    };
-  }
-  function curry$(f, bound){
-    var context,
-    _curry = function(args) {
-      return f.length > 1 ? function(){
-        var params = args ? args.concat() : [];
-        context = bound ? context || this : this;
-        return params.push.apply(params, arguments) <
-            f.length && arguments.length ?
-          _curry.call(context, params) : f.apply(context, params);
-      } : f;
-    };
-    return _curry();
-  }
-  function flip$(f){
-    return curry$(function (x, y) { return f(y, x); });
-  }
-  function bind$(obj, key, target){
-    return function(){ return (target || obj)[key].apply(obj, arguments) };
-  }
-}).call(this);
-
-},{"prelude-ls":5}],4:[function(require,module,exports){
-(function(){
   var ref$, all, any, map, filter, anyTest, isRoot, trimGraphToHeight, GraphState;
   ref$ = require('prelude-ls'), all = ref$.all, any = ref$.any, map = ref$.map, filter = ref$.filter;
   anyTest = require('./util').anyTest;
@@ -5502,7 +5378,144 @@ dot_parser = (function(){
   }
 }).call(this);
 
-},{"./util":3,"prelude-ls":5}],6:[function(require,module,exports){
+},{"./util":4,"prelude-ls":5}],4:[function(require,module,exports){
+(function(){
+  var ref$, reject, empty, any, min, max, each, map, pairsToObj, objectify, error, len, within, notify, failWhenEmpty, doTo, anyTest, relationshipTest;
+  ref$ = require('prelude-ls'), reject = ref$.reject, empty = ref$.empty, any = ref$.any, min = ref$.min, max = ref$.max, each = ref$.each, map = ref$.map, pairsToObj = ref$.pairsToObj;
+  objectify = curry$(function(key, value, list){
+    return compose$([
+      pairsToObj, map(function(it){
+        return [key(it), value(it)];
+      })
+    ])(
+    list);
+  });
+  error = function(msg){
+    return $.Deferred(function(){
+      return this.reject(msg);
+    });
+  };
+  len = function(it){
+    return it.length;
+  };
+  within = curry$(function(upper, lower, actual){
+    return min(upper, max(lower, actual));
+  });
+  notify = function(it){
+    return alert(it);
+  };
+  failWhenEmpty = curry$(function(msg, promise){
+    return promise.then(function(it){
+      if (empty(it)) {
+        return error(msg);
+      } else {
+        return it;
+      }
+    });
+  });
+  doTo = function(f, x){
+    return f(x);
+  };
+  anyTest = curry$(function(tests, x){
+    return any(flip$(doTo)(x), tests);
+  });
+  relationshipTest = curry$(function(link, defVal, x){
+    switch (false) {
+    case !(link && link.label):
+      return link === x;
+    case !link:
+      return link === x.label;
+    default:
+      return defVal;
+    }
+  });
+  module.exports = {
+    toLtrb: toLtrb,
+    toXywh: toXywh,
+    markSubtree: markSubtree,
+    objectify: objectify,
+    error: error,
+    len: len,
+    within: within,
+    notify: notify,
+    failWhenEmpty: failWhenEmpty,
+    doTo: doTo,
+    anyTest: anyTest,
+    relationshipTest: relationshipTest
+  };
+  function markSubtree(root, prop, val){
+    var queue, moar, n;
+    queue = [root];
+    moar = function(arg$){
+      var edges;
+      edges = arg$.edges;
+      return reject(compose$([
+        (function(it){
+          return it === val;
+        }), function(it){
+          return it[prop];
+        }
+      ]))(
+      map(function(it){
+        return it.source;
+      }, edges));
+    };
+    while (n = queue.shift()) {
+      n[prop] = val;
+      each(bind$(queue, 'push'), moar(n));
+    }
+    return root;
+  }
+  function toLtrb(arg$, k){
+    var x, y, height, width;
+    x = arg$.x, y = arg$.y, height = arg$.height, width = arg$.width;
+    k == null && (k = 1);
+    return {
+      l: x - k * width / 2,
+      t: y - k * height / 2,
+      r: x + k * width / 2,
+      b: y + k * height / 2
+    };
+  }
+  function toXywh(arg$){
+    var l, t, r, b;
+    l = arg$.l, t = arg$.t, r = arg$.r, b = arg$.b;
+    return {
+      x: l + (r - l) / 2,
+      y: t + (b - t) / 2,
+      height: b - t,
+      width: r - l
+    };
+  }
+  function compose$(fs){
+    return function(){
+      var i, args = arguments;
+      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
+      return args[0];
+    };
+  }
+  function curry$(f, bound){
+    var context,
+    _curry = function(args) {
+      return f.length > 1 ? function(){
+        var params = args ? args.concat() : [];
+        context = bound ? context || this : this;
+        return params.push.apply(params, arguments) <
+            f.length && arguments.length ?
+          _curry.call(context, params) : f.apply(context, params);
+      } : f;
+    };
+    return _curry();
+  }
+  function flip$(f){
+    return curry$(function (x, y) { return f(y, x); });
+  }
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+}).call(this);
+
+},{"prelude-ls":5}],6:[function(require,module,exports){
 var curry, flip, fix, apply;
 curry = function(f){
   return curry$(f);
@@ -5529,207 +5542,6 @@ module.exports = {
   flip: flip,
   fix: fix,
   apply: apply
-};
-function curry$(f, bound){
-  var context,
-  _curry = function(args) {
-    return f.length > 1 ? function(){
-      var params = args ? args.concat() : [];
-      context = bound ? context || this : this;
-      return params.push.apply(params, arguments) <
-          f.length && arguments.length ?
-        _curry.call(context, params) : f.apply(context, params);
-    } : f;
-  };
-  return _curry();
-}
-
-},{}],9:[function(require,module,exports){
-var split, join, lines, unlines, words, unwords, chars, unchars, reverse, repeat;
-split = curry$(function(sep, str){
-  return str.split(sep);
-});
-join = curry$(function(sep, xs){
-  return xs.join(sep);
-});
-lines = function(str){
-  if (!str.length) {
-    return [];
-  }
-  return str.split('\n');
-};
-unlines = function(it){
-  return it.join('\n');
-};
-words = function(str){
-  if (!str.length) {
-    return [];
-  }
-  return str.split(/[ ]+/);
-};
-unwords = function(it){
-  return it.join(' ');
-};
-chars = function(it){
-  return it.split('');
-};
-unchars = function(it){
-  return it.join('');
-};
-reverse = function(str){
-  return str.split('').reverse().join('');
-};
-repeat = curry$(function(n, str){
-  var out, res$, i$;
-  res$ = [];
-  for (i$ = 0; i$ < n; ++i$) {
-    res$.push(str);
-  }
-  out = res$;
-  return out.join('');
-});
-module.exports = {
-  split: split,
-  join: join,
-  lines: lines,
-  unlines: unlines,
-  words: words,
-  unwords: unwords,
-  chars: chars,
-  unchars: unchars,
-  reverse: reverse,
-  repeat: repeat
-};
-function curry$(f, bound){
-  var context,
-  _curry = function(args) {
-    return f.length > 1 ? function(){
-      var params = args ? args.concat() : [];
-      context = bound ? context || this : this;
-      return params.push.apply(params, arguments) <
-          f.length && arguments.length ?
-        _curry.call(context, params) : f.apply(context, params);
-    } : f;
-  };
-  return _curry();
-}
-
-},{}],10:[function(require,module,exports){
-var max, min, negate, abs, signum, quot, rem, div, mod, recip, pi, tau, exp, sqrt, ln, pow, sin, tan, cos, asin, acos, atan, atan2, truncate, round, ceiling, floor, isItNaN, even, odd, gcd, lcm;
-max = curry$(function(x$, y$){
-  return x$ > y$ ? x$ : y$;
-});
-min = curry$(function(x$, y$){
-  return x$ < y$ ? x$ : y$;
-});
-negate = function(x){
-  return -x;
-};
-abs = Math.abs;
-signum = function(x){
-  if (x < 0) {
-    return -1;
-  } else if (x > 0) {
-    return 1;
-  } else {
-    return 0;
-  }
-};
-quot = curry$(function(x, y){
-  return ~~(x / y);
-});
-rem = curry$(function(x$, y$){
-  return x$ % y$;
-});
-div = curry$(function(x, y){
-  return Math.floor(x / y);
-});
-mod = curry$(function(x$, y$){
-  var ref$;
-  return ((x$) % (ref$ = y$) + ref$) % ref$;
-});
-recip = (function(it){
-  return 1 / it;
-});
-pi = Math.PI;
-tau = pi * 2;
-exp = Math.exp;
-sqrt = Math.sqrt;
-ln = Math.log;
-pow = curry$(function(x$, y$){
-  return Math.pow(x$, y$);
-});
-sin = Math.sin;
-tan = Math.tan;
-cos = Math.cos;
-asin = Math.asin;
-acos = Math.acos;
-atan = Math.atan;
-atan2 = curry$(function(x, y){
-  return Math.atan2(x, y);
-});
-truncate = function(x){
-  return ~~x;
-};
-round = Math.round;
-ceiling = Math.ceil;
-floor = Math.floor;
-isItNaN = function(x){
-  return x !== x;
-};
-even = function(x){
-  return x % 2 === 0;
-};
-odd = function(x){
-  return x % 2 !== 0;
-};
-gcd = curry$(function(x, y){
-  var z;
-  x = Math.abs(x);
-  y = Math.abs(y);
-  while (y !== 0) {
-    z = x % y;
-    x = y;
-    y = z;
-  }
-  return x;
-});
-lcm = curry$(function(x, y){
-  return Math.abs(Math.floor(x / gcd(x, y) * y));
-});
-module.exports = {
-  max: max,
-  min: min,
-  negate: negate,
-  abs: abs,
-  signum: signum,
-  quot: quot,
-  rem: rem,
-  div: div,
-  mod: mod,
-  recip: recip,
-  pi: pi,
-  tau: tau,
-  exp: exp,
-  sqrt: sqrt,
-  ln: ln,
-  pow: pow,
-  sin: sin,
-  tan: tan,
-  cos: cos,
-  acos: acos,
-  asin: asin,
-  atan: atan,
-  atan2: atan2,
-  truncate: truncate,
-  round: round,
-  ceiling: ceiling,
-  floor: floor,
-  isItNaN: isItNaN,
-  even: even,
-  odd: odd,
-  gcd: gcd,
-  lcm: lcm
 };
 function curry$(f, bound){
   var context,
@@ -6508,6 +6320,207 @@ function curry$(f, bound){
   return _curry();
 }
 
+},{}],9:[function(require,module,exports){
+var split, join, lines, unlines, words, unwords, chars, unchars, reverse, repeat;
+split = curry$(function(sep, str){
+  return str.split(sep);
+});
+join = curry$(function(sep, xs){
+  return xs.join(sep);
+});
+lines = function(str){
+  if (!str.length) {
+    return [];
+  }
+  return str.split('\n');
+};
+unlines = function(it){
+  return it.join('\n');
+};
+words = function(str){
+  if (!str.length) {
+    return [];
+  }
+  return str.split(/[ ]+/);
+};
+unwords = function(it){
+  return it.join(' ');
+};
+chars = function(it){
+  return it.split('');
+};
+unchars = function(it){
+  return it.join('');
+};
+reverse = function(str){
+  return str.split('').reverse().join('');
+};
+repeat = curry$(function(n, str){
+  var out, res$, i$;
+  res$ = [];
+  for (i$ = 0; i$ < n; ++i$) {
+    res$.push(str);
+  }
+  out = res$;
+  return out.join('');
+});
+module.exports = {
+  split: split,
+  join: join,
+  lines: lines,
+  unlines: unlines,
+  words: words,
+  unwords: unwords,
+  chars: chars,
+  unchars: unchars,
+  reverse: reverse,
+  repeat: repeat
+};
+function curry$(f, bound){
+  var context,
+  _curry = function(args) {
+    return f.length > 1 ? function(){
+      var params = args ? args.concat() : [];
+      context = bound ? context || this : this;
+      return params.push.apply(params, arguments) <
+          f.length && arguments.length ?
+        _curry.call(context, params) : f.apply(context, params);
+    } : f;
+  };
+  return _curry();
+}
+
+},{}],10:[function(require,module,exports){
+var max, min, negate, abs, signum, quot, rem, div, mod, recip, pi, tau, exp, sqrt, ln, pow, sin, tan, cos, asin, acos, atan, atan2, truncate, round, ceiling, floor, isItNaN, even, odd, gcd, lcm;
+max = curry$(function(x$, y$){
+  return x$ > y$ ? x$ : y$;
+});
+min = curry$(function(x$, y$){
+  return x$ < y$ ? x$ : y$;
+});
+negate = function(x){
+  return -x;
+};
+abs = Math.abs;
+signum = function(x){
+  if (x < 0) {
+    return -1;
+  } else if (x > 0) {
+    return 1;
+  } else {
+    return 0;
+  }
+};
+quot = curry$(function(x, y){
+  return ~~(x / y);
+});
+rem = curry$(function(x$, y$){
+  return x$ % y$;
+});
+div = curry$(function(x, y){
+  return Math.floor(x / y);
+});
+mod = curry$(function(x$, y$){
+  var ref$;
+  return ((x$) % (ref$ = y$) + ref$) % ref$;
+});
+recip = (function(it){
+  return 1 / it;
+});
+pi = Math.PI;
+tau = pi * 2;
+exp = Math.exp;
+sqrt = Math.sqrt;
+ln = Math.log;
+pow = curry$(function(x$, y$){
+  return Math.pow(x$, y$);
+});
+sin = Math.sin;
+tan = Math.tan;
+cos = Math.cos;
+asin = Math.asin;
+acos = Math.acos;
+atan = Math.atan;
+atan2 = curry$(function(x, y){
+  return Math.atan2(x, y);
+});
+truncate = function(x){
+  return ~~x;
+};
+round = Math.round;
+ceiling = Math.ceil;
+floor = Math.floor;
+isItNaN = function(x){
+  return x !== x;
+};
+even = function(x){
+  return x % 2 === 0;
+};
+odd = function(x){
+  return x % 2 !== 0;
+};
+gcd = curry$(function(x, y){
+  var z;
+  x = Math.abs(x);
+  y = Math.abs(y);
+  while (y !== 0) {
+    z = x % y;
+    x = y;
+    y = z;
+  }
+  return x;
+});
+lcm = curry$(function(x, y){
+  return Math.abs(Math.floor(x / gcd(x, y) * y));
+});
+module.exports = {
+  max: max,
+  min: min,
+  negate: negate,
+  abs: abs,
+  signum: signum,
+  quot: quot,
+  rem: rem,
+  div: div,
+  mod: mod,
+  recip: recip,
+  pi: pi,
+  tau: tau,
+  exp: exp,
+  sqrt: sqrt,
+  ln: ln,
+  pow: pow,
+  sin: sin,
+  tan: tan,
+  cos: cos,
+  acos: acos,
+  asin: asin,
+  atan: atan,
+  atan2: atan2,
+  truncate: truncate,
+  round: round,
+  ceiling: ceiling,
+  floor: floor,
+  isItNaN: isItNaN,
+  even: even,
+  odd: odd,
+  gcd: gcd,
+  lcm: lcm
+};
+function curry$(f, bound){
+  var context,
+  _curry = function(args) {
+    return f.length > 1 ? function(){
+      var params = args ? args.concat() : [];
+      context = bound ? context || this : this;
+      return params.push.apply(params, arguments) <
+          f.length && arguments.length ?
+        _curry.call(context, params) : f.apply(context, params);
+    } : f;
+  };
+  return _curry();
+}
+
 },{}],11:[function(require,module,exports){
 (function(){
   var ref$, unique, filter, sort, map, join, find, each, Graph;
@@ -6668,7 +6681,7 @@ function curry$(f, bound){
 
 },{"prelude-ls":5}],13:[function(require,module,exports){
 (function(process){(function(){
-  var ref$, termPalette, getMinMaxSize, linkFill, drawRootLabels, relationshipPalette, mvTowards, brighten, BRIGHTEN, colourFilter, termColor, linkStroke, centreAndZoom, drawRelationshipLegend, drawSourceLegend, toXywh, within, toLtrb, relationshipTest, sortBy, unique, id, reverse, reject, each, mean, fold, sort, join, filter, map, any, DAGRE, nodePadding, len, rectColor, toNodeId, doUpdate, invertLayout, separateColliding, deDup, toCombos, getOverlapping, explodify, addLabels, onlyMarked, markReachable, getNodeDragPos, doLine, calculateSpline, translateEdge, renderDag;
+  var ref$, termPalette, getMinMaxSize, linkFill, drawRootLabels, relationshipPalette, mvTowards, brighten, BRIGHTEN, colourFilter, termColor, linkStroke, centreAndZoom, drawRelationshipLegend, drawSourceLegend, toXywh, within, toLtrb, relationshipTest, sortBy, unique, id, reverse, reject, each, mean, fold, sort, join, filter, map, any, DAGRE, nodePadding, len, rectColor, toNodeId, doUpdate, invertLayout, separateColliding, deDup, toCombos, getOverlapping, explodify, addLabels, onlyMarked, markReachable, getNodeDragPos, doLine, calculateSpline, translateEdge, respondToMarking, renderDag;
   ref$ = require('./svg'), termPalette = ref$.termPalette, getMinMaxSize = ref$.getMinMaxSize, linkFill = ref$.linkFill, drawRootLabels = ref$.drawRootLabels, relationshipPalette = ref$.relationshipPalette, mvTowards = ref$.mvTowards, brighten = ref$.brighten, BRIGHTEN = ref$.BRIGHTEN, colourFilter = ref$.colourFilter, termColor = ref$.termColor, linkStroke = ref$.linkStroke, centreAndZoom = ref$.centreAndZoom, drawRelationshipLegend = ref$.drawRelationshipLegend, drawSourceLegend = ref$.drawSourceLegend;
   ref$ = require('./util'), toXywh = ref$.toXywh, within = ref$.within, toLtrb = ref$.toLtrb, relationshipTest = ref$.relationshipTest;
   ref$ = require('prelude-ls'), sortBy = ref$.sortBy, unique = ref$.unique, id = ref$.id, reverse = ref$.reverse, reject = ref$.reject, each = ref$.each, mean = ref$.mean, fold = ref$.fold, sort = ref$.sort, join = ref$.join, filter = ref$.filter, map = ref$.map, any = ref$.any;
@@ -6983,12 +6996,25 @@ function curry$(f, bound){
     }
     return results$;
   });
+  respondToMarking = function(){
+    var filtered;
+    if (this.state.get('view') !== 'Dag') {
+      return;
+    }
+    filtered = onlyMarked(this.nodes, this.edges);
+    if (filtered.nodes.length) {
+      return this.reRender((filtered.reset = this.reset, filtered));
+    } else {
+      return this.reset();
+    }
+  };
   renderDag = function(state, arg$){
     var reset, nodes, edges, svg, dimensions, svgGroup, update, spline, reRender, getDescale, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, markerEnd, rects, dragCp, lineWrap, labels, applyLayout, zoom, fixDagBoxCollisions, cooldown, focusEdges, animateFocus, highlightTargets, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
     reset = arg$.reset, nodes = arg$.nodes, edges = arg$.edges;
     svg = d3.select(state.get('svg'));
     svg.selectAll('g').remove();
     dimensions = state.get('dimensions');
+    state.off('nodes:marked', respondToMarking);
     svg.attr('width', dimensions.w).attr('height', dimensions.h).call(drawRelationshipLegend(state, relationshipPalette)).call(drawRootLabels({
       nodes: nodes
     }, dimensions)).call(drawSourceLegend(state, termPalette));
@@ -7011,17 +7037,12 @@ function curry$(f, bound){
     getDescale = function(){
       return 1 / state.get('zoom');
     };
-    state.on('nodes:marked', function(){
-      var filtered;
-      if (state.get('view') !== 'Dag') {
-        return;
-      }
-      filtered = onlyMarked(nodes, edges);
-      if (filtered.nodes.length) {
-        return reRender((filtered.reset = reset, filtered));
-      } else {
-        return reset();
-      }
+    state.on('nodes:marked', respondToMarking, {
+      state: state,
+      reset: reset,
+      reRender: reRender,
+      nodes: nodes,
+      edges: edges
     });
     console.log("Rendering " + len(nodes) + " nodes and " + len(edges) + " edges");
     svgBBox = svg.node().getBBox();
@@ -7043,13 +7064,13 @@ function curry$(f, bound){
       })(state.get('all'));
       if (wasFiltered) {
         console.log("Resetting");
-        return reset();
+        reset();
       } else {
         markReachable(node);
-        state.trigger('graph:marked');
         filtered = onlyMarked(nodes, edges);
-        return reRender((filtered.reset = reset, filtered));
+        reRender((filtered.reset = reset, filtered));
       }
+      return state.trigger('nodes:marked');
     });
     state.on('relationship:highlight', function(link){
       var scale, test, nodeTest, colFilt;
@@ -7580,7 +7601,7 @@ function curry$(f, bound){
 }).call(this);
 
 })(require("__browserify_process"))
-},{"./svg":16,"./util":3,"../vendor/dagre":15,"prelude-ls":5,"__browserify_process":1}],14:[function(require,module,exports){
+},{"./svg":16,"./util":4,"../vendor/dagre":15,"prelude-ls":5,"__browserify_process":1}],14:[function(require,module,exports){
 (function(){
   var ref$, linkStroke, termColor, drawRootLabels, termPalette, relationshipPalette, colourFilter, linkFill, mvTowards, drawSourceLegend, drawRelationshipLegend, centreAndZoom, markSubtree, relationshipTest, minimum, maximum, even, mean, reject, unique, join, abs, cos, sin, Obj, sum, any, sortBy, map, fold, filter, each, ln, isRoot, toRadians, getR, countBy, linkOpacity, minTicks, stratify, centrify, unfix, linkSpline, drawCurve, drawPauseBtn, linkDistance, getCharge, renderForce;
   ref$ = require('./svg'), linkStroke = ref$.linkStroke, termColor = ref$.termColor, drawRootLabels = ref$.drawRootLabels, termPalette = ref$.termPalette, relationshipPalette = ref$.relationshipPalette, colourFilter = ref$.colourFilter, linkFill = ref$.linkFill, mvTowards = ref$.mvTowards, drawSourceLegend = ref$.drawSourceLegend, drawRelationshipLegend = ref$.drawRelationshipLegend, drawRootLabels = ref$.drawRootLabels, centreAndZoom = ref$.centreAndZoom;
@@ -8015,7 +8036,6 @@ function curry$(f, bound){
         }
       });
     });
-    state.on('nodes:marked', updateMarked);
     state.once('force:ready', function(){
       return centreAndZoom(function(it){
         return it.x;
@@ -8040,7 +8060,7 @@ function curry$(f, bound){
       var queue, moar, count, max, n;
       state.set('animating', 'running');
       if (isRoot(d)) {
-        return toggleSubtree(d);
+        toggleSubtree(d);
       } else {
         queue = [d];
         moar = function(it){
@@ -8059,16 +8079,15 @@ function curry$(f, bound){
           n.marked = true;
           each(bind$(queue, 'push'), moar(n));
         }
-        return updateMarked();
       }
+      return updateMarked();
     }
     function toggleSubtree(root){
-      markSubtree(root, 'muted', !root.muted);
-      return updateMarked();
+      return markSubtree(root, 'muted', !root.muted);
     }
     function updateMarked(){
       var currentAnimation;
-      state.trigger('graph:marked');
+      state.trigger('nodes:marked');
       currentAnimation = state.get('animating');
       state.set('animating', 'running');
       force.start();
@@ -8298,7 +8317,7 @@ function curry$(f, bound){
   }
 }).call(this);
 
-},{"./svg":16,"./util":3,"prelude-ls":5}],16:[function(require,module,exports){
+},{"./svg":16,"./util":4,"prelude-ls":5}],16:[function(require,module,exports){
 (function(){
   var ref$, unique, filter, id, flip, join, maximum, minimum, map, brighten, darken, termPalette, termColor, relationshipPalette, linkFill, linkStroke, BRIGHTEN, colourFilter, mvTowards, isRoot, getMinMaxSize, drawRootLabels, centreAndZoom, drawRelationshipLegend, drawSourceLegend;
   ref$ = require('prelude-ls'), unique = ref$.unique, filter = ref$.filter, id = ref$.id, flip = ref$.flip, join = ref$.join, maximum = ref$.maximum, minimum = ref$.minimum, map = ref$.map;

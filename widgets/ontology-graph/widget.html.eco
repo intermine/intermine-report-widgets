@@ -60,7 +60,7 @@
                     <input class="symbol" type="text" placeholder="bsk">
                 </div>
                 <div class="small-4 columns">
-                    <a href="#" class="button prefix symbol">Search</a>
+                    <a class="button prefix symbol">Search</a>
                 </div>
             </div>
             <fieldset>
@@ -96,6 +96,7 @@
                 <section>
                     <p class="title" data-section-title><a href="#panel1">Statements</a></p>
                     <div class="content" data-section-content>
+                      <div class="scroll-container">
                         <table class="marked-statements">
                             <thead>
                                 <tr>
@@ -106,11 +107,13 @@
                             </thead>
                             <tbody></tbody>
                         </table>
+                      </div>
                     </div>
                 </section>
                 <section>
                     <p class="title" data-section-title><a href="#panel2">Terms</a></p>
                     <div class="content" data-section-content>
+                      <div class="scroll-container">
                         <table class="marked-terms">
                             <thead>
                                 <tr>
@@ -124,6 +127,7 @@
                             </thead>
                             <tbody></tbody>
                         </table>
+                      </div>
                     </div>
                 </section>
             </div>
