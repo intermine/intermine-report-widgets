@@ -9,6 +9,9 @@ parserlib = require 'parserlib'
 prefix    = require 'prefix-css-node'
 async     = require 'async'
 { exec }  = require 'child_process'
+winston   = require 'winston'
+
+winston.cli()
 
 ###
 Precompile a single widget.
@@ -18,6 +21,7 @@ Precompile a single widget.
 @param {fn} output Expects two parameters, 1. error string 2. JS string with the precompiled widget.
 ###
 single = (widgetId, callback, config, output) ->
+    winston.info 'Precompiling ' + widgetId.bold
 
     # Compress using `uglify-js` or `clean-css`.
     minify = (input, type="js") ->
@@ -41,7 +45,7 @@ single = (widgetId, callback, config, output) ->
         fs.readdir dir, (err, list) ->
             return cb err if err
 
-            log.data 'Reading source files'
+            winston.data 'Reading source files'
 
             # Check each entry.
             check = (entry) ->
@@ -74,7 +78,7 @@ single = (widgetId, callback, config, output) ->
         async.parallel [ (cb) ->
             return cb 'Presenter either not provided or provided more than once' if not presenter or presenter.length isnt 1
 
-            log.data 'Processing presenter'
+            winston.data 'Processing presenter'
 
             fs.readFile dir + (file = presenter[0]), 'utf-8', (err, src) ->
                 return cb err if err
@@ -105,7 +109,7 @@ single = (widgetId, callback, config, output) ->
             return cb null, [ 'style', null ] unless style
             return cb 'Only one stylesheet has to be defined' if style.length isnt 1
 
-            log.data 'Processing stylesheet'
+            winston.data 'Processing stylesheet'
 
             fs.readFile dir + '/' + (file = style[0]), 'utf-8', (err, src) ->
                 return cb err if err
@@ -132,7 +136,7 @@ single = (widgetId, callback, config, output) ->
         (cb) ->
             return cb null, [ 'templates', null ] unless templates
 
-            log.data 'Processing templates'
+            winston.data 'Processing templates'
 
             process = (file) ->
                 (cb) ->
@@ -184,7 +188,7 @@ single = (widgetId, callback, config, output) ->
             js.push ("  #{line}" for line in @presenter.split('\n') ).join('\n')
 
             # Tack on any config.
-            log.data 'Appending config'
+            winston.data 'Appending config'
             cfg = JSON.stringify(config.config) or '{}'
             # Leave out the quotes around the config (from stringify...).
             if cfg[0] is '"' and cfg[cfg.length - 1] is '"' then cfg = cfg[1...-1]
@@ -245,9 +249,9 @@ all = ->
 
                         # Valid name?
                         if encodeURIComponent(widgetId) isnt widgetId
-                            log.error "Widget id `#{widgetId}` is not a valid name and cannot be used, use encodeURIComponent() to check".red
+                            winston.error "Widget id `#{widgetId}` is not a valid name and cannot be used, use encodeURIComponent() to check".red
                         else
-                            log.info 'Precompiling widget ' + widgetId.bold
+                            winston.info 'Precompiling widget ' + widgetId.bold
 
                             # Create the placeholders.
                             config =
@@ -262,14 +266,14 @@ all = ->
                             single widgetId, callback, config, (err, js) ->
                                 # Catch all errors into messages.
                                 if err
-                                    log.error err.red
+                                    winston.error err.red
                                     done()
                                 else
                                     # Since we are writing the result into a file, make sure that the file begins with an exception if read directly.
                                     (js = js.split("\n")).splice 0, 0, 'new Error(\'This widget cannot be called directly\');\n'
 
                                     # Write the result.
-                                    log.data 'Writing .js package'.green
+                                    winston.data 'Writing .js package'.green
                                     write "./build/#{widgetId}.js", js.join("\n"), done
 
 # Compile the client.
@@ -315,12 +319,12 @@ client = (cb = ->) ->
                 write path, data, cb
 
         async.parallel [
-            process('./public/js/intermine.report-widgets.js')
-            process('./public/js/intermine.report-widgets.min.js', true)
+            process('./example/public/js/intermine.report-widgets.js')
+            process('./example/public/js/intermine.report-widgets.min.js', true)
         ], cb
 
     ], (err) ->
-        log.error (''+err) if err
+        winston.error (''+err) if err
         cb()
 
 # Append to existing file.
@@ -331,8 +335,8 @@ write = (path, data, cb) ->
             return cb err if err
             cb null
 
-# Export the precompilers after setting the logger.
-module.exports = (@log) ->
+# Export the precompilers..
+module.exports =
     'all':    all
     'single': single
     'client': client

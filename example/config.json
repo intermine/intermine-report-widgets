@@ -1,0 +1,61 @@
+{
+        "publications-displayer": {
+            "config": {
+                "mine": "http://beta.flymine.org/beta",
+                "pathQueries": {
+                    "pubsForGene": {
+                        "select": [
+                            "publications.title",
+                            "publications.year",
+                            "publications.journal",
+                            "publications.pubMedId",
+                            "publications.authors.name"
+                        ],
+                        "from": "Gene",
+                        "joins": [
+                            "publications.authors"
+                        ]
+                    }
+                }
+            }
+        },
+        "spell-histogram": {
+            "config": {
+                "mine": "http://yeastmine-test.yeastgenome.org:8080/yeastmine-dev/",
+                "pathQueries": {
+                    "expressionScores": {
+                        "select": [
+                            "TYPE.expressionScores.score"
+                        ]
+                    }
+                }
+            }
+        },
+        "pathways-displayer": {
+            "config": {
+                "mines": {
+                    "FlyMine": "http://beta.flymine.org/beta",
+                    "metabolicMine": "http://metabolicmine.org/beta"
+                },
+                "organisms": [
+                    "fruit fly",
+                    "house mouse",
+                    "human"
+                ],
+                "pathQueries": {
+                    "homologues": {
+                        "select": [
+                            "Gene.homologues.homologue.primaryIdentifier"
+                        ]
+                    },
+                    "pathways": {
+                        "select": [
+                            "Gene.pathways.name",
+                            "Gene.pathways.curated",
+                            "Gene.organism.commonName"
+                        ]
+                    }
+                }
+            }
+        }
+}

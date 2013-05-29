@@ -1,4 +1,0 @@
-<h4>Alleles phenotype terms for</h4> <input type="text" placeholder="MGI:97747" class="symbol three columns" value="<%= @symbol %>" />
-<div style="clear:both"></div>
-<div class="config">Loading &hellip;</div>
-<div class="graph"></div>
