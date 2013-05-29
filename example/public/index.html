@@ -120,5 +120,61 @@ intermine.load('report-widgets', function(err) {
         <div id="publications"></div>
         </div>
     </div>
+<!--
+    <div class="row">
+        <div class="twelve columns">
+        <h3>Ontology Displayer</h3>
+        <pre><code data-language="javascript">
+// Use InterMine API Loader to fetch Report Widgets client.
+intermine.load('report-widgets', function(err) {
+    // Instantiate the library pointing to a service.
+    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
+    // Load a specific widget after satisfying its dependencies; passing target &amp; extra config.
+    widgets.load('ontology-graph', '#ontology', {
+        'service': { root: 'http://www.flymine.org/query' },
+        'interop': [
+            {
+                taxonId: 4932,
+                root: 'yeastmine-test.yeastgenome.org/yeastmine-dev',
+                name: 'SGD'
+            }, {
+                taxonId: 10090,
+                root: 'http://beta.mousemine.org/mousemine',
+                name: 'MGI'
+            }, {
+                taxonId: 6239,
+                root: 'http://intermine.modencode.org/release-32',
+                name: 'modMine'
+            }
+        ],
+        'graphState': { query: 'Adh' }
+    });
+});
+        </code></pre>
+        <script>
+        this.widgets.load('ontology-graph', '#ontology', {
+            'service': { 'root': 'http://www.flymine.org/query' },
+            'interop': [
+                {
+                    'taxonId': 4932,
+                    'root': 'yeastmine-test.yeastgenome.org/yeastmine-dev',
+                    'name': 'SGD'
+                }, {
+                    'taxonId': 10090,
+                    'root': 'http://beta.mousemine.org/mousemine',
+                    'name': 'MGI'
+                }, {
+                    'taxonId': 6239,
+                    'root': 'http://intermine.modencode.org/release-32',
+                    'name': 'modMine'
+                }
+            ],
+            'graphState': { 'query': 'Adh' }
+        });
+        </script>
+        <div id="ontology" style="width: 100%; height: 800px"></div>
+        </div>
+    </div>
+-->
 </body>
 </html>

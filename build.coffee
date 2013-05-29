@@ -179,7 +179,8 @@ single = (widgetId, callback, config, output) ->
                  *  Generated: #{(new Date()).toUTCString()}
                  */
                 (function() {
-                  var root = this;
+                  var clazz
+                    , root = this;
 
                   /**#@+ the presenter */\n
                 """
@@ -209,6 +210,8 @@ single = (widgetId, callback, config, output) ->
                       document.head.appendChild(style);
                     """
 
+            widgetRef = (config.classExpr or "Widget")
+
             # Finally add us to the browser `cache` under the callback id.
             js.push """
                 \n  /**#@+ callback */
@@ -221,7 +224,9 @@ single = (widgetId, callback, config, output) ->
                       parent = parent[part] = parent[part] || {};
                     }
                   }).call(root);
-                  root.intermine.temp.widgets['#{callback}'] = new Widget(config, templates);\n\n}).call(this);
+                  clazz = #{ widgetRef };
+                  root.intermine.temp.widgets['#{callback}'] = [clazz, config, templates];
+                \n\n}).call(this);
                 """
 
             cb null, js.join '\n'
@@ -260,6 +265,7 @@ all = ->
                                 'description': '#@+DESCRIPTION'
                                 'version':     '#@+VERSION'
                                 'config':      '#@+CONFIG'
+                                'classExpr':   '#@+CLASSEXPR'
                             callback         = '#@+CALLBACK'
 
                             # Run the precompile.

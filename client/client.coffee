@@ -66,11 +66,13 @@ class ReportWidgets
                 # Get the widget from the `cache`.
                 throw "Unknown widget `#{uid}`" unless widget = root.intermine.temp.widgets[uid]
 
-                # Inject the extra options to it.
-                widget.config = _extend widget.config, options
-                
-                # Render.
-                widget.render "#w#{uid} article.im-report-widget"
+                # Build config for this instance.
+                [Widget, generalConfig, templates] = widget
+                config = _extend {}, generalConfig, options
+                selector = "#w#{uid} article.im-report-widget"
+
+                instance = new Widget config, templates
+                instance.render selector
 
         # Load dependencies?
         deps = @config[widgetId]
