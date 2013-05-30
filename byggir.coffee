@@ -1,15 +1,15 @@
 #!/usr/bin/env coffee
-fs        = require 'fs'
 eco       = require 'eco'
 cs        = require 'coffee-script'
 stylus    = require 'stylus'
 uglify    = require 'uglify-js'
 cleanCss  = require 'clean-css'
-parserlib = require 'parserlib'
 prefix    = require 'prefix-css-node'
 async     = require 'async'
-{ exec }  = require 'child_process'
 winston   = require 'winston'
+{ exec }  = require 'child_process'
+{ _ }     = require 'underscore'
+fs        = _.extend require('fs-extra'), require('fs')
 
 winston.cli()
 
@@ -18,31 +18,30 @@ Precompile a single widget.
 @param {string} widgetId A URL-valid widgetId.
 @param {string} callback A string used to tell client that THIS widget has arrived.
 @param {dict} config Configuration to be injected into the widget.
-@param {fn} output Expects two parameters, 1. error string 2. JS string with the precompiled widget.
+@param {fn} cb Expects two parameters, 1. error string 2. JS string with the precompiled widget.
 ###
-single = (widgetId, callback, config, output) ->
-    winston.info 'Precompiling ' + widgetId.bold
+exports.widget = (path, callback, config, cb) ->
+    winston.info 'Precompiling ' + path.bold
 
-    # Compress using `uglify-js` or `clean-css`.
-    minify = (input, type="js") ->
-        switch type
-            when 'js'
-                (uglify.minify(input, 'fromString': true)).code
-            when 'css'
-                cleanCss.process input
+    # Use the placeholders?.
+    config = config or
+        'title':       '#@+TITLE'
+        'author':      '#@+AUTHOR'
+        'description': '#@+DESCRIPTION'
+        'version':     '#@+VERSION'
+        'config':      '#@+CONFIG'
+        'classExpr':   '#@+CLASSEXPR'
+    callback = callback or '#@+CALLBACK'
 
     # Does the dir actually exist?
     async.waterfall [ (cb) ->
-        path = "./widgets/#{widgetId}/"
-        fs.stat path, (err, stats) ->
-            if not err and stats.isDirectory()
-                cb null, path
-            else
-                cb "Widget path `#{widgetId}` does not exist"
+        fs.stat path, cb
 
     # Read all the files in the directory and categorize them.
-    (dir, cb) ->
-        fs.readdir dir, (err, list) ->
+    (stats, cb) ->
+        return cb '#Is not a directory' unless stats.isDirectory()
+
+        fs.readdir path, (err, list) ->
             return cb err if err
 
             winston.data 'Reading source files'
@@ -50,9 +49,9 @@ single = (widgetId, callback, config, output) ->
             # Check each entry.
             check = (entry) ->
                 (cb) ->
-                    fs.stat (path = dir + '/' + entry), (err, stats) ->
+                    fs.stat path + '/' + entry, (err, stats) ->
                         return cb err if err or not stats
-                        return cb "A directory in #{path} is not currently supported" if stats.isDirectory()
+                        return cb 'A directory is not currently supported' if stats.isDirectory()
                         cb null, entry
 
             # Check them all at once.
@@ -70,17 +69,17 @@ single = (widgetId, callback, config, output) ->
                             results[i] ?= []
                             return results[i].push file
 
-                cb null, dir, results
+                cb null, results
 
     # Compile the files.
-    (dir, [ presenter, style, templates ], cb) ->
+    ([ presenter, style, templates ], cb) ->
         # Handle the presenter.
         async.parallel [ (cb) ->
             return cb 'Presenter either not provided or provided more than once' if not presenter or presenter.length isnt 1
 
             winston.data 'Processing presenter'
 
-            fs.readFile dir + (file = presenter[0]), 'utf-8', (err, src) ->
+            fs.readFile path + '/' + (file = presenter[0]), 'utf-8', (err, src) ->
                 return cb err if err
 
                 # Which filetype?
@@ -99,7 +98,7 @@ single = (widgetId, callback, config, output) ->
 
                     # LiveScript then.
                     when 'ls'
-                        exec './node_modules/.bin/lsc -bpc < ' + dir + file, (err, stdout, stderr) ->
+                        exec './node_modules/.bin/lsc -bpc < ' + path + '/' + file, (err, stdout, stderr) ->
                             return cb (''+err).replace('\n', '') if err
                             return cb stderr if stderr
                             cb null, [ 'presenter', stdout ]
@@ -111,14 +110,15 @@ single = (widgetId, callback, config, output) ->
 
             winston.data 'Processing stylesheet'
 
-            fs.readFile dir + '/' + (file = style[0]), 'utf-8', (err, src) ->
+            fs.readFile path + '/' + (file = style[0]), 'utf-8', (err, src) ->
                 return cb err if err
 
                 pack = (css) ->
                     # Prefix CSS selectors with a callback id.
                     css = prefix.css css, "div#w#{callback}"
                     # Escape all single quotes, minify & return.
-                    cb null, [ 'style', minify(css.replace(/\'/g, "\\'"), 'css') ]
+                    css = cleanCss.process css.replace /\'/g, "\\'"
+                    cb null, [ 'style', css ]
 
                 # Which filetype?
                 switch file.split('.').pop()
@@ -141,14 +141,14 @@ single = (widgetId, callback, config, output) ->
             process = (file) ->
                 (cb) ->
                     # Read the file.
-                    fs.readFile dir + '/' + file, 'utf-8', (err, src) ->
+                    fs.readFile path + '/' + file, 'utf-8', (err, src) ->
                         return cb err if err
 
                         # Precompile template.
                         template = eco.precompile src
 
                         # Minify.
-                        cb null, minify("templates['#{file[0...-4]}'] = #{template}") + ';'
+                        cb null, (uglify.minify(("templates['#{file[0...-4]}'] = #{template}") + ';', 'fromString': true)).code
 
             # Process all templates in parallel.
             async.parallel ( process file for file in templates  ), (err, results) ->
@@ -210,7 +210,7 @@ single = (widgetId, callback, config, output) ->
                       document.head.appendChild(style);
                     """
 
-            widgetRef = (config.classExpr or "Widget")
+            widgetRef = (config.classExpr or 'Widget')
 
             # Finally add us to the browser `cache` under the callback id.
             js.push """
@@ -231,59 +231,10 @@ single = (widgetId, callback, config, output) ->
 
             cb null, js.join '\n'
 
-    ], output
-
-# Precompile all widgets in a directory for InterMine use.
-all = ->
-    # Go through the source directory.
-    fs.readdir './widgets', (err, files) ->
-        throw err if err
-
-        # Sync loop (so that messages from different widgets do not appear out of sync).
-        do done = ->
-            # Exit condition.
-            if files.length isnt 0
-                file = files.pop()
-
-                fs.stat "./widgets/#{file}", (err, stat) ->
-                    throw err if err
-                    # If it is a directory...
-                    if stat and stat.isDirectory()
-                        # The id of the widget.
-                        widgetId = file
-
-                        # Valid name?
-                        if encodeURIComponent(widgetId) isnt widgetId
-                            winston.error "Widget id `#{widgetId}` is not a valid name and cannot be used, use encodeURIComponent() to check".red
-                        else
-                            winston.info 'Precompiling widget ' + widgetId.bold
-
-                            # Create the placeholders.
-                            config =
-                                'title':       '#@+TITLE'
-                                'author':      '#@+AUTHOR'
-                                'description': '#@+DESCRIPTION'
-                                'version':     '#@+VERSION'
-                                'config':      '#@+CONFIG'
-                                'classExpr':   '#@+CLASSEXPR'
-                            callback         = '#@+CALLBACK'
-
-                            # Run the precompile.
-                            single widgetId, callback, config, (err, js) ->
-                                # Catch all errors into messages.
-                                if err
-                                    winston.error err.red
-                                    done()
-                                else
-                                    # Since we are writing the result into a file, make sure that the file begins with an exception if read directly.
-                                    (js = js.split("\n")).splice 0, 0, 'new Error(\'This widget cannot be called directly\');\n'
-
-                                    # Write the result.
-                                    winston.data 'Writing .js package'.green
-                                    write "./build/#{widgetId}.js", js.join("\n"), done
+    ], cb
 
 # Compile the client.
-client = (cb = ->) ->
+exports.client = (cb = ->) ->
     async.waterfall [ (cb) ->
         compile = (f) ->
             (cb) ->
@@ -322,7 +273,7 @@ client = (cb = ->) ->
                     return cb err
 
                 # Actually write.
-                write path, data, cb
+                fs.outputFile path, data, cb
 
         async.parallel [
             process('./example/public/js/intermine.report-widgets.js')
@@ -332,17 +283,3 @@ client = (cb = ->) ->
     ], (err) ->
         winston.error (''+err) if err
         cb()
-
-# Append to existing file.
-write = (path, data, cb) ->
-    fs.open path, 'w', 0o0666, (err, id) ->
-        return cb err if err
-        fs.write id, data, null, 'utf-8', (err) ->
-            return cb err if err
-            cb null
-
-# Export the precompilers..
-module.exports =
-    'all':    all
-    'single': single
-    'client': client
