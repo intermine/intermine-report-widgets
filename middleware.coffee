@@ -106,7 +106,7 @@ module.exports = (opts) ->
     { apps, config } = opts
 
     # Always have an empty one.
-    config = config or {}
+    config ?= {}
 
     # This will take a while.
     ready = no
@@ -163,43 +163,72 @@ module.exports = (opts) ->
                     # What kind of a job is this?
                     if path.indexOf 'git://' is 0
                         # Download a Git repo off the net.
-                        exec "cd #{dir}/tmp/sources && git clone --depth 1 #{path} #{folder}", (err, stdout, stderr) ->
-                            cb err
+                        command = "cd #{dir}/tmp/sources && git clone --depth 1 #{path} #{folder}"
                     
                     else if path.indexOf 'file://' is 0
                         # Copy a local path.
-                        exec "cd #{dir}/tmp/sources && cp #{path} #{folder}", (err, stdout, stderr) ->
-                            cb err
+                        command = "cd #{dir}/tmp/sources && cp #{path} #{folder}"
                     
                     else
                         return cb 'Unrecognized path'
 
-                # Read the config.
-                (cb) ->
-                    fs.readJson dir + '/tmp/sources/' + folder + '/config.json', cb
+                    # Execute the command.
+                    exec command, (err, stdout, stderr) ->
+                        # Return the formed path.
+                        cb err, "#{dir}/tmp/sources/#{folder}"
+
+                # Read the folder.
+                (path, cb) ->
+                    fs.readdir path, (err, files) ->
+                        return cb err if err
+
+                        # Filter to get only folders (that are not hidden).
+                        async.filter files, (one, cb) ->
+                            return cb false if one[0] is '.' # starts with a dot?
+                            return cb false if encodeURIComponent(one) isnt one # badly named?
+                            fs.stat path + '/' + one, (err, stats) ->
+                                return cb false if err # oh damned
+                                cb stats.isDirectory()
+
+                        , (results) ->
+                            # Prepend the folder with the path to it.
+                            cb null, ( path + '/' + folder for folder in results )
 
                 # Validate & build.
-                (json, cb) ->
-                    jobs = []
-                    for key, value of json
-                        if encodeURIComponent(key) isnt key
-                            return cb "Widget id `#{key}` is not a valid name and cannot be used, use encodeURIComponent() to check"
-
-                        # Extend our config with this one.
-                        config[key] ?= {}
-                        config[key] = _.extend value, config[key]
-
+                (paths, cb) ->
                     # Build them in series so we can debug which is which.
-                    async.eachSeries Object.keys(json), (key, cb) ->
-                        byggir.app [ dir, 'tmp/sources', folder, key ].join('/'), null, null, (err, js) ->
-                            return cb err if err
-                            
-                            # Since we are writing the result into a file, make sure that the file begins with an exception if read directly.
-                            js = 'new Error(\'This app cannot be called directly\');\n' + js
+                    async.eachSeries paths, (path, cb) ->
+                        winston.data('')
+                        winston.data 'Maybe app is in ' + path.bold
 
-                            path = [ dir, 'tmp/build', key + '.js' ].join('/')
-                            winston.info 'Writing ' + path.bold
-                            fs.writeFile path, js, cb
+                        # Read the config file maybe?
+                        fs.readFile path + '/' + 'config.json', (err, json) ->
+                            # No JSON, no app man.
+                            return cb null if err
+
+                            # Is it actually JSON?
+                            try
+                                json = JSON.parse json
+                            catch err
+                                return cb null # just skip it
+
+                            # What is the id of the app again?
+                            id = path.split('/').pop()
+
+                            # Extend our config with this one.
+                            config[id] ?= {} # init?
+                            config[id] = _.extend config[id], json
+
+                            # Build it... and they will come.
+                            byggir.app path, null, null, (err, js) ->
+                                return cb err if err
+                                
+                                # Since we are writing the result into a file, make sure that the file begins with an exception if read directly.
+                                js = 'new Error(\'This app cannot be called directly\');\n' + js
+
+                                path = [ dir, 'tmp/build', id + '.js' ].join('/')
+                                winston.info 'Writing ' + path.bold
+                                fs.writeFile path, js, cb
                     , cb
 
                 ], cb

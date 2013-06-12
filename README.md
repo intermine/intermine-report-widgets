@@ -25,7 +25,7 @@ middleware = require '../middleware.coffee'
 app = connect()
 .use(middleware
     'apps': [
-        'git://github.com/intermine/demo-fatapps.git'
+        'git://github.com/intermine/example-fatapps.git'
     ]
     'config': __dirname + '/config.json'
 )
@@ -36,12 +36,19 @@ http.createServer(app).listen process.env.PORT
 
 The middleware accepts two params. One, `apps` is an Array of paths to app sources. This can be any of the following:
 
-1. Git paths on the net like: `git://github.com/intermine/demo-fatapps.git`
-1. Local file paths: `/home/dev/demo-fatapps`
+1. Git paths on the net like: `git://github.com/intermine/example-fatapps.git`
+1. Local file paths: `/home/dev/example-fatapps`
 
 The other parameter, `config`, represents the configuration you want merged with the config from the apps sources. This can be one of the following:
 
-1. Local file path: `/home/dev/demo-service/config.json`
+1. Local file path: `/home/dev/example-middleware/config.json`
 1. A plain JS Object.
 
 Only the first parameter is required.
+
+Then, the middleware provides you with two routes:
+
+1. GET `/embedding/fatapps` - which gives you a config for all the apps it can serve
+2. GET `/embedding/fatapps/:appId` - which returns one app
+
+Both URLs are being used internally by the FatApp client (see `example/public/js/intermine.fatapps.js`).
