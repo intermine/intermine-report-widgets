@@ -157,11 +157,22 @@ module.exports = (opts) ->
 
         process = (path, folder) ->
             (cb) ->
-                # Download a Git repo off the net.
                 async.waterfall [ (cb) ->
                     winston.data 'Getting ' + path.bold
-                    exec "cd #{dir}/tmp/sources && git clone --depth 1 #{path} #{folder}", (err, stdout, stderr) ->
-                        cb err
+
+                    # What kind of a job is this?
+                    if path.indexOf 'git://' is 0
+                        # Download a Git repo off the net.
+                        exec "cd #{dir}/tmp/sources && git clone --depth 1 #{path} #{folder}", (err, stdout, stderr) ->
+                            cb err
+                    
+                    else if path.indexOf 'file://' is 0
+                        # Copy a local path.
+                        exec "cd #{dir}/tmp/sources && cp #{path} #{folder}", (err, stdout, stderr) ->
+                            cb err
+                    
+                    else
+                        return cb 'Unrecognized path'
 
                 # Read the config.
                 (cb) ->
@@ -196,8 +207,7 @@ module.exports = (opts) ->
         return cb '`apps` is not an Array of paths' unless apps and apps instanceof Array
         for path in apps
             return cb '`apps` is an Array of Strings only' if typeof path isnt 'string'
-            if path.indexOf 'git://' is 0
-                jobs.push process path, folder++
+            jobs.push process path, folder++
 
         # Run them jobs.
         async.parallel jobs, cb
