@@ -4,12 +4,12 @@ root = this
 # Can we work?
 throw 'An old & unsupported browser detected' unless document.querySelector
 
-class ReportWidgets
+class FatAppsClient
 
     # So that we do not start a selector with a number...
     selectorPrefix: 'w'
 
-    # Save the root URL of the widgets config
+    # Save the root URL of the app config
     constructor: (server) ->
         # Strip trailing slash?
         @server = server.replace /\/+$/, ''
@@ -22,18 +22,18 @@ class ReportWidgets
 
         # Load it.
         root.intermine.load [
-            'path': "#{@server}/widget/report?callback=#{callback}"
+            'path': "#{@server}/embedding/fatapps?callback=#{callback}"
             'type': 'js'
         ]
     
-    # Load a report widget.
+    # Load one app.
     #
-    # 1. `widgetId`: id of a widget as specified in its config
-    # 2. `target`:   element the widget will render into
+    # 1. `appId`: id of the app as specified in its config
+    # 2. `target`:   element the app will render into
     # 3. `options`:  local options to pass to us, will get merged with @config
-    load: (widgetId, target, options = {}) =>
+    load: (appId, target, options = {}) =>
         # Keep checking if we have the config loaded.
-        again = => @load widgetId, target, options
+        again = => @load appId, target, options
         if not @config then return _setImmediate again
 
         # Post dependencies loaded.
@@ -46,12 +46,12 @@ class ReportWidgets
 
             # Get the compiled script.
             root.intermine.load [
-                'path': "#{@server}/widget/report/#{widgetId}?callback=#{uid}"
+                'path': "#{@server}/embedding/fatapps/#{appId}?callback=#{uid}"
                 'type': 'js'
             ], (err) =>
                 # Create a wrapper for the target.
                 article = document.createElement 'article'
-                article.setAttribute 'class', "im-report-widget #{widgetId}"
+                article.setAttribute 'class', "-im-fatapps #{appId}"
 
                 div = document.createElement 'div'
                 div.setAttribute 'id', 'w' + uid
@@ -60,22 +60,32 @@ class ReportWidgets
                 # Append it to the target, IE8+.
                 document.querySelector(target).appendChild div
                 
-                # Checks.
+                # Do we have the temp directory to save apps under?
                 throw '`intermine.temp` object cache does not exist' unless root.intermine.temp
 
-                # Get the widget from the `cache`.
-                throw "Unknown widget `#{uid}`" unless widget = root.intermine.temp.widgets[uid]
+                # Get the app from there.
+                throw "Unknown app `#{uid}`" unless app = root.intermine.temp.apps[uid]
 
-                # Build config for this instance.
-                [Widget, generalConfig, templates] = widget
-                config = _extend {}, generalConfig, options
-                selector = "#w#{uid} article.im-report-widget"
+                # Get the instantiation fn, server config and templates from the app.
+                [ fn, config, templates ] = app
+                
+                # Merge server and client config.
+                config = _extend config, options
 
-                instance = new Widget config, templates
-                instance.render selector
+                # Create a new instance passing merged config and templates.
+                instance = new fn config, templates
+
+                # Did we create anything?
+                throw 'Widget failed to instantiate' unless instance and typeof instance is 'object'
+
+                # Do we implement render function?
+                throw 'Widget does not implement `render` function' unless instance.render and typeof instance.render is 'function'
+
+                # Render.
+                instance.render "#w#{uid} article.-im-fatapps"
 
         # Load dependencies?
-        deps = @config[widgetId]
+        deps = @config[appId]
 
         if deps? then root.intermine.load deps, run
         else run()
@@ -85,4 +95,4 @@ if not root.intermine
     throw 'You need to include the InterMine API Loader first!'
 else
     # Expose class globally?
-    root.intermine.reportWidgets = root.intermine.reportWidgets or ReportWidgets
+    root.intermine.fatApps = root.intermine.fatApps or FatAppsClient

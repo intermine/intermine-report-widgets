@@ -14,16 +14,16 @@ fs        = _.extend require('fs-extra'), require('fs')
 winston.cli()
 
 ###
-Precompile a single widget.
-@param {string} widgetId A URL-valid widgetId.
-@param {string} callback A string used to tell client that THIS widget has arrived.
-@param {dict} config Configuration to be injected into the widget.
-@param {fn} cb Expects two parameters, 1. error string 2. JS string with the precompiled widget.
+Precompile a single app.
+@param {string} path A URL-valid appId.
+@param {string} callback A string used to tell client that THIS app has arrived.
+@param {dict} config Configuration to be injected into the app.
+@param {fn} cb Expects two parameters, 1. error string 2. JS string with the precompiled app.
 ###
-exports.widget = (path, callback, config, cb) ->
+exports.app = (path, callback, config, cb) ->
     winston.info 'Precompiling ' + path.bold
 
-    # Use the placeholders?.
+    # Use the placeholders?
     config = config or
         'title':       '#@+TITLE'
         'author':      '#@+AUTHOR'
@@ -179,8 +179,7 @@ exports.widget = (path, callback, config, cb) ->
                  *  Generated: #{(new Date()).toUTCString()}
                  */
                 (function() {
-                  var clazz
-                    , root = this;
+                  var root = this; // reference to the root
 
                   /**#@+ the presenter */\n
                 """
@@ -210,7 +209,8 @@ exports.widget = (path, callback, config, cb) ->
                       document.head.appendChild(style);
                     """
 
-            widgetRef = (config.classExpr or 'Widget')
+            # How are we loading the app? Default to an `App` class.
+            appFn = config.classExpr or 'App'
 
             # Finally add us to the browser `cache` under the callback id.
             js.push """
@@ -218,14 +218,14 @@ exports.widget = (path, callback, config, cb) ->
                   (function() {
                     var parent, part, _i, _len, _ref;
                     parent = this;
-                    _ref = 'intermine.temp.widgets'.split('.');
+                    _ref = 'intermine.temp.apps'.split('.');
                     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
                       part = _ref[_i];
                       parent = parent[part] = parent[part] || {};
                     }
                   }).call(root);
-                  clazz = #{ widgetRef };
-                  root.intermine.temp.widgets['#{callback}'] = [clazz, config, templates];
+                  // Client will be getting these properties from us so we can be instantiated and rendered.
+                  root.intermine.temp.apps['#{callback}'] = [ #{appFn}, config, templates ];
                 \n\n}).call(this);
                 """
 
@@ -233,7 +233,7 @@ exports.widget = (path, callback, config, cb) ->
 
     ], cb
 
-# Compile the client.
+# Compile the client. Done when running the example.
 exports.client = (cb = ->) ->
     async.waterfall [ (cb) ->
         compile = (f) ->
@@ -276,8 +276,8 @@ exports.client = (cb = ->) ->
                 fs.outputFile path, data, cb
 
         async.parallel [
-            process('./example/public/js/intermine.report-widgets.js')
-            process('./example/public/js/intermine.report-widgets.min.js', true)
+            process('./example/public/js/intermine.fatapps.js')
+            process('./example/public/js/intermine.fatapps.min.js', true)
         ], cb
 
     ], (err) ->

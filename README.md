@@ -1,8 +1,8 @@
-# InterMine Report Widgets (Node.js)
+# InterMine FatApps Middleware (Node.js)
 
-A [Node.js](http://nodejs.org/) reference implementation of a **service** and a **client** for loading and rendering Report Widgets (previously called Displayers).
+A [Node.js](http://nodejs.org/) reference implementation of a **middleware** for loading and rendering Fat Apps (previously called Report Widgets).
 
-![image](https://github.com/intermine/intermine-report-widgets/raw/master/example.png)
+![image](https://github.com/intermine/intermine-fatapps-middleware/raw/master/example/example.png)
 
 ## Quickstart
 
@@ -24,8 +24,8 @@ middleware = require '../middleware.coffee'
 
 app = connect()
 .use(middleware
-    'widgets': [
-        'git://github.com/intermine/demo-report-widgets.git'
+    'apps': [
+        'git://github.com/intermine/demo-fatapps.git'
     ]
     'config': __dirname + '/config.json'
 )
@@ -34,12 +34,12 @@ app = connect()
 http.createServer(app).listen process.env.PORT
 ```
 
-The middleware accepts two params. One, `widgets` is an Array of paths to widgets sources. This can be any of the following:
+The middleware accepts two params. One, `apps` is an Array of paths to app sources. This can be any of the following:
 
-1. Git paths on the net like: `git://github.com/intermine/demo-report-widgets.git`
-1. Local file paths: `/home/dev/demo-report-widgets`
+1. Git paths on the net like: `git://github.com/intermine/demo-fatapps.git`
+1. Local file paths: `/home/dev/demo-fatapps`
 
-The other parameter, `config`, represents the configuration you want merged with the config from the widgets sources. This can be one of the following:
+The other parameter, `config`, represents the configuration you want merged with the config from the apps sources. This can be one of the following:
 
 1. Local file path: `/home/dev/demo-service/config.json`
 1. A plain JS Object.

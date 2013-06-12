@@ -2,7 +2,7 @@
 <head>
     <meta charset="utf-8" />
 
-    <title>InterMine Report Widgets Demo</title>
+    <title>InterMine FatApps</title>
 
     <link rel="stylesheet" href="css/foundation3.css">
     <link rel="stylesheet" href="css/tricolore.css">
@@ -17,23 +17,23 @@
     <script src="js/lang/javascript.js"></script>
 
     <!-- API loader for dependency resolution -->
-    <!--<script src="http://cdn.intermine.org/js/intermine/api-loader/latest/intermine.api.js"></script>-->
-    <script src="js/intermine.api.js"></script>
+    <script src="http://cdn.intermine.org/js/intermine/api-loader/latest/intermine.api.js"></script>
 
-    <!-- report widgets client -->
-    <script src="js/intermine.report-widgets.js"></script>
+    <!-- fatapp client -->
+    <script src="js/intermine.fatapps.js"></script>
 
     <script>
-        var widgets = new intermine.reportWidgets(document.location.href);
+        // Pointing to us.
+        var client = new intermine.fatApps(document.location.href);
     </script>
 </head>
 <body>
     <div class="row">
         <div class="ten columns">
-            <h2>InterMine Report Widgets Demo</h2>
+            <h2>InterMine FatApps</h2>
         </div>
         <div id="docs" class="two columns">
-            <a target="_blank" href="http://intermine.readthedocs.org/en/latest/embedding/report-widgets/">Read the Docs</a>
+            <a target="_blank" href="http://intermine.readthedocs.org/en/latest/embedding/fatapps/">Read the Docs</a>
         </div>
     </div>
 
@@ -41,17 +41,17 @@
         <div class="twelve columns">
         <h3>Dendrogram Clustering</h3>
         <pre><code data-language="javascript">
-// Use InterMine API Loader to fetch Report Widgets client.
-intermine.load('report-widgets', function(err) {
+// Use InterMine API Loader to fetch FatApps client.
+intermine.load('fatapps', function(err) {
     // Instantiate the library pointing to a service.
-    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
-    // Load a specific widget after satisfying its dependencies; passing target & extra config.
-    widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 600, 'symbol': 'MGI:97747' });
+    var client = new intermine.fatApps('http://intermine-fatapps.labs.intermine.org');
+    // Load a specific app after satisfying its dependencies; passing target & extra config.
+    client.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 600, 'symbol': 'MGI:97747' });
 });
         </code></pre>
         <script>
             (function() {
-                this.widgets.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 600, 'symbol': 'MGI:97747' });
+                this.client.load('mouse-phenotype-dendrogram', '#dendrogram', { 'width': 790, 'height': 600, 'symbol': 'MGI:97747' });
             })();
         </script>
         <div id="dendrogram"></div>
@@ -62,17 +62,17 @@ intermine.load('report-widgets', function(err) {
         <div class="twelve columns">
         <h3>Histogram</h3>
         <pre><code data-language="javascript">
-// Use InterMine API Loader to fetch Report Widgets client.
-intermine.load('report-widgets', function(err) {
+// Use InterMine API Loader to fetch FatApps client.
+intermine.load('fatapps', function(err) {
     // Instantiate the library pointing to a service.
-    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
-    // Load a specific widget after satisfying its dependencies; passing target & extra config.
-    widgets.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
+    var client = new intermine.fatApps('http://intermine-fatapps.labs.intermine.org');
+    // Load a specific app after satisfying its dependencies; passing target & extra config.
+    client.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
 });
         </code></pre>
         <script>
             (function() {
-                this.widgets.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
+                this.client.load('spell-histogram', '#spell', { 'type': 'Gene', 'symbol': 'S000001863' });
             })();
         </script>
         <div id="spell"></div>
@@ -83,17 +83,17 @@ intermine.load('report-widgets', function(err) {
         <div class="twelve columns">
         <h3>Gene Mine Pathways</h3>
         <pre><code data-language="javascript">
-// Use InterMine API Loader to fetch Report Widgets client.
-intermine.load('report-widgets', function(err) {
+// Use InterMine API Loader to fetch FatApps client.
+intermine.load('fatapps', function(err) {
     // Instantiate the library pointing to a service.
-    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
-    // Load a specific widget after satisfying its dependencies; passing target & extra config.
-    widgets.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
+    var client = new intermine.fatApps('http://intermine-fatapps.labs.intermine.org');
+    // Load a specific app after satisfying its dependencies; passing target & extra config.
+    client.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
 });
         </code></pre>
         <script>
             (function() {
-                this.widgets.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
+                this.client.load('pathways-displayer', '#pathways', { 'symbol': 'G-ialpha65A' });
             })();
         </script>
         <div id="pathways"></div>
@@ -104,77 +104,21 @@ intermine.load('report-widgets', function(err) {
         <div class="twelve columns">
         <h3>Publications Displayer</h3>
         <pre><code data-language="javascript">
-// Use InterMine API Loader to fetch Report Widgets client.
-intermine.load('report-widgets', function(err) {
+// Use InterMine API Loader to fetch FatApps client.
+intermine.load('fatapps', function(err) {
     // Instantiate the library pointing to a service.
-    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
-    // Load a specific widget after satisfying its dependencies; passing target & extra config.
-    widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
+    var client = new intermine.fatApps('http://intermine-fatapps.labs.intermine.org');
+    // Load a specific app after satisfying its dependencies; passing target & extra config.
+    client.load('publications-displayer', '#publications', { 'symbol': 'zen' });
 });
         </code></pre>
         <script>
             (function() {
-                this.widgets.load('publications-displayer', '#publications', { 'symbol': 'zen' });
+                this.client.load('publications-displayer', '#publications', { 'symbol': 'zen' });
             })();
         </script>
         <div id="publications"></div>
         </div>
     </div>
-<!--
-    <div class="row">
-        <div class="twelve columns">
-        <h3>Ontology Displayer</h3>
-        <pre><code data-language="javascript">
-// Use InterMine API Loader to fetch Report Widgets client.
-intermine.load('report-widgets', function(err) {
-    // Instantiate the library pointing to a service.
-    var widgets = new intermine.reportWidgets('http://intermine-report-widgets-service.labs.intermine.org');
-    // Load a specific widget after satisfying its dependencies; passing target &amp; extra config.
-    widgets.load('ontology-graph', '#ontology', {
-        'service': { root: 'http://www.flymine.org/query' },
-        'interop': [
-            {
-                taxonId: 4932,
-                root: 'yeastmine-test.yeastgenome.org/yeastmine-dev',
-                name: 'SGD'
-            }, {
-                taxonId: 10090,
-                root: 'http://beta.mousemine.org/mousemine',
-                name: 'MGI'
-            }, {
-                taxonId: 6239,
-                root: 'http://intermine.modencode.org/release-32',
-                name: 'modMine'
-            }
-        ],
-        'graphState': { query: 'Adh' }
-    });
-});
-        </code></pre>
-        <script>
-        this.widgets.load('ontology-graph', '#ontology', {
-            'service': { 'root': 'http://www.flymine.org/query' },
-            'interop': [
-                {
-                    'taxonId': 4932,
-                    'root': 'yeastmine-test.yeastgenome.org/yeastmine-dev',
-                    'name': 'SGD'
-                }, {
-                    'taxonId': 10090,
-                    'root': 'http://beta.mousemine.org/mousemine',
-                    'name': 'MGI'
-                }, {
-                    'taxonId': 6239,
-                    'root': 'http://intermine.modencode.org/release-32',
-                    'name': 'modMine'
-                }
-            ],
-            'graphState': { 'query': 'Adh' }
-        });
-        </script>
-        <div id="ontology" style="width: 100%; height: 800px"></div>
-        </div>
-    </div>
--->
 </body>
 </html>

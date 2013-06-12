@@ -1,5 +1,5 @@
 {
-    "name": "intermine-report-widgets-service",
+    "name": "intermine-fatapps",
     "author": "Radek <rs676@cam.ac.uk>",
     "version": "1.0.0-alpha",
     "dependencies": {
@@ -23,9 +23,9 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/radekstepan/report-widgets-service.git"
+        "url": "https://github.com/intermine/intermine-fatapps-middleware.git"
     },
     "scripts": {
-        "start": "index.js"
+        "start": "example/index.js"
     }
 }

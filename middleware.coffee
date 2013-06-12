@@ -39,41 +39,35 @@ routes = (config) ->
             res.write out
             res.end()
 
-    # List all available widgets.
-    '/widget/report':
+    # List all available apps.
+    '/embedding/fatapps':
         'get': ->
             res = respond @res
 
             # Do we have a callback?
             if (callback = urlib.parse(@req.url, true).query?.callback)                
                 out = {}
-                for widget, stuff of config
-                    out[widget] = stuff.dependencies
+                for app, stuff of config
+                    out[app] = stuff.dependencies
 
                 res 200, "#{callback}(#{JSON.stringify(out)});"
             else
                 return res 500, { 'message': 'Provide a `callback` parameter so we can respond with JSONP' }
 
-    '/widget/report/:widgetId':
-        'get': (widgetId) ->
+    # Get a single app.
+    '/embedding/fatapps/:appId':
+        'get': (appId) ->
             res = respond @res
 
             # Do we have a callback?
             if (callback = urlib.parse(@req.url, true).query?.callback)                
                 # Do we know this one?
-                widget = config[widgetId]
-                if widget?
-                    # # Run the precompile.
-                    # byggir.widget widgetId, callback, widget, (err, js) ->
-                    #     return res(500, { 'message': err }) if err
-                        
-                    #     # Write the output.
-                    #     res 200, js
-
+                app = config[appId]
+                if app?
                     # OK we 'should' exist. Do we?
                     async.waterfall [ (cb) ->
-                        fs.exists (path = [ dir, 'tmp/build', widgetId + '.js' ].join('/')), (exists) ->
-                            return cb "`#{widgetId}` file missing" unless exists
+                        fs.exists (path = [ dir, 'tmp/build', appId + '.js' ].join('/')), (exists) ->
+                            return cb "`#{appId}` file missing" unless exists
                             cb null, path
 
                     # Read it then.
@@ -86,14 +80,14 @@ routes = (config) ->
                         js = (js.split("\n")[1...]).join("\n")
                         
                         # Some defaults.
-                        widget.classExpr = widget.classExpr or 'Widget'
-                        widget.config = JSON.stringify widget.config or {}
+                        app.classExpr ?= 'Widget'
+                        app.config = JSON.stringify app.config or {}
                         
                         # Not a default.
-                        widget.callback = callback
+                        app.callback = callback
 
                         # Replace the placeholders with actual values.
-                        for key, value of widget
+                        for key, value of app
                             # Replace this everywhere you see it.
                             js = js.replace new RegExp("#@\\+" + key.toUpperCase(), 'gmi'), value
 
@@ -104,12 +98,12 @@ routes = (config) ->
                         return res 500, { 'message': err } if err
 
                 else
-                    res 400, { 'message': "Unknown widget `#{widgetId}`" }
+                    res 400, { 'message': "Unknown app `#{appId}`" }
             else
                 res 400, { 'message': 'Callback not provided' }
 
 module.exports = (opts) ->
-    { widgets, config } = opts
+    { apps, config } = opts
 
     # Always have an empty one.
     config = config or {}
@@ -150,15 +144,15 @@ module.exports = (opts) ->
         winston.info 'Remove temp directory'
         fs.remove dir + '/tmp', cb
 
-    # Create the build folders for the widgets.
+    # Create the build folders for the apps.
     (cb) ->
         winston.info 'Create temp directory'
         async.eachSeries [ dir + '/tmp/sources', dir + '/tmp/build' ], fs.mkdirs, cb
 
-    # Fetch all of the widgets sources.
+    # Fetch all of the apps sources.
     (cb) ->
-        winston.info 'Fetch widgets sources'
-        # Jobs to run loading all the widget sources.
+        winston.info 'Fetch apps sources'
+        # Jobs to run loading all the apps sources.
         jobs = [] ; folder = 0
 
         process = (path, folder) ->
@@ -186,11 +180,11 @@ module.exports = (opts) ->
 
                     # Build them in series so we can debug which is which.
                     async.eachSeries Object.keys(json), (key, cb) ->
-                        byggir.widget [ dir, 'tmp/sources', folder, key ].join('/'), null, null, (err, js) ->
+                        byggir.app [ dir, 'tmp/sources', folder, key ].join('/'), null, null, (err, js) ->
                             return cb err if err
                             
                             # Since we are writing the result into a file, make sure that the file begins with an exception if read directly.
-                            js = 'new Error(\'This widget cannot be called directly\');\n' + js
+                            js = 'new Error(\'This app cannot be called directly\');\n' + js
 
                             path = [ dir, 'tmp/build', key + '.js' ].join('/')
                             winston.info 'Writing ' + path.bold
@@ -199,9 +193,9 @@ module.exports = (opts) ->
 
                 ], cb
 
-        return cb '`widgets` is not an Array of paths' unless widgets and widgets instanceof Array
-        for path in widgets
-            return cb '`widgets` is an Array of Strings only' if typeof path isnt 'string'
+        return cb '`apps` is not an Array of paths' unless apps and apps instanceof Array
+        for path in apps
+            return cb '`apps` is an Array of Strings only' if typeof path isnt 'string'
             if path.indexOf 'git://' is 0
                 jobs.push process path, folder++
 
