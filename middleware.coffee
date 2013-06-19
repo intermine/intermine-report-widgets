@@ -123,6 +123,9 @@ module.exports = (opts) ->
             switch typeof config
                 # Assume is a path to load.
                 when 'string'
+                    # People will/might pass a file:// prefix.
+                    config = config.replace 'file://', ''
+                    # Actually read.
                     fs.readJson config, (err, json) ->
                         return cb err if err
                         config = json
@@ -205,15 +208,9 @@ module.exports = (opts) ->
                         winston.data 'Maybe app is in ' + path.bold
 
                         # Read the config file maybe?
-                        fs.readFile path + '/' + 'config.json', (err, json) ->
-                            # No JSON, no app man.
+                        fs.readJson path + '/' + 'config.json', (err, json) ->
+                            # No JSON or erroneous JSON, no app man.
                             return cb null if err
-
-                            # Is it actually JSON?
-                            try
-                                json = JSON.parse json
-                            catch err
-                                return cb null # just skip it
 
                             # What is the id of the app again?
                             id = path.split('/').pop()

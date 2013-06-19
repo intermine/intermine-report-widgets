@@ -34,14 +34,14 @@ app = connect()
 http.createServer(app).listen process.env.PORT
 ```
 
-The middleware accepts two params. One, `apps` is an Array of paths to app sources. This can be any of the following:
+The middleware accepts two params. One, `apps`, is an Array of paths to app sources. This can be any of the following:
 
 1. Git paths on the net like: `git://github.com/intermine/example-fatapps.git`
-1. Local file paths: `/home/dev/example-fatapps`
+1. Local file paths: `file:///home/dev/example-fatapps`
 
 The other parameter, `config`, represents the configuration you want merged with the config from the apps sources. This can be one of the following:
 
-1. Local file path: `/home/dev/example-middleware/config.json`
+1. Local file path: `file:///home/dev/example-middleware/config.json`
 1. A plain JS Object.
 
 Only the first parameter is required.
