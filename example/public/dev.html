@@ -1,0 +1,24 @@
+<!doctype html>
+<head>
+    <meta charset="utf-8" />
+
+    <title>Dev Shandbox</title>
+
+    <!-- API loader for dependency resolution -->
+    <script src="http://cdn.intermine.org/js/intermine/api-loader/latest/intermine.api.js"></script>
+
+    <!-- fatapp client -->
+    <script src="js/intermine.fatapps.js"></script>
+
+    <script>
+    (function() {
+        // Pointing to us.
+        var client = new intermine.fatApps('http://127.0.0.1:1234');
+        // Load the app.
+        client.load('identifier-resolution', 'body', {});
+    })();
+    </script>
+</head>
+<body>
+</body>
+</html>

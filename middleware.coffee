@@ -167,13 +167,15 @@ module.exports = (opts) ->
                     winston.data 'Getting ' + path.bold
 
                     # What kind of a job is this?
-                    if path.indexOf 'git://' is 0
+                    if path.indexOf('git://') is 0
                         # Download a Git repo off the net.
                         command = "cd #{dir}/tmp/sources && git clone --depth 1 #{path} #{folder}"
                     
-                    else if path.indexOf 'file://' is 0
+                    else if path.indexOf('file://') is 0
+                        # Remove the file:// prefix.
+                        path = path.replace 'file://', ''
                         # Copy a local path.
-                        command = "cd #{dir}/tmp/sources && cp #{path} #{folder}"
+                        command = "cd #{dir}/tmp/sources && cp -R #{path} #{folder}"
                     
                     else
                         return cb 'Unrecognized path'
