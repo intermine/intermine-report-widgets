@@ -8,7 +8,7 @@ prefix    = require 'prefix-css-node'
 async     = require 'async'
 winston   = require 'winston'
 { exec }  = require 'child_process'
-{ _ }     = require 'underscore'
+{ _ }     = require 'lodash'
 fs        = _.extend require('fs-extra'), require('fs')
 
 winston.cli()

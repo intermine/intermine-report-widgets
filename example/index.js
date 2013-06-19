@@ -11,7 +11,8 @@ byggir = require('../byggir.coffee');
 byggir.client(function() {
     // Setup the Connect middleware.
     app = connect().use(middleware({
-        'apps': ['git://github.com/intermine/example-fatapps.git'],
+        //'apps': ['git://github.com/intermine/example-fatapps.git'],
+        'apps': ['file:///home/radek/dev/example-fatapps'],
         'config': __dirname + '/config.json'
     })).use(connect["static"](__dirname + '/public'));
 

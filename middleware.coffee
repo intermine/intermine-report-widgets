@@ -4,7 +4,7 @@ director = require 'director'
 async    = require 'async'
 winston  = require 'winston'
 { exec } = require 'child_process'
-{ _ }    = require 'underscore'
+{ _ }    = require 'lodash'
 fs       = _.extend require('fs-extra'), require('fs')
 
 winston.cli()
@@ -79,15 +79,18 @@ routes = (config) ->
                         # Remove the leading line.
                         js = (js.split("\n")[1...]).join("\n")
                         
+                        # Make a clone for us.
+                        obj = _.cloneDeep app
+
                         # Some defaults.
-                        app.classExpr ?= 'Widget'
-                        app.config = JSON.stringify app.config or {}
+                        obj.classExpr ?= 'Widget'
+                        obj.config = JSON.stringify obj.config or {}
                         
                         # Not a default.
-                        app.callback = callback
+                        obj.callback = callback
 
                         # Replace the placeholders with actual values.
-                        for key, value of app
+                        for key, value of obj
                             # Replace this everywhere you see it.
                             js = js.replace new RegExp("#@\\+" + key.toUpperCase(), 'gmi'), value
 
