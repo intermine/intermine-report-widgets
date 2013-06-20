@@ -2,7 +2,7 @@
 <head>
     <meta charset="utf-8" />
 
-    <title>Dev Shandbox</title>
+    <title>Dev Sandbox</title>
 
     <!-- API loader for dependency resolution -->
     <script src="http://cdn.intermine.org/js/intermine/api-loader/latest/intermine.api.js"></script>
@@ -12,10 +12,28 @@
 
     <script>
     (function() {
-        // Pointing to us.
-        var client = new intermine.fatApps('http://127.0.0.1:1234');
+        // Pointing to us, sans `/dev.html` suffix.
+        var client = new intermine.fatApps(document.location.href.replace(/\/(.*)$/, ''));
         // Load the app.
-        client.load('identifier-resolution', 'body', {});
+        client.load('identifier-resolution', 'body', {
+            'mine': 'http://beta.flymine.org/beta', // which mine to connect to
+            'type': 'many', // one OR many
+            // Defaults in the forms.
+            'defaults': {
+                'identifiers': 'PPARG ZEN MAD ftz Adh',
+                'type': 'Gene',
+                'organism': 'D. melanogaster'
+            },
+            // A callback called at least once.
+            cb: function(err, working, query) {
+                // Has error happened?
+                if (err) throw err;
+                // Are you working?
+                console.log('working:', working);
+                // Are you done? Dump the query then.
+                console.log('query:', query);
+            }
+        });
     })();
     </script>
 </head>

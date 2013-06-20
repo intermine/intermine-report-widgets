@@ -57,5 +57,17 @@
                 }
             }
         }
+    },
+    "identifier-resolution": {
+        "config": {
+            "pathQueries": {
+                "organisms": {
+                    "select": [
+                        "Organism.shortName",
+                        "Organism.name"
+                    ]
+                }
+            }
+        }
     }
 }
