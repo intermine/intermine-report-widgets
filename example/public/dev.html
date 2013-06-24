@@ -17,12 +17,18 @@
         // Load the app.
         client.load('identifier-resolution', 'body', {
             'mine': 'http://beta.flymine.org/beta', // which mine to connect to
-            'type': 'one', // one OR many
+            'type': 'many', // one OR many
             // Defaults in the forms.
             'defaults': {
                 'identifiers': [ 'PPARG', 'ZEN', 'MAD', 'ftz', 'Adh' ], // one identifier taken from the head
                 'type': 'Gene',
                 'organism': 'D. melanogaster'
+            },
+            // Provided input, if any.
+            'provided': {
+                'identifiers': [ 'MAD' ],
+                'type': 'Gene',
+                'organism': 'C. elegans'
             },
             // A callback called at least once.
             cb: function(err, working, query) {
